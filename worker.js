@@ -78,6 +78,11 @@ async function bumpFail(env, key) {
 }
 const clearFail = (env, key) => env.DB.delete('f:' + key);
 
+const RALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function newRecovery() {                      // 12 chars, shown as XXXX-XXXX-XXXX
+  const b = crypto.getRandomValues(new Uint8Array(12)), c = Array.from(b, (x) => RALPHA[x % RALPHA.length]).join('');
+  return { raw: c, shown: c.slice(0, 4) + '-' + c.slice(4, 8) + '-' + c.slice(8) };
+}
 const validUser = (u) => /^[a-z0-9_.]{3,24}$/.test(u);
 
 /* ---------- API ---------- */
@@ -101,9 +106,10 @@ async function api(req, env, url, p) {
     if (await env.DB.get('u:' + u)) return json({ error: 'That username is already taken.' }, 409);
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const rec = { name: u, salt: b64u(salt), hash: await pbkdf2(pw, salt), created: Date.now(), last: Date.now(), logins: 1, disabled: false };
+    const rc = newRecovery(); rec.rh = await sha256(rc.raw);
     await env.DB.put('u:' + u, JSON.stringify(rec));
     await logEvent(env, req, 'signup', u);
-    return json({ ok: true, role: 'user' }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
+    return json({ ok: true, role: 'user', recovery: rc.shown }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
   }
 
   if (p === '/api/login' && isPost) {
@@ -124,9 +130,11 @@ async function api(req, env, url, p) {
     if (rec.disabled) { await logEvent(env, req, 'login_blocked', u); return json({ error: 'This account has been disabled. Please contact the administrator.' }, 403); }
     await clearFail(env, u);
     rec.last = Date.now(); rec.logins = (rec.logins || 0) + 1;
+    let rc = null;
+    if (!rec.rh) { rc = newRecovery(); rec.rh = await sha256(rc.raw); }      // older accounts: issue a recovery code once
     await env.DB.put('u:' + u, JSON.stringify(rec));
-    await logEvent(env, req, 'login', u);
-    return json({ ok: true, role: 'user' }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
+    await logEvent(env, req, 'login', u, rc ? 'recovery code issued' : '');
+    return json({ ok: true, role: 'user', recovery: rc ? rc.shown : undefined }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
   }
 
   if (p === '/api/logout' && isPost) {
@@ -135,21 +143,26 @@ async function api(req, env, url, p) {
     return json({ ok: true }, 200, { 'set-cookie': setCookie('', 0) });
   }
 
-  if (p === '/api/reset' && isPost) {              // friend uses the admin-issued code
+  if (p === '/api/reset' && isPost) {              // friend uses their recovery code, or an admin-issued code
     const u = String(body.username || '').trim().toLowerCase(), code = String(body.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''), pw = String(body.password || '');
     if (pw.length < 8 || pw.length > 100) return json({ error: 'New password must be at least 8 characters.' }, 400);
     if (await throttle(env, 'r:' + u, 6)) return json({ error: 'Too many attempts. Try again later.' }, 429);
     const rec = await env.DB.get('u:' + u, 'json'), r = await env.DB.get('r:' + u, 'json');
-    if (!rec || !r || r.exp < Date.now() || !timingEq(await sha256(code), r.h)) {
+    const ch = await sha256(code);
+    const viaRecovery = !!(rec && rec.rh && code.length === 12 && timingEq(ch, rec.rh));
+    const viaAdmin = !!(rec && r && r.exp >= Date.now() && timingEq(ch, r.h));
+    if (!viaRecovery && !viaAdmin) {
       await bumpFail(env, 'r:' + u); await logEvent(env, req, 'reset_failed', u);
-      return json({ error: 'Invalid or expired reset code. Ask the administrator for a new one.' }, 400);
+      return json({ error: 'Invalid code. Check your recovery code, or ask the administrator for a reset code.' }, 400);
     }
+    if (rec.disabled) { await logEvent(env, req, 'login_blocked', u, 'reset attempt'); return json({ error: 'This account has been disabled. Please contact the administrator.' }, 403); }
     const salt = crypto.getRandomValues(new Uint8Array(16));
     rec.salt = b64u(salt); rec.hash = await pbkdf2(pw, salt); rec.last = Date.now(); rec.logins = (rec.logins || 0) + 1;
+    const rc = newRecovery(); rec.rh = await sha256(rc.raw);                 // a used recovery code is replaced by a fresh one
     await env.DB.put('u:' + u, JSON.stringify(rec));
     await env.DB.delete('r:' + u); await clearFail(env, u); await clearFail(env, 'r:' + u);
-    await logEvent(env, req, 'password_reset', u);
-    return json({ ok: true, role: 'user' }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
+    await logEvent(env, req, 'password_reset', u, viaRecovery ? 'recovery code' : 'admin code');
+    return json({ ok: true, role: 'user', recovery: rc.shown }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
   }
 
   /* ----- admin only ----- */
@@ -220,20 +233,21 @@ body{min-height:100vh;display:flex;align-items:center;justify-content:center;pad
 h1{margin:0 0 2px;font-size:24px;color:#FFD43B}.sub{margin:0 0 18px;color:#9fb3c3;font-size:14px}
 .tabs{display:flex;gap:6px;margin-bottom:16px}.tabs button{flex:1;padding:9px 4px;border-radius:8px;border:1px solid #2c4357;background:transparent;color:#cbd5df;cursor:pointer}
 .tabs button.on{background:#1b3b52;border-color:#FFD43B;color:#fff}.lang{position:absolute;top:14px;right:14px}.lang button{background:#102535;border:1px solid #2c4357;color:#cbd5df;border-radius:8px;padding:6px 10px;cursor:pointer}
+.note{margin-top:14px;padding:11px 13px;border-radius:10px;background:#12303f;border:1px solid #2c5a73;color:#cfe3ef;font-size:13px;line-height:1.5;display:none}.note b{color:#FFD43B}.note ol{margin:6px 0 0;padding-left:18px}
 .pw{position:relative}.pw input{padding-right:78px}.pw .eye{position:absolute;right:5px;top:5px;bottom:12px;width:68px;border:0;border-radius:7px;background:#1b3b52;color:#e6edf3;cursor:pointer;font-size:13px}.pw .eye:hover{background:#25506d}
 a{color:#74c0fc;cursor:pointer}</style></head><body>
 <div class="lang"><button id="lg">தமிழ்</button></div>
 <div class="card"><h1>Sundarabahu</h1><p class="sub" id="sub">Class 12 Physics learning companion</p>
 <div class="tabs"><button id="t1" class="on"></button><button id="t2"></button><button id="t3"></button></div>
 <form id="f" autocomplete="on"><div id="fields"></div><div class="err" id="err" role="alert"></div><button class="pri" id="go" type="submit"></button></form>
-<p class="mut" id="hint" style="margin-top:14px"></p></div>
+<p class="mut" id="hint" style="margin-top:14px"></p><div class="note" id="note"></div></div>
 <script>
-var T={en:{sub:'Class 12 Physics learning companion',in:'Sign in',up:'Sign up',fg:'Forgot password',user:'Username',pw:'Password',pw2:'Confirm password',code:'Reset code (from administrator)',npw:'New password',
+var T={en:{sub:'Class 12 Physics learning companion',in:'Sign in',up:'Sign up',fg:'Forgot password',user:'Username',pw:'Password',pw2:'Confirm password',code:'Recovery code (or code from administrator)',npw:'New password',
  go_in:'Sign in',go_up:'Create account',go_fg:'Set new password',hup:'Pick any username (3-24 letters, digits, _ or .) and a password of at least 8 characters.',
- hfg:'Ask the administrator for a reset code, then enter it here with a new password.',hin:'',mism:'Passwords do not match.',wait:'Please wait...',net:'Network error. Please try again.',show:'Show',hide:'Hide'},
- ta:{sub:'12-ஆம் வகுப்பு இயற்பியல் கற்றல் துணை',in:'உள்நுழை',up:'பதிவு செய்',fg:'கடவுச்சொல் மறந்தேன்',user:'பயனர் பெயர்',pw:'கடவுச்சொல்',pw2:'கடவுச்சொல்லை உறுதிசெய்',code:'மீட்டமைப்புக் குறியீடு (நிர்வாகியிடமிருந்து)',npw:'புதிய கடவுச்சொல்',
+ hfg:'Enter the recovery code you saved when you signed up, with a new password. Lost it? Ask the administrator for a reset code.',hin:'',mism:'Passwords do not match.',wait:'Please wait...',net:'Network error. Please try again.',show:'Show',hide:'Hide',nup:'<b>Important - your recovery code.</b> After you sign up, a one-time recovery code is shown on screen. Save it (screenshot, note or download). It is the only way to reset a forgotten password yourself.',nfg:'<b>How to reset your password</b><ol><li>Enter your username.</li><li>Enter the recovery code you saved when you signed up.</li><li>Choose a new password and press the button.</li></ol>Lost the code too? Contact the administrator for a one-time reset code.',rt:'Save your recovery code',rd:'If you ever forget your password, this code lets you set a new one yourself. It is shown only once - save it now (screenshot, note or download).',rc:'Copy',rdl:'Download',rok:'I have saved my recovery code',rgo:'Continue',cpd:'Copied'},
+ ta:{sub:'12-ஆம் வகுப்பு இயற்பியல் கற்றல் துணை',in:'உள்நுழை',up:'பதிவு செய்',fg:'கடவுச்சொல் மறந்தேன்',user:'பயனர் பெயர்',pw:'கடவுச்சொல்',pw2:'கடவுச்சொல்லை உறுதிசெய்',code:'மீட்புக் குறியீடு (அல்லது நிர்வாகியின் குறியீடு)',npw:'புதிய கடவுச்சொல்',
  go_in:'உள்நுழை',go_up:'கணக்கை உருவாக்கு',go_fg:'புதிய கடவுச்சொல்லை அமை',hup:'விரும்பிய பயனர் பெயரையும் (3-24 எழுத்து/இலக்கம்/_/.) குறைந்தது 8 எழுத்துக் கடவுச்சொல்லையும் தேர்க.',
- hfg:'நிர்வாகியிடம் மீட்டமைப்புக் குறியீடு பெற்று, புதிய கடவுச்சொல்லுடன் இங்கே உள்ளிடுக.',hin:'',mism:'கடவுச்சொற்கள் பொருந்தவில்லை.',wait:'காத்திருக்கவும்...',net:'இணையப் பிழை. மீண்டும் முயலுக.',show:'காட்டு',hide:'மறை'}};
+ hfg:'பதிவு செய்தபோது சேமித்த மீட்புக் குறியீட்டை புதிய கடவுச்சொல்லுடன் உள்ளிடுக. தொலைந்ததா? நிர்வாகியிடம் மீட்டமைப்புக் குறியீடு கேளுங்கள்.',hin:'',mism:'கடவுச்சொற்கள் பொருந்தவில்லை.',wait:'காத்திருக்கவும்...',net:'இணையப் பிழை. மீண்டும் முயலுக.',show:'காட்டு',hide:'மறை',nup:'<b>முக்கியம் - உங்கள் மீட்புக் குறியீடு.</b> பதிவு செய்தவுடன் ஒருமுறை மட்டும் மீட்புக் குறியீடு திரையில் காட்டப்படும். அதைச் சேமிக்கவும் (ஸ்கிரீன்ஷாட், குறிப்பு அல்லது பதிவிறக்கம்). கடவுச்சொல்லை மறந்தால் நீங்களே மீட்க இதுவே ஒரே வழி.',nfg:'<b>கடவுச்சொல்லை மீட்பது எப்படி</b><ol><li>உங்கள் பயனர் பெயரை உள்ளிடுக.</li><li>பதிவு செய்தபோது சேமித்த மீட்புக் குறியீட்டை உள்ளிடுக.</li><li>புதிய கடவுச்சொல்லைத் தேர்ந்து பொத்தானை அழுத்துக.</li></ol>குறியீடும் தொலைந்ததா? நிர்வாகியைத் தொடர்புகொண்டு ஒருமுறை மீட்டமைப்புக் குறியீடு பெறுக.',rt:'உங்கள் மீட்புக் குறியீட்டைச் சேமிக்கவும்',rd:'கடவுச்சொல்லை மறந்தால், இந்தக் குறியீட்டால் நீங்களே புதியதை அமைக்கலாம். இது ஒருமுறை மட்டுமே காட்டப்படும் - இப்போதே சேமிக்கவும் (ஸ்கிரீன்ஷாட், குறிப்பு அல்லது பதிவிறக்கம்).',rc:'நகலெடு',rdl:'பதிவிறக்கு',rok:'என் மீட்புக் குறியீட்டைச் சேமித்துவிட்டேன்',rgo:'தொடர்க',cpd:'நகலெடுக்கப்பட்டது'}};
 var lang=localStorage.getItem('sb_lang')||'en',mode='in',$=function(i){return document.getElementById(i)};
 function fld(id,label,type,ac){var i='<input id="'+id+'" type="'+type+'" autocomplete="'+ac+'" required>';
  if(type==='password')i='<div class="pw">'+i+'<button type="button" class="eye" data-for="'+id+'" aria-label="'+T[lang].show+'">\u{1F441} '+T[lang].show+'</button></div>';
@@ -243,7 +257,7 @@ function render(){var t=T[lang];document.documentElement.lang=lang;$('sub').text
  var h='';if(mode==='in')h=fld('u',t.user,'text','username')+fld('p',t.pw,'password','current-password');
  if(mode==='up')h=fld('u',t.user,'text','username')+fld('p',t.pw,'password','new-password')+fld('p2',t.pw2,'password','new-password');
  if(mode==='fg')h=fld('u',t.user,'text','username')+fld('c',t.code,'text','one-time-code')+fld('p',t.npw,'password','new-password');
- $('fields').innerHTML=h;$('go').textContent=t['go_'+mode];$('hint').textContent=mode==='up'?t.hup:mode==='fg'?t.hfg:'';$('err').textContent='';localStorage.setItem('sb_lang',lang)}
+ $('fields').innerHTML=h;$('go').textContent=t['go_'+mode];$('hint').textContent=mode==='up'?t.hup:mode==='fg'?t.hfg:'';$('err').textContent='';var nt=$('note');nt.innerHTML=mode==='up'?t.nup:mode==='fg'?t.nfg:'';nt.style.display=mode==='in'?'none':'block';localStorage.setItem('sb_lang',lang)}
 $('fields').addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.eye');if(!b)return;var i=$(b.getAttribute('data-for')),t=T[lang],h=i.type==='password';i.type=h?'text':'password';b.textContent='\u{1F441} '+(h?t.hide:t.show);b.setAttribute('aria-label',h?t.hide:t.show)});
 $('lg').onclick=function(e){e.preventDefault();lang=lang==='en'?'ta':'en';render()};
 ['t1','t2','t3'].forEach(function(x,i){$(x).onclick=function(){mode=['in','up','fg'][i];render()}});
@@ -252,8 +266,18 @@ $('f').onsubmit=function(e){e.preventDefault();var t=T[lang],b={username:$('u').
  else if(mode==='fg'){b.code=$('c').value;b.password=$('p').value;url='/api/reset'}else b.password=$('p').value;
  $('go').disabled=true;$('err').className='err ok';$('err').textContent=t.wait;
  fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){return [r.ok,j]})}).then(function(a){
-  if(a[0]){location.href=a[1].role==='admin'?'/admin':'/'}else{$('err').className='err';$('err').textContent=a[1].error||'Error';$('go').disabled=false}
+  if(a[0]){if(a[1].recovery){showRec(a[1].recovery)}else{location.href=a[1].role==='admin'?'/admin':'/'}}else{$('err').className='err';$('err').textContent=a[1].error||'Error';$('go').disabled=false}
  }).catch(function(){$('err').className='err';$('err').textContent=t.net;$('go').disabled=false})};
+function showRec(code){var t=T[lang],c=document.querySelector('.card'),sep=String.fromCharCode(10);
+ c.innerHTML='<h1>Sundarabahu</h1><p class="sub"></p><h2 style="margin:6px 0 8px;font-size:18px;color:#fff">'+t.rt+'</h2><p class="mut" style="margin:0 0 12px">'+t.rd+'</p>'
+ +'<div id="rcode" style="font:700 24px/1.2 ui-monospace,Consolas,monospace;letter-spacing:2px;text-align:center;padding:16px 8px;border:2px dashed #FFD43B;border-radius:10px;background:#102535;color:#FFD43B;user-select:all">'+code+'</div>'
+ +'<div style="display:flex;gap:8px;margin:12px 0"><button type="button" id="rcp" class="pri" style="background:#1b3b52;color:#fff">'+t.rc+'</button><button type="button" id="rdn" class="pri" style="background:#1b3b52;color:#fff">'+t.rdl+'</button></div>'
+ +'<label style="display:flex;gap:8px;align-items:center;margin:6px 0 14px;color:#cbd5df;font-size:14px"><input id="rck" type="checkbox" style="width:auto;margin:0"> '+t.rok+'</label>'
+ +'<button type="button" id="rgo" class="pri" disabled>'+t.rgo+'</button>';
+ $('rck').onchange=function(){$('rgo').disabled=!$('rck').checked};
+ $('rgo').onclick=function(){location.href='/'};
+ $('rcp').onclick=function(){var b=$('rcp');try{navigator.clipboard.writeText(code).then(function(){b.textContent=t.cpd})}catch(e){var r=document.createRange();r.selectNodeContents($('rcode'));var s=getSelection();s.removeAllRanges();s.addRange(r)}};
+ $('rdn').onclick=function(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['Sundarabahu recovery code'+sep+code+sep],{type:'text/plain'}));a.download='sundarabahu-recovery-code.txt';document.body.appendChild(a);a.click();a.remove()}}
 render();
 </script></body></html>`;
 
