@@ -220,6 +220,7 @@ body{min-height:100vh;display:flex;align-items:center;justify-content:center;pad
 h1{margin:0 0 2px;font-size:24px;color:#FFD43B}.sub{margin:0 0 18px;color:#9fb3c3;font-size:14px}
 .tabs{display:flex;gap:6px;margin-bottom:16px}.tabs button{flex:1;padding:9px 4px;border-radius:8px;border:1px solid #2c4357;background:transparent;color:#cbd5df;cursor:pointer}
 .tabs button.on{background:#1b3b52;border-color:#FFD43B;color:#fff}.lang{position:absolute;top:14px;right:14px}.lang button{background:#102535;border:1px solid #2c4357;color:#cbd5df;border-radius:8px;padding:6px 10px;cursor:pointer}
+.pw{position:relative}.pw input{padding-right:78px}.pw .eye{position:absolute;right:5px;top:5px;bottom:12px;width:68px;border:0;border-radius:7px;background:#1b3b52;color:#e6edf3;cursor:pointer;font-size:13px}.pw .eye:hover{background:#25506d}
 a{color:#74c0fc;cursor:pointer}</style></head><body>
 <div class="lang"><button id="lg">தமிழ்</button></div>
 <div class="card"><h1>Sundarabahu</h1><p class="sub" id="sub">Class 12 Physics learning companion</p>
@@ -229,18 +230,21 @@ a{color:#74c0fc;cursor:pointer}</style></head><body>
 <script>
 var T={en:{sub:'Class 12 Physics learning companion',in:'Sign in',up:'Sign up',fg:'Forgot password',user:'Username',pw:'Password',pw2:'Confirm password',code:'Reset code (from administrator)',npw:'New password',
  go_in:'Sign in',go_up:'Create account',go_fg:'Set new password',hup:'Pick any username (3-24 letters, digits, _ or .) and a password of at least 8 characters.',
- hfg:'Ask the administrator for a reset code, then enter it here with a new password.',hin:'',mism:'Passwords do not match.',wait:'Please wait...',net:'Network error. Please try again.'},
+ hfg:'Ask the administrator for a reset code, then enter it here with a new password.',hin:'',mism:'Passwords do not match.',wait:'Please wait...',net:'Network error. Please try again.',show:'Show',hide:'Hide'},
  ta:{sub:'12-ஆம் வகுப்பு இயற்பியல் கற்றல் துணை',in:'உள்நுழை',up:'பதிவு செய்',fg:'கடவுச்சொல் மறந்தேன்',user:'பயனர் பெயர்',pw:'கடவுச்சொல்',pw2:'கடவுச்சொல்லை உறுதிசெய்',code:'மீட்டமைப்புக் குறியீடு (நிர்வாகியிடமிருந்து)',npw:'புதிய கடவுச்சொல்',
  go_in:'உள்நுழை',go_up:'கணக்கை உருவாக்கு',go_fg:'புதிய கடவுச்சொல்லை அமை',hup:'விரும்பிய பயனர் பெயரையும் (3-24 எழுத்து/இலக்கம்/_/.) குறைந்தது 8 எழுத்துக் கடவுச்சொல்லையும் தேர்க.',
- hfg:'நிர்வாகியிடம் மீட்டமைப்புக் குறியீடு பெற்று, புதிய கடவுச்சொல்லுடன் இங்கே உள்ளிடுக.',hin:'',mism:'கடவுச்சொற்கள் பொருந்தவில்லை.',wait:'காத்திருக்கவும்...',net:'இணையப் பிழை. மீண்டும் முயலுக.'}};
+ hfg:'நிர்வாகியிடம் மீட்டமைப்புக் குறியீடு பெற்று, புதிய கடவுச்சொல்லுடன் இங்கே உள்ளிடுக.',hin:'',mism:'கடவுச்சொற்கள் பொருந்தவில்லை.',wait:'காத்திருக்கவும்...',net:'இணையப் பிழை. மீண்டும் முயலுக.',show:'காட்டு',hide:'மறை'}};
 var lang=localStorage.getItem('sb_lang')||'en',mode='in',$=function(i){return document.getElementById(i)};
-function fld(id,label,type,ac){return '<label for="'+id+'" class="mut">'+label+'</label><input id="'+id+'" type="'+type+'" autocomplete="'+ac+'" required>'}
+function fld(id,label,type,ac){var i='<input id="'+id+'" type="'+type+'" autocomplete="'+ac+'" required>';
+ if(type==='password')i='<div class="pw">'+i+'<button type="button" class="eye" data-for="'+id+'" aria-label="'+T[lang].show+'">\u{1F441} '+T[lang].show+'</button></div>';
+ return '<label for="'+id+'" class="mut">'+label+'</label>'+i}
 function render(){var t=T[lang];document.documentElement.lang=lang;$('sub').textContent=t.sub;$('t1').textContent=t.in;$('t2').textContent=t.up;$('t3').textContent=t.fg;$('lg').textContent=lang==='en'?'தமிழ்':'English';
  ['t1','t2','t3'].forEach(function(x,i){$(x).className=(['in','up','fg'][i]===mode)?'on':''});
  var h='';if(mode==='in')h=fld('u',t.user,'text','username')+fld('p',t.pw,'password','current-password');
  if(mode==='up')h=fld('u',t.user,'text','username')+fld('p',t.pw,'password','new-password')+fld('p2',t.pw2,'password','new-password');
  if(mode==='fg')h=fld('u',t.user,'text','username')+fld('c',t.code,'text','one-time-code')+fld('p',t.npw,'password','new-password');
  $('fields').innerHTML=h;$('go').textContent=t['go_'+mode];$('hint').textContent=mode==='up'?t.hup:mode==='fg'?t.hfg:'';$('err').textContent='';localStorage.setItem('sb_lang',lang)}
+$('fields').addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.eye');if(!b)return;var i=$(b.getAttribute('data-for')),t=T[lang],h=i.type==='password';i.type=h?'text':'password';b.textContent='\u{1F441} '+(h?t.hide:t.show);b.setAttribute('aria-label',h?t.hide:t.show)});
 $('lg').onclick=function(e){e.preventDefault();lang=lang==='en'?'ta':'en';render()};
 ['t1','t2','t3'].forEach(function(x,i){$(x).onclick=function(){mode=['in','up','fg'][i];render()}});
 $('f').onsubmit=function(e){e.preventDefault();var t=T[lang],b={username:$('u').value},url='/api/login';
