@@ -83,6 +83,7 @@ function newRecovery() {                      // 12 chars, shown as XXXX-XXXX-XX
   const b = crypto.getRandomValues(new Uint8Array(12)), c = Array.from(b, (x) => RALPHA[x % RALPHA.length]).join('');
   return { raw: c, shown: c.slice(0, 4) + '-' + c.slice(4, 8) + '-' + c.slice(8) };
 }
+const PTITLES = ["Why the Sky Is Blue", "How a Rainbow Forms", "Why Ice Floats", "The Speed of Light", "How Aeroplanes Fly", "Why We Have Seasons", "Sound and Echoes", "The Magic of Magnets", "How Electricity Reaches Your Home", "Why the Moon Has Phases", "Our Solar System", "How Stars Are Born and Die", "The Tides of the Ocean", "Earthquakes and the Moving Earth", "The Monsoon: India's Great Rain", "Volcanoes: Fire from Within", "Solar and Lunar Eclipses", "Reading the Night Sky: Constellations", "Where Does Our Water Come From? The Water Cycle", "The Human Heart", "Why We Need Sleep", "Water and Your Body", "A Balanced Plate", "How Vaccines Protect Us", "The Brain and Its Billions of Neurons", "The Power of Daily Exercise", "Wash Your Hands: The Story of Dr Semmelweis", "How We See", "The Science of Breath", "The Gift of Zero", "The Mystery of Pi", "Fibonacci Numbers in Nature", "Ramanujan: The Man Who Knew Infinity", "The Secret of Prime Numbers", "Aryabhata, the Astronomer of Kusumapura", "The Mathematics of Chance", "The Power of Compound Interest", "Delightful Number Patterns", "How Computers Count: The Binary System", "The Indus Valley: India's First Cities", "Ashoka: From War to Compassion", "Nalanda: A University of Ancient India", "The Cholas and the Great Temple of Thanjavur", "Pallava Kanchi: A City of Learning and Temples", "Mahabalipuram: Poetry in Stone", "The Salt March: A Walk That Shook an Empire", "The Constitution of India", "Keezhadi: A Window into Ancient Tamil Life", "India's Gifts to the World", "Thirukkural: Wisdom in Two Lines", "Panini and the Perfect Grammar", "Palm-Leaf Manuscripts: The Treasure of Memory", "Sanskrit in Our Everyday Words", "Tamil: A Classical Language", "Silappathikaram: The Story of the Anklet", "Bharathiyar: The Fearless Poet", "Avvaiyar and Aathichoodi: First Lessons in Good Living", "The Bhagavad Gita: Duty Without Anxiety", "The Story of Writing", "Isaac Newton: The Man Who Explained the Heavens", "Marie Curie: Two Nobel Prizes in Two Sciences", "Albert Einstein: Curiosity That Changed Physics", "A. P. J. Abdul Kalam: The People's President", "C. V. Raman: Why Is the Sea Blue?", "S. Chandrasekhar: A Young Mind on a Ship", "Michael Faraday: From Bookbinder to Scientist", "J. C. Bose: Do Plants Feel?", "Savitribai Phule: India's First Woman Teacher", "Swami Vivekananda: Arise, Awake", "Trees: Nature's Air Conditioners", "The Western Ghats: A Mountain Treasure", "Understanding Climate Change", "The Plastic Problem", "Mangroves: Forests of the Sea", "The Cauvery: The River of the South", "The Soil Beneath Our Feet", "Powering the Future: Renewable Energy", "The Oceans: Earth's Blue Heart", "Why Every Species Matters", "How the Internet Works", "Printing: How Books Reached Everyone", "Artificial Intelligence: Learning Machines", "How GPS Finds You", "The Transistor: The Tiny Switch That Changed the World", "Staying Safe Online", "UPI: Money in a Moment", "Electric Vehicles: Cars Without Exhaust", "Robots: Machines That Sense, Think and Act", "Simple Machines: Making Work Easier", "The Power of Yet", "The Habit of Reading", "How to Remember What You Learn", "The Power of Good Questions", "Managing Your Time", "Truth: The Strongest Habit", "The Magic of Gratitude", "Teamwork: Together We Achieve More", "Staying Calm Under Pressure", "The Story of Money and the Joy of Saving", "Black Holes: Gravity's Deepest Pits"];
 const validUser = (u) => /^[a-z0-9_.]{3,24}$/.test(u);
 
 /* ---------- API ---------- */
@@ -165,6 +166,38 @@ async function api(req, env, url, p) {
     return json({ ok: true, role: 'user', recovery: rc.shown }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'user', 30 * 86400), 30 * 86400) });
   }
 
+  /* ----- reading progress (signed-in users) ----- */
+  if (p === '/api/progress') {
+    const s = await getSession(req, env);
+    if (!s) return json({ error: 'sign in required' }, 401);
+    const key = 'p:' + s.u;
+    const old = (await env.DB.get(key, 'json')) || { d: {}, days: [] };
+    if (!isPost) return json({ p: old });
+    const nd = body.d && typeof body.d === 'object' ? body.d : null;
+    if (!nd) return json({ error: 'bad data' }, 400);
+    const out = {}, fresh = [];
+    for (const id of new Set([...Object.keys(old.d || {}), ...Object.keys(nd)])) {
+      const n = parseInt(id, 10);
+      if (!(n >= 1 && n <= 100)) continue;
+      const a = (old.d || {})[id] || {}, b = nd[id] || {};
+      const num = (v, lo, hi, dflt) => { v = Number(v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : dflt; };
+      const c1 = num(a.c, 0, 9e12, 0), c2 = num(b.c, 0, Date.now() + 864e5, 0);
+      const rec = {
+        r: Math.max(num(a.r, 0, 3, 0), num(b.r, 0, 3, 0)),
+        s: Math.max(num(a.s, -1, 3, -1), num(b.s, -1, 3, -1)),
+        n: Math.max(num(a.n, 0, 999, 0), num(b.n, 0, 999, 0)),
+        c: c1 && c2 ? Math.min(c1, c2) : (c1 || c2),
+        t: Math.max(num(a.t, 0, 9e12, 0), num(b.t, 0, Date.now() + 864e5, 0))
+      };
+      if (rec.c && !c1) fresh.push(n);
+      out[id] = rec;
+    }
+    const days = [...new Set([...(old.days || []), ...(Array.isArray(body.days) ? body.days : [])].filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().slice(-400);
+    await env.DB.put(key, JSON.stringify({ d: out, days, u: Date.now() }));
+    for (const n of fresh.slice(0, 5)) await logEvent(env, req, 'passage_completed', s.u, '#' + n + ' ' + (PTITLES[n - 1] || ''));
+    return json({ ok: true });
+  }
+
   /* ----- admin only ----- */
   if (p.startsWith('/api/admin/')) {
     const s = await getSession(req, env);
@@ -193,6 +226,18 @@ async function api(req, env, url, p) {
       } while (cursor && out.length < want);
       return json({ log: out });
     }
+    if (p === '/api/admin/progress') {
+      const out = []; let cursor;
+      do {
+        const l = await env.DB.list({ prefix: 'p:', cursor, limit: 1000 });
+        for (const k of l.keys) {
+          const r = await env.DB.get(k.name, 'json');
+          if (r) out.push({ user: k.name.slice(2), d: r.d || {}, days: (r.days || []).length, u: r.u || 0 });
+        }
+        cursor = l.list_complete ? null : l.cursor;
+      } while (cursor);
+      return json({ progress: out, titles: PTITLES });
+    }
     const target = String(body.user || '').trim().toLowerCase();
     if (p === '/api/admin/reset-code' && isPost) {
       const rec = await env.DB.get('u:' + target, 'json');
@@ -212,7 +257,7 @@ async function api(req, env, url, p) {
       return json({ ok: true });
     }
     if (p === '/api/admin/delete' && isPost) {
-      await env.DB.delete('u:' + target); await env.DB.delete('r:' + target);
+      await env.DB.delete('u:' + target); await env.DB.delete('r:' + target); await env.DB.delete('p:' + target);
       await logEvent(env, req, 'account_deleted', target, 'by admin');
       return json({ ok: true });
     }
@@ -295,15 +340,16 @@ th{background:#12293b;position:sticky;top:0}tr:hover td{background:#10283a}.tag{
 <div class="top"><div><h1>Sundarabahu - Admin</h1><div class="mut">Accounts and activity (times shown in IST)</div></div>
 <div><a href="/">Open the app</a> <button id="rf">Refresh</button> <button id="lo">Log out</button></div></div>
 <div class="cards"><div class="c"><b id="n1">-</b>registered users</div><div class="c"><b id="n2">-</b>sign-ups today</div><div class="c"><b id="n3">-</b>sign-ins today</div><div class="c"><b id="n4">-</b>failed attempts today</div></div>
-<div class="tabs"><button id="b1" class="on">Activity log</button><button id="b2">Users</button></div>
+<div class="tabs"><button id="b1" class="on">Activity log</button><button id="b2">Users</button><button id="b3">Passage progress</button></div>
 <div id="p1"><div class="tools"><input id="q" placeholder="Filter by username..."><select id="ev"><option value="">All events</option></select><button id="csv" class="pri" style="width:auto;padding:8px 14px">Download CSV</button></div>
 <div class="wrap" style="max-height:62vh"><table><thead><tr><th>When (IST)</th><th>Username</th><th>Event</th><th>Place</th><th>Device</th><th>Note</th></tr></thead><tbody id="lg"></tbody></table></div><div class="mut" id="lc" style="margin-top:6px"></div></div>
 <div id="p2" style="display:none"><div class="wrap"><table><thead><tr><th>Username</th><th>Signed up</th><th>Last sign-in</th><th>Sign-ins</th><th>Status</th><th>Actions</th></tr></thead><tbody id="us"></tbody></table></div></div>
+<div id="p3" style="display:none"><div class="tools"><button id="pcsv" class="pri" style="width:auto;padding:8px 14px">Download CSV</button><span class="mut" id="pn"></span></div><div class="wrap"><table><thead><tr><th>Username</th><th>Completed</th><th>Pages read</th><th>Quiz avg</th><th>Reading days</th><th>Last read</th><th></th></tr></thead><tbody id="pr"></tbody></table></div></div>
 <div id="toast"></div>
 <script>
 var LOG=[],US=[],$=function(i){return document.getElementById(i)};
-var NAMES={signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted'};
-var CLS={signup:'sg',login:'li',admin_login:'li',login_failed:'bad',locked:'bad',login_blocked:'bad',reset_failed:'bad',reset_code_issued:'rs',password_reset:'rs',account_deleted:'bad',account_disabled:'bad'};
+var NAMES={passage_completed:'Passage completed',signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted'};
+var CLS={passage_completed:'sg',signup:'sg',login:'li',admin_login:'li',login_failed:'bad',locked:'bad',login_blocked:'bad',reset_failed:'bad',reset_code_issued:'rs',password_reset:'rs',account_deleted:'bad',account_disabled:'bad'};
 function ist(t){return t?new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}):'-'}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function toast(m,ms){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(function(){t.style.display='none'},ms||3500)}
@@ -322,8 +368,21 @@ $('us').onclick=function(e){var b=e.target.closest('button');if(!b)return;var u=
  if(a==='rs')api('/api/admin/reset-code',{user:u}).then(function(r){if(r.code){prompt('One-time reset code for '+u+' (valid '+r.hours+' h). Give it to them; they use "Forgot password" on the sign-in page.',r.code);load()}else toast(r.error)});
  if(a==='ds'){var u2=US.filter(function(x){return x.user===u})[0];api('/api/admin/disable',{user:u,disabled:!u2.disabled}).then(function(){load()})}
  if(a==='rm'&&confirm('Delete account "'+u+'"? This cannot be undone.'))api('/api/admin/delete',{user:u}).then(function(){load()})};
-$('b1').onclick=function(){$('b1').className='on';$('b2').className='';$('p1').style.display='';$('p2').style.display='none'};
-$('b2').onclick=function(){$('b2').className='on';$('b1').className='';$('p2').style.display='';$('p1').style.display='none'};
+var PR=[],PT=[];
+function psum(u){var d=u.d,done=0,pg=0,qs=0,qn=0,last=0;Object.keys(d).forEach(function(k){var r=d[k];pg+=r.r||0;if(r.c)done++;if(r.s>=0){qs+=r.s;qn+=3}if(r.t>last)last=r.t});return {done:done,pg:pg,avg:qn?Math.round(100*qs/qn):null,last:last}}
+function drawProg(){var rows=PR.map(function(u){return {u:u,s:psum(u)}}).sort(function(a,b){return b.s.done-a.s.done||b.s.last-a.s.last});
+ $('pn').textContent=rows.length+' reader(s) with progress';
+ $('pr').innerHTML=rows.map(function(x){var s=x.s;return '<tr class="row"><td><b>'+esc(x.u.user)+'</b></td><td>'+s.done+' / 100</td><td>'+s.pg+' / 300</td><td>'+(s.avg==null?'-':s.avg+'%')+'</td><td>'+x.u.days+'</td><td>'+ist(s.last)+'</td><td><button data-pu="'+esc(x.u.user)+'">Details</button></td></tr><tr id="pd-'+esc(x.u.user)+'" style="display:none"><td colspan="7" id="pdc-'+esc(x.u.user)+'"></td></tr>'}).join('')||'<tr><td colspan="7" class="mut">No reading progress yet.</td></tr>'}
+$('pr').onclick=function(e){var b=e.target.closest('button');if(!b)return;var u=b.dataset.pu,row=document.getElementById('pd-'+u),c=document.getElementById('pdc-'+u);
+ if(row.style.display===''){row.style.display='none';return}
+ var rec=PR.filter(function(x){return x.user===u})[0],ids=Object.keys(rec.d).map(Number).sort(function(a,b){return a-b});
+ c.innerHTML='<table><thead><tr><th>#</th><th>Passage</th><th>Pages</th><th>Quiz (best)</th><th>Attempts</th><th>Completed</th></tr></thead><tbody>'+ids.map(function(i){var r=rec.d[i];return '<tr><td>'+i+'</td><td>'+esc(PT[i-1]||'')+'</td><td>'+r.r+'/3</td><td>'+(r.s>=0?r.s+'/3':'-')+'</td><td>'+r.n+'</td><td>'+(r.c?ist(r.c):'in progress')+'</td></tr>'}).join('')+'</tbody></table>';
+ row.style.display=''};
+function loadProg(){return api('/api/admin/progress').then(function(r){PR=r.progress;PT=r.titles;drawProg()}).catch(function(){})}
+$('pcsv').onclick=function(){var rows=[['username','passage_no','passage','pages_read','best_quiz_score_of_3','quiz_attempts','completed_ist']];PR.forEach(function(u){Object.keys(u.d).sort(function(a,b){return a-b}).forEach(function(i){var r=u.d[i];rows.push([u.user,i,PT[i-1]||'',r.r,r.s>=0?r.s:'',r.n,r.c?ist(r.c):''])})});
+ var s=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'}).join(',')}).join('\\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+s],{type:'text/csv'}));a.download='sundarabahu-passage-progress.csv';a.click()};
+function tabs(n){['1','2','3'].forEach(function(k){$('b'+k).className=k===n?'on':'';$('p'+k).style.display=k===n?'':'none'});if(n==='3')loadProg()}
+$('b1').onclick=function(){tabs('1')};$('b2').onclick=function(){tabs('2')};$('b3').onclick=function(){tabs('3')};
 $('q').oninput=drawLog;$('ev').onchange=drawLog;$('rf').onclick=function(){load().then(function(){toast('Refreshed',1200)})};
 $('lo').onclick=function(){api('/api/logout',{}).then(function(){location.href='/'})};
 $('csv').onclick=function(){var rows=[['when_ist','username','event','city','country','device','note']].concat(LOG.map(function(l){return [ist(l.t),l.u,NAMES[l.e]||l.e,l.city,l.c,l.b,l.n]}));
