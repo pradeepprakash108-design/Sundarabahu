@@ -325,7 +325,9 @@ h2{background:linear-gradient(90deg,var(--accent),var(--c-five));-webkit-backgro
 .psync{font-size:.75rem;color:var(--muted)}
 .tabbar.off2 .in{grid-template-columns:repeat(2,1fr)!important}
 @media (min-width:760px){.tabbar.off2 .in{grid-template-columns:repeat(2,minmax(0,12rem))!important}}
-.brandrow>div:first-child{min-width:0;flex:1 1 auto}.streak{max-width:8rem;overflow:hidden;text-overflow:ellipsis}.sbw .streak{max-width:6.5rem}
+.brandrow>div:first-child{min-width:0;flex:1 1 auto}h2{line-height:1.35;padding-bottom:.12em}h1{line-height:1.2}
+h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
+@media (max-width:520px){.sbw .streak{max-width:6.5rem;overflow:hidden;text-overflow:ellipsis}}
 </style>
 
 <header class="top"><div class="wrap">
@@ -8048,6 +8050,62 @@ var PASSAGES=[{"s":"Physics and Everyday Science","t":"Why the Sky Is Blue","p":
       });
     }).catch(function(){});
   }catch(e){}
+})();
+
+/* ---------- profile menu + log out (online/login version only) ---------- */
+(function(){
+  fetch('/api/me',{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.user)return;
+    return fetch('/api/avatar',{cache:'no-store'}).then(function(r){return r.ok?r.json():{}}).catch(function(){return {}}).then(function(a){
+      window.__SB={u:j.user,r:j.role,img:(a&&typeof a.img==='string')?a.img:''};
+(function(){
+var D=window.__SB,$=function(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+var st=document.createElement('style');st.textContent=
+'.sbw{display:flex;align-items:center;gap:8px;flex:none}'+
+'.sbav{width:42px;height:42px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:#A63446 center/cover no-repeat;color:#fff;font:700 18px system-ui,sans-serif;cursor:pointer;display:grid;place-items:center;padding:0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.25)}'+
+'.sbav:focus-visible{outline:3px solid #F8E9C9;outline-offset:2px}'+
+'.sbm{position:absolute;right:0;top:50px;z-index:2147483000;width:250px;background:var(--card,#FFFBF4);color:var(--ink,#2B1A17);border:1px solid var(--line,#E2D3BF);border-radius:16px;box-shadow:0 14px 40px rgba(60,30,20,.30);padding:16px;font:15px system-ui,sans-serif;display:none}'+
+'.sbm.open{display:block}.sbm .big{width:84px;height:84px;border-radius:50%;margin:0 auto 8px;background:#A63446 center/cover no-repeat;color:#fff;font:700 34px system-ui;display:grid;place-items:center;border:3px solid var(--line,#E2D3BF)}'+
+'.sbm .nm{text-align:center;font-weight:700;font-size:16px;word-break:break-all}.sbm .rl{text-align:center;color:var(--muted,#6B5650);font-size:12px;margin-bottom:12px}'+
+'.sbm button,.sbm a{display:block;width:100%;text-align:center;box-sizing:border-box;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--line,#E2D3BF);background:transparent;color:var(--ink,#2B1A17);font:600 14px system-ui;cursor:pointer;text-decoration:none}'+
+'.sbm button.out{background:#7A1F2B;color:#fff;border-color:#7A1F2B}.sbm .msg{font-size:12px;color:var(--muted,#6B5650);text-align:center;margin-top:8px;min-height:14px}';
+document.head.appendChild(st);
+var wrap=$('div','sbw'),btn=$('button','sbav'),menu=$('div','sbm'),big=$('div','big'),msg=$('div','msg');
+btn.type='button';btn.setAttribute('aria-haspopup','true');btn.setAttribute('aria-expanded','false');btn.title='Your profile';
+menu.setAttribute('role','menu');
+var init=(D.u||'?').charAt(0).toUpperCase();
+function paint(){[btn,big].forEach(function(e){if(D.img){e.style.backgroundImage='url("'+D.img+'")';e.textContent=''}else{e.style.backgroundImage='none';e.textContent=init}});
+ rm.style.display=D.img?'block':'none';btn.setAttribute('aria-label','Profile and log out for '+D.u)}
+var nm=$('div','nm',D.u),rl=$('div','rl',D.r==='admin'?'Administrator':'Signed in');
+var file=document.createElement('input');file.type='file';file.accept='image/*';file.style.display='none';
+var ch=$('button',null,'Change photo');ch.type='button';var rm=$('button',null,'Remove photo');rm.type='button';
+var out=$('button','out','Log out');out.type='button';
+menu.append(big,nm,rl,ch,rm,file);
+if(D.r==='admin'){var ad=$('a',null,'Admin dashboard');ad.href='/admin';menu.append(ad)}
+menu.append(out,msg);
+function post(img){return fetch('/api/avatar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({img:img})}).then(function(r){return r.json()})}
+ch.onclick=function(){file.click()};
+file.onchange=function(){var f=file.files[0];file.value='';if(!f)return;
+ if(!/^image\//.test(f.type)){msg.textContent='Please choose an image file.';return}
+ var im=new Image(),u=URL.createObjectURL(f);
+ im.onload=function(){var s=Math.min(im.width,im.height),c=document.createElement('canvas');c.width=c.height=160;
+  c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,160,160);URL.revokeObjectURL(u);
+  var q=.85,d=c.toDataURL('image/jpeg',q);while(d.length>60000&&q>.3){q-=.1;d=c.toDataURL('image/jpeg',q)}
+  msg.textContent='Saving...';post(d).then(function(j){if(j.ok){D.img=d;paint();msg.textContent='Photo saved.'}else msg.textContent=j.error||'Could not save.'}).catch(function(){msg.textContent='Network error.'})};
+ im.onerror=function(){msg.textContent='That image could not be read.'};im.src=u};
+rm.onclick=function(){post('').then(function(){D.img='';paint();msg.textContent='Photo removed.'})};
+out.onclick=function(){out.disabled=true;fetch('/api/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(function(){location.href='/'}).catch(function(){location.href='/'})};
+function tog(o){var v=o==null?!menu.classList.contains('open'):o;menu.classList.toggle('open',v);btn.setAttribute('aria-expanded',v?'true':'false');if(v)msg.textContent=''}
+btn.onclick=function(e){e.stopPropagation();tog()};
+document.addEventListener('click',function(e){if(!wrap.contains(e.target))tog(false)});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')tog(false)});
+wrap.append(btn,menu);wrap.style.position='relative';paint();
+var sk=document.getElementById('streak');
+if(sk&&sk.parentNode){sk.parentNode.insertBefore(wrap,sk);wrap.insertBefore(sk,btn);sk.style.whiteSpace='nowrap'}
+else{wrap.style.cssText+='position:fixed;top:10px;right:10px;z-index:2147483000';document.body.appendChild(wrap)}
+})();
+    });
+  }).catch(function(){});
 })();
 
 
