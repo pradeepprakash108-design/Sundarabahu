@@ -477,10 +477,9 @@ export default {
     if (p === '/admin') return s && s.r === 'admin' ? html(ADMIN_HTML) : Response.redirect(url.origin + '/', 302);
     if (!s) return html(LOGIN_HTML);
     const res = await env.ASSETS.fetch(req);
-    const avatar = (await env.DB.get('a:' + s.u)) || '';
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('text/html')) return res;
-    const out = new HTMLRewriter().on('body', { element(el) { el.append(bar(s.u, s.r, avatar), { html: true }); } }).transform(res);
+    const out = new HTMLRewriter().on('body', { element(el) { /* profile menu now lives in the app itself */ } }).transform(res);
     const h = new Headers(out.headers); h.set('cache-control', 'private, no-store');
     return new Response(out.body, { status: out.status, headers: h });
   }
