@@ -732,7 +732,7 @@ function button(label,cls,fn){var b=el('button',cls||'btn',label);b.type='button
 function fill(sel,arr){arr.forEach(function(x){var o=document.createElement('option');o.textContent=x;sel.appendChild(o)})}
 
 /* ---------- Claude access ---------- */
-var sample=null,downloads=null;var OFFLINE=!window.claude;var STUDENT=true;
+var sample=null,downloads=null;var OFFLINE=true;var STUDENT=true;
 var ready=(async function(){
   var c=window.claude;
   try{sample=c&&c.use?await c.use('sample'):null}catch(e){sample=null}
