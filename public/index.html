@@ -42,6 +42,7 @@ p{margin:0}
 .tamil{color:var(--muted);font-size:.9rem}
 .top{padding-block:14px 6px}
 .brandrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+#streak{display:none!important}
 .streak{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--warm);background:var(--warm-bg);padding:.35rem .6rem;border-radius:999px;white-space:nowrap}
 main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 28px)}
 .tab{display:flex;flex-direction:column;gap:14px;padding-top:10px}
@@ -447,6 +448,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
   </div>
   <div id="teach-exam" class="tab" style="padding-top:0" hidden>
     <div class="panel exmed"><label class="f">Medium · வழி<select id="exMed"><option value="en">English medium</option><option value="ta">Tamil medium (தமிழ் வழி)</option></select></label></div>
+    <div class="seg" id="exMode" role="group" aria-label="Exam practice mode" style="margin:10px 0"><button type="button" data-k="p" aria-pressed="true">Practice</button><button type="button" data-k="top" aria-pressed="false">Toppers material</button><button type="button" data-k="qb" aria-pressed="false">Question bank</button></div>
     <div class="marktabs" id="exMark" role="group" aria-label="Question type">
       <button type="button" data-m="o" class="mk-o" aria-pressed="true"><span class="mn">Objective</span><span class="mc">0</span></button>
       <button type="button" data-m="2" class="mk-2" aria-pressed="false"><span class="mn">2 marks</span><span class="mc">0</span></button>
@@ -468,6 +470,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
       <p class="muted exdup" id="exDup"></p>
     </div>
     <div id="exHost" class="tab kit" style="padding-top:0"></div>
+    <div id="exTop" class="tab kit" style="padding-top:0" hidden></div>
   </div>
 
   <div id="teach-bres" class="tab" style="padding-top:0" hidden>
@@ -1594,7 +1597,7 @@ function exMcqCard(q,i,mk){
     String(q.sol||'').split('\n').forEach(function(t){if(t)fb.append(el('p',null,t))});
     if(q.a>=0&&q.atext&&q.zb&&!q.edited)fb.append(el('p',null,q.atext));
     if(q.s==='n'){if(q.nt)fb.append(el('p','note',(isTa()?'குறிப்பு: ':'Note: ')+q.nt));fb.append(el('p','muted',exT('nnote')));if(q.vl)fb.append(neetVLBtn(q.vl))}
-    exExtras(q,fb);c.append(fb);
+    exExtras(q,fb);var hb=button(isTa()?'விடையை மறை':'Hide answer','btn ghost small',function(){delete exs.pick[q.id];renderExam(true)});hb.style.marginTop='10px';fb.append(hb);c.append(fb);
   }else{
     var bt=button(exT('show'),'btn ghost small',function(){exs.pick[q.id]=-1;renderExam(true)});bt.style.marginTop='10px';c.append(bt);
   }
@@ -1750,7 +1753,7 @@ function exDocHtml(all,ttl){
   var LB=ta?'அஆஇஈ':'ABCD',AN=ta?'விடை':'Answer',SO=ta?'விளக்கம்':'Solution',KP=ta?'மதிப்பெண் புள்ளிகள்':'Key points';
   var font=ta?"Vijaya,'Noto Sans Tamil',Latha,'Nirmala UI',Arial,sans-serif":"Calibri,Arial,sans-serif";
   var h='\x3c!doctype html>\x3chtml lang="'+(ta?'ta':'en')+'">\x3chead>\x3cmeta charset="utf-8">\x3ctitle>'+exEsc(ttl||(ta?'சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல்':'Sundarabahu: Class 12 Physics exam practice'))+'\x3c/title>\x3cstyle>body{font-family:'+font+';font-size:'+(ta?'13pt':'11pt')+';line-height:1.45;margin:24px}h1{font-size:18pt}h2{font-size:14pt;border-bottom:1px solid #888;margin-top:22px}.q{margin:10px 0 2px;font-weight:bold}.o{margin:0 0 0 22px}.s{margin:3px 0 8px 22px;color:#222}.src{font-size:9pt;color:#555}@media print{h2{page-break-after:avoid}.b{page-break-inside:avoid}}\x3c/style>\x3c/head>\x3cbody>\x3ch1>'+exEsc(ttl||(ta?'சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் – வினா வங்கி':'Sundarabahu: Class 12 Physics exam practice'))+'\x3c/h1>';
-  (Array.isArray(all)?all:exSecs(all)).forEach(function(S){
+  (typeof all==='function'?all():Array.isArray(all)?all:exSecs(all)).forEach(function(S){
     var items=S.m||S.p;if(!items||!items.length)return;
     h+='\x3ch2>'+exEsc(S.t)+'\x3c/h2>';
     items.forEach(function(q,i){
@@ -1766,19 +1769,19 @@ function exDocHtml(all,ttl){
   return h+'\x3c/body>\x3c/html>';
 }
 
-function exPdf(all){
+function exPdf(all,ttl){
   try{
     var f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
-    f.srcdoc=exDocHtml(all);
+    f.srcdoc=exDocHtml(all,ttl);
     f.onload=function(){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('Printing is not available here. Use the Word download instead.')}setTimeout(function(){f.remove()},60000)};
     document.body.appendChild(f);toast('In the print window choose Save as PDF');
   }catch(e){toast('Printing is not available here. Use the Word download instead.')}
 }
-function exWord(all,name){saveFile(name,exDocHtml(all))}
-function exDlPanel(title,all,name){
+function exWord(all,name,ttl){saveFile(name,exDocHtml(all,ttl))}
+function exDlPanel(title,all,name,ttl){
   var p=el('div','panel dl');p.append(el('h3',null,title));
   var r=el('div','actions');
-  r.append(button(exT('pdf'),'btn',function(){exPdf(all)}),button(exT('word'),'btn ghost',function(){exWord(all,name)}));
+  r.append(button(exT('pdf'),'btn',function(){exPdf(all,ttl)}),button(exT('word'),'btn ghost',function(){exWord(all,name,ttl)}));
   p.append(r);return p;
 }
 function exUnitChips(){
@@ -1802,6 +1805,7 @@ function exInfoEn(H){
   H.append(d);
 }
 function renderExam(keep){
+  exModeShow();if(exs.mode==='top'||exs.mode==='qb'){renderExMode(keep);return}
   var H=$('#exHost'),y=window.pageYOffset,ta=isTa(),mk=exs.m;
   H.replaceChildren();
   /* mark tabs with counts */
@@ -1847,6 +1851,96 @@ function renderExam(keep){
 function exMedChange(){
   exs.pick={};renderExam();
 }
+
+/* Toppers material and Question bank */
+exs.mode='p';exs.tm={part:'o',unit:0};exs.qb={part:2,unit:0};
+function X(en,ta){return isTa()?ta:en}
+function exIsNum(q){
+  var t=String(q.q||'');
+  if(!/[0-9]/.test(t))return false;
+  if(/^\s*(explain|derive|state|define|write|discuss|what is meant|describe|distinguish|differentiate|obtain an expression)/i.test(t))return false;
+  return /calculate|find |determine|what is the|what will be|compute|how much|how many|estimate|obtain the value|கணக்கிடு|காண்க|காண்|கண்டறி|கண்டுபிடி/i.test(t);
+}
+function exTopFilter(part){
+  return function(q){
+    if(part==='o')return q.s==='p'&&!q.book;
+    return (q.s==='p'||(q.s==='b'&&q.asked))&&exIsNum(q);
+  };
+}
+function exTimes(q){var n=(q.refs||[]).length;return n?n:1}
+function exTimesTxt(q){var n=exTimes(q);return X('Asked '+n+(n===1?' time':' times'),n+' முறை கேட்கப்பட்டது')}
+function exQbFilter(q){return q.s==='p'||(q.s==='b'&&q.asked)}
+function exModeList(kind,part,unit){
+  var f=kind==='top'?exTopFilter(part):exQbFilter;
+  return (exData()[part]||[]).filter(function(q){return (!unit||q.u===unit)&&f(q)}).sort(function(a,b){return (a.u||0)-(b.u||0)});
+}
+function exModeSecs(kind,parts,unit){
+  var S=[];
+  parts.forEach(function(mk){
+    var L=exModeList(kind,mk,unit),byU={};
+    L.forEach(function(q){(byU[q.u||0]=byU[q.u||0]||[]).push(q)});
+    Object.keys(byU).map(Number).sort(function(a,b){return a-b}).forEach(function(u){
+      var items=byU[u],t;
+      if(kind==='top')t=(mk==='o'?X('Objective questions from the interior lessons','பாடங்களின் உட்பகுதியிலிருந்து கொள்குறி வினாக்கள்'):exT(mk)+' '+X('problems asked in previous exams','முந்தைய தேர்வுகளில் கேட்கப்பட்ட கணக்குகள்'));
+      else t=exT(mk);
+      t+=u?' – '+exUnitLabel(u):'';
+      if(mk==='o')S.push({t:t,m:items.map(function(q){return {q:exFq(q),o:q.o,a:Math.max(0,q.a),s:[q.sol].concat(q.eq||[]).filter(function(x){return x}).join(' '),fig:q.fig,n:q.n,u:q.u}})});
+      else S.push({t:t,p:items.map(function(q){return kind==='qb'?{q:q.q+' ('+exTimes(q)+')',p:[]}:{q:exFq(q),p:(q.p||[]).concat((q.eq||[]).length?[q.eq.join('; ')]:[]),k:q.k}}),k:''});
+    });
+  });
+  return S;
+}
+function exModeShow(){
+  var m=exs.mode,pr=m==='p';
+  $('#exMark').hidden=!pr;$('#exFilter').hidden=!pr;$('#exHost').hidden=!pr;$('#exTop').hidden=pr;
+  $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி')})[b.dataset.k]});
+}
+function renderExMode(keep){
+  var H=$('#exTop'),y=window.pageYOffset,kind=exs.mode,st=kind==='top'?exs.tm:exs.qb,ta=isTa();
+  H.replaceChildren();
+  var parts=kind==='top'?['o',2,3,5]:[2,3,5];
+  var intro=el('div','panel');
+  intro.append(el('h3',null,kind==='top'?X('Toppers material','முதன்மை மாணவர் தொகுப்பு'):X('Question bank','வினா வங்கி')));
+  intro.append(el('p','muted',kind==='top'
+    ?X('Objective questions asked in previous exams that come from the interior lessons (not the book-back exercises), and every numerical problem asked in previous year question papers (2, 3 and 5 marks), each with its answer. Tap Show answer on a question, or download everything.','முந்தைய தேர்வுகளில் கேட்கப்பட்ட, பாடங்களின் உட்பகுதியிலிருந்து (பின் பயிற்சி வினாக்கள் அல்லாத) கொள்குறி வினாக்கள், மற்றும் முந்தைய ஆண்டு வினாத்தாள்களில் (2, 3, 5 மதிப்பெண்) கேட்கப்பட்ட அனைத்துக் கணக்குகள், விடைகளுடன். விடையைக் காண ஒவ்வொரு வினாவிலும் தொடுக; அல்லது முழுவதையும் பதிவிறக்குக.')
+    :X('Only the 2, 3 and 5 mark questions asked in previous year question papers. No answers. You can download it.','முந்தைய ஆண்டு வினாத்தாள்களில் கேட்கப்பட்ட 2, 3, 5 மதிப்பெண் வினாக்கள் மட்டும். விடைகள் இல்லை. பதிவிறக்கலாம்.')));
+  H.append(intro);
+  var tabs=el('div','marktabs');
+  parts.forEach(function(m){
+    var n=exModeList(kind,m,st.unit).length;
+    var b=el('button','mk-'+m);b.type='button';b.setAttribute('aria-pressed',m===st.part?'true':'false');
+    b.append(el('span','mn',m==='o'?X('Objective','கொள்குறி'):exT(m)),el('span','mc',String(n)));
+    b.addEventListener('click',function(){st.part=m;renderExMode()});tabs.append(b);
+  });
+  if(kind==='qb')tabs.style.gridTemplateColumns='repeat(3,1fr)';
+  H.append(tabs);
+  var P=el('div','panel'),opts=[[0,exT('all')]];
+  BOOK.units.forEach(function(u){opts.push([u.no,exUnitLabel(u.no)])});
+  var sl=document.createElement('select');sl.id='exTopUnit';
+  opts.forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(+o[0]===st.unit)op.selected=true;sl.append(op)});
+  sl.addEventListener('change',function(){st.unit=+sl.value;renderExMode()});
+  var lb=el('label','f',exT('unit'));lb.append(sl);P.append(lb);H.append(P);
+  var L=exModeList(kind,st.part,st.unit);
+  var head=el('div','exhead');head.append(el('strong',null,L.length+' '+exT('q')),el('span','muted',' · '+(st.unit?exUnitLabel(st.unit):exT('all'))));H.append(head);
+  var fn=kind==='top'?'class12-physics-toppers-material':'class12-physics-question-bank';
+  var ttl=kind==='top'?X('Sundarabahu: Class 12 Physics toppers material','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் முதன்மை மாணவர் தொகுப்பு'):X('Sundarabahu: Class 12 Physics question bank (previous year questions, no answers)','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் வினா வங்கி (முந்தைய ஆண்டு வினாக்கள், விடைகள் இல்லை)');
+  var sfx=ta?'-tamil':'';
+  if(L.length)H.append(exDlPanel(X('Download this list','இந்தப் பட்டியலைப் பதிவிறக்குக'),function(){return exModeSecs(kind,[st.part],st.unit)},fn+'-'+(st.part==='o'?'objective':st.part+'-marks')+sfx+'.doc',ttl));
+  if(!L.length)H.append(el('div','panel',exT('none')));
+  else{
+    var grid=el('div','exgrid'),lastU=-1,k=0;
+    L.forEach(function(q){
+      if(!st.unit&&q.u!==lastU){lastU=q.u;k=0;grid.append(el('h3','uhead',q.u?exUnitLabel(q.u):''))}
+      if(kind==='qb'){var c=el('div','qc src-'+q.s),hd=el('div','chead');hd.append(el('span','num',String(k+1)));var bg=el('div','bdgs'),tb=exBadge('s-r',exTimesTxt(q));tb.title=(q.refs||[]).join(', ');bg.append(tb);hd.append(bg);c.append(hd);c.append(el('p','qt',q.q));grid.append(c)}
+      else grid.append(st.part==='o'?exMcqCard(q,k,st.part):exQaCard(q,k,st.part));
+      k++;
+    });
+    H.append(grid);
+  }
+  H.append(exDlPanel(kind==='top'?X('Download the whole toppers material','முழு தொகுப்பையும் பதிவிறக்குக'):X('Download the whole question bank','முழு வினா வங்கியையும் பதிவிறக்குக'),function(){return exModeSecs(kind,parts,0)},fn+sfx+'.doc',ttl));
+  if(keep)window.scrollTo(0,y);
+}
+$$('#exMode button').forEach(function(b){b.addEventListener('click',function(){exs.mode=b.dataset.k;renderExam()})});
 exMed.addEventListener('change',exMedChange);
 $$('#exMark button').forEach(function(b){b.addEventListener('click',function(){exs.m=b.dataset.m;renderExam()})});
 $('#exNB').addEventListener('change',function(){exs.nb=this.checked;renderExam(true)});
@@ -8396,6 +8490,7 @@ function neetVLBtn(id){
       if(d.sl)fb.append(el('p',null,d.sl));
       fb.append(el('p','muted',T('Answer checked by working the question again. The solution text is as printed in the source compilation.','கேள்வியை மீண்டும் தீர்த்து விடை சரிபார்க்கப்பட்டது. தீர்வு உரை மூலத் தொகுப்பில் உள்ளவாறே.')));
       if(d.v)fb.append(neetVLBtn(d.v));
+      var hb=button(T('Hide answer','விடையை மறை'),'btn ghost small',function(){delete S.pick[d.i];save();render(true)});hb.style.marginTop='10px';fb.append(hb);
       c.append(fb);
     }else{
       var bt=button(T('Show answer','விடையைக் காட்டு'),'btn ghost small',function(){S.pick[d.i]=-1;save();render(true)});bt.style.marginTop='10px';c.append(bt);
