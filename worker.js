@@ -425,6 +425,7 @@ var st=document.createElement('style');st.textContent=
 '.sbm .nm{text-align:center;font-weight:700;font-size:16px;word-break:break-all}.sbm .rl{text-align:center;color:var(--muted,#6B5650);font-size:12px;margin-bottom:12px}'+
 '.sbm button,.sbm a{display:block;width:100%;text-align:center;box-sizing:border-box;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--line,#E2D3BF);background:transparent;color:var(--ink,#2B1A17);font:600 14px system-ui;cursor:pointer;text-decoration:none}'+
 '.sbm button.out{background:#7A1F2B;color:#fff;border-color:#7A1F2B}.sbm .msg{font-size:12px;color:var(--muted,#6B5650);text-align:center;margin-top:8px;min-height:14px}';
+st.textContent+='.sbact{position:fixed;right:14px;bottom:84px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;background:#7A1F2B;color:#fff!important;font:700 14px system-ui;text-decoration:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.28)}.sbact:hover{filter:brightness(1.1)}';
 document.head.appendChild(st);
 var wrap=$('div','sbw'),btn=$('button','sbav'),menu=$('div','sbm'),big=$('div','big'),msg=$('div','msg');
 btn.type='button';btn.setAttribute('aria-haspopup','true');btn.setAttribute('aria-expanded','false');btn.title='Your profile';
@@ -459,6 +460,7 @@ wrap.append(btn,menu);wrap.style.position='relative';paint();
 var sk=document.getElementById('streak');
 if(sk&&sk.parentNode){sk.parentNode.insertBefore(wrap,sk);wrap.insertBefore(sk,btn);sk.style.whiteSpace='nowrap'}
 else{wrap.style.cssText+='position:fixed;top:10px;right:10px;z-index:2147483000';document.body.appendChild(wrap)}
+if(D.r==='admin'){var ac=$('a','sbact','Activity');ac.href='/admin';ac.title='Open the admin dashboard: activity log, users, passage progress';document.body.appendChild(ac)}
 })();`;
 function bar(user, role, img) {
   const data = JSON.stringify({ u: user, r: role, img: img || '' }).replace(/</g, '\\u003c');
