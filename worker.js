@@ -1,6 +1,7 @@
 /* Sundarabahu - login, sign-up, password reset and admin activity log.
    Cloudflare Worker. Storage: one KV namespace bound as DB.
-   Secrets (set in the Cloudflare dashboard): ADMIN_PASSWORD  (required)
+   Secrets (set in the Cloudflare dashboard): ADMIN_PASSWORD  (required), STUDENT_PASSWORD (for the shared student login),
+   ANTHROPIC_API_KEY (optional, switches on the AI conversation partner)
    Variables: ADMIN_USER (optional, default "sundarabahuadmin")                 */
 
 const COOKIE = 'sb_session';
@@ -13,6 +14,7 @@ const unb64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/
 const json = (o, status = 200, headers = {}) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers } });
 const html = (s, status = 200) => new Response(s, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 const adminName = (env) => (env.ADMIN_USER || 'sundarabahuadmin').toLowerCase();
+const studentName = (env) => (env.STUDENT_USER || 'studentslogin').toLowerCase();
 
 function timingEq(a, b) {
   if (a.length !== b.length) return false;
@@ -48,6 +50,7 @@ async function getSession(req, env) {
   try { d = JSON.parse(new TextDecoder().decode(unb64u(payload))); } catch { return null; }
   if (!d || d.e < Date.now()) return null;
   if (d.r === 'admin') return d.u === adminName(env) ? d : null;
+  if (d.r === 'student') return d.u === studentName(env) && env.STUDENT_PASSWORD ? d : null;
   const u = await env.DB.get('u:' + d.u, 'json');
   if (!u || u.disabled) return null;
   return d;
@@ -102,7 +105,7 @@ async function api(req, env, url, p) {
   if (p === '/api/signup' && isPost) {
     const u = String(body.username || '').trim().toLowerCase(), pw = String(body.password || '');
     if (!validUser(u)) return json({ error: 'Username must be 3-24 characters: letters, digits, _ or .' }, 400);
-    if (u === ADMIN) return json({ error: 'That username is reserved.' }, 409);
+    if (u === ADMIN || u === studentName(env)) return json({ error: 'That username is reserved.' }, 409);
     if (pw.length < 8 || pw.length > 100) return json({ error: 'Password must be at least 8 characters.' }, 400);
     if (await env.DB.get('u:' + u)) return json({ error: 'That username is already taken.' }, 409);
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -124,6 +127,14 @@ async function api(req, env, url, p) {
       await clearFail(env, u);
       await logEvent(env, req, 'admin_login', u);
       return json({ ok: true, role: 'admin' }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'admin', 12 * 3600), 12 * 3600) });
+    }
+    if (u === studentName(env)) {
+      if (!env.STUDENT_PASSWORD) return json({ error: 'The student login is not switched on yet.' }, 500);
+      const ok = timingEq(await sha256(pw.trim()), await sha256(String(env.STUDENT_PASSWORD).trim()));
+      if (!ok) { await bumpFail(env, u); await logEvent(env, req, 'login_failed', u); return json({ error: 'Wrong username or password.' }, 401); }
+      await clearFail(env, u);
+      await logEvent(env, req, 'student_login', u);
+      return json({ ok: true, role: 'student' }, 200, { 'set-cookie': setCookie(await makeToken(env, u, 'student', 14 * 86400), 14 * 86400) });
     }
     const rec = await env.DB.get('u:' + u, 'json');
     const good = rec && timingEq(await pbkdf2(pw, unb64u(rec.salt)), rec.hash);
@@ -170,6 +181,7 @@ async function api(req, env, url, p) {
   if (p === '/api/avatar') {
     const s = await getSession(req, env);
     if (!s) return json({ error: 'sign in required' }, 401);
+    if (s.r === 'student') return isPost ? json({ error: 'The shared student login cannot change the photo.' }, 403) : json({ img: '' });
     if (!isPost) return json({ img: (await env.DB.get('a:' + s.u)) || '' });
     const img = typeof body.img === 'string' ? body.img : null;
     if (img === null) return json({ error: 'bad data' }, 400);
@@ -209,6 +221,69 @@ async function api(req, env, url, p) {
     await env.DB.put(key, JSON.stringify({ d: out, days, u: Date.now() }));
     for (const n of fresh.slice(0, 5)) await logEvent(env, req, 'passage_completed', s.u, '#' + n + ' ' + (PTITLES[n - 1] || ''));
     return json({ ok: true });
+  }
+
+  /* ----- speaking practice: log (batched by the page) and class challenge ----- */
+  if (p === '/api/speaklog' && isPost) {
+    const s = await getSession(req, env);
+    if (!s) return json({ error: 'sign in required' }, 401);
+    const week = Math.floor((Date.now() + 19800000) / (7 * 864e5));
+    const name = String(body.name || '').replace(/[^A-Za-z0-9 .]/g, '').trim().slice(0, 24);
+    const items = Array.isArray(body.items) ? body.items.slice(0, 8) : [];
+    let add = 0; const bits = [];
+    for (const it of items) {
+      const k = ['read', 'talk', 'role', 'sim', 'ai'].includes(it && it.k) ? it.k : null;
+      if (!k) continue;
+      const n = Math.max(0, Math.min(300, parseInt(it.n, 10) || 0)), c = Math.max(0, Math.min(100, parseInt(it.c, 10) || 0));
+      const sc = Math.max(0, Math.min(100, parseInt(it.s, 10) || 0));
+      add += n; bits.push(k + ' x' + c + (k === 'ai' || k === 'talk' ? '' : ' avg ' + sc + '%') + ' (' + n + ' sentences)');
+    }
+    if (!bits.length) return json({ ok: true });
+    const wk = 'w:' + week, cur = parseInt((await env.DB.get(wk)) || '0', 10) + add;
+    await env.DB.put(wk, String(cur), { expirationTtl: 60 * 60 * 24 * 30 });
+    await logEvent(env, req, 'speaking', (name ? name + ' (' + s.u + ')' : s.u), bits.join('; '));
+    return json({ ok: true, total: cur });
+  }
+  if (p === '/api/speakstats') {
+    const s = await getSession(req, env);
+    if (!s) return json({ error: 'sign in required' }, 401);
+    const week = Math.floor((Date.now() + 19800000) / (7 * 864e5));
+    const goal = Math.max(10, parseInt(env.CLASS_GOAL || '300', 10) || 300);
+    return json({ total: parseInt((await env.DB.get('w:' + week)) || '0', 10), goal });
+  }
+
+  /* ----- AI conversation partner (needs the ANTHROPIC_API_KEY secret) ----- */
+  if (p === '/api/chat' && isPost) {
+    const s = await getSession(req, env);
+    if (!s) return json({ error: 'sign in required' }, 401);
+    if (!env.ANTHROPIC_API_KEY) return json({ error: 'The AI partner has not been switched on yet. Ask your teacher.', off: true }, 503);
+    const cid = String(body.cid || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40) || 'x';
+    const day = Math.floor((Date.now() + 19800000) / 864e5), cap = Math.max(5, parseInt(env.CHAT_DAILY_USER || '40', 10) || 40);
+    const ck = 'c:' + day + ':' + cid, used = parseInt((await env.DB.get(ck)) || '0', 10);
+    if (used >= cap) return json({ error: "You have used today's practice messages. Please come back tomorrow.", limit: true }, 429);
+    let msgs = (Array.isArray(body.m) ? body.m : []).slice(-10).map((x) => ({ role: x && x.r === 'a' ? 'assistant' : 'user', content: String((x && x.t) || '').slice(0, 400).trim() })).filter((x) => x.content);
+    while (msgs.length && msgs[0].role !== 'user') msgs.shift();
+    const merged = [];
+    for (const m of msgs) { if (merged.length && merged[merged.length - 1].role === m.role) merged[merged.length - 1].content += ' ' + m.content; else merged.push(m); }
+    if (!merged.length || merged[merged.length - 1].role !== 'user') return json({ error: 'Say something first.' }, 400);
+    const topic = String(body.topic || '').replace(/[^\x20-\x7E]/g, '').slice(0, 80);
+    const SYS = 'You are a warm, patient English conversation partner for Class 11 and 12 girls in Tamil Nadu, India, who are practising spoken English. ' +
+      'Keep every reply to 2 or 3 short, simple sentences, in plain English a student at A2 to B1 level can follow. Always end with one easy question so the student keeps talking. ' +
+      'If the student makes a mistake, first answer what she said, then add one gentle correction in this form: You could say: "<corrected sentence>". Correct at most one mistake per turn and never scold. ' +
+      'Praise effort briefly. Talk about school, physics and everyday science, hobbies, daily life and future plans' + (topic ? '; the current topic is: ' + topic : '') + '. ' +
+      'Never ask for or share personal details such as full name, address, phone number or school name. Do not discuss anything unsuitable for school children; if asked, kindly steer back to the topic. ' +
+      'Reply only with plain text: no lists, no markdown, no emojis.';
+    let r;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: env.CHAT_MODEL || 'claude-haiku-5-5', max_tokens: 220, system: SYS, messages: merged }) });
+    } catch (e) { return json({ error: 'The AI partner is resting. Please try again in a moment.' }, 502); }
+    if (!r.ok) return json({ error: 'The AI partner is resting. Please try again in a moment.' }, 502);
+    const j = await r.json().catch(() => null);
+    const text = j && Array.isArray(j.content) ? j.content.filter((c) => c.type === 'text').map((c) => c.text).join(' ').trim() : '';
+    if (!text) return json({ error: 'The AI partner is resting. Please try again in a moment.' }, 502);
+    await env.DB.put(ck, String(used + 1), { expirationTtl: 172800 });
+    return json({ reply: text.slice(0, 700), left: cap - used - 1 });
   }
 
   /* ----- admin only ----- */
@@ -370,7 +445,7 @@ th{background:#EFE2CE;position:sticky;top:0}tr:hover td{background:#F6EBDA}.tag{
 <div id="toast"></div>
 <script>
 var AV={},LOG=[],US=[],$=function(i){return document.getElementById(i)};
-var NAMES={passage_completed:'Passage completed',signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted'};
+var NAMES={passage_completed:'Passage completed',signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted',student_login:'Student sign-in',speaking:'Speaking practice'};
 var CLS={passage_completed:'sg',signup:'sg',login:'li',admin_login:'li',login_failed:'bad',locked:'bad',login_blocked:'bad',reset_failed:'bad',reset_code_issued:'rs',password_reset:'rs',account_deleted:'bad',account_disabled:'bad'};
 function ist(t){return t?new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}):'-'}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -478,7 +553,10 @@ export default {
     const s = await getSession(req, env);
     if (p === '/admin') return s && s.r === 'admin' ? html(ADMIN_HTML) : Response.redirect(url.origin + '/', 302);
     if (!s) return html(LOGIN_HTML);
-    const res = await env.ASSETS.fetch(req);
+    let areq = req;
+    if (s.r === 'student') areq = new Request(url.origin + '/student', req);
+    else if (p === '/student' || p === '/student.html') areq = new Request(url.origin + '/', req);
+    const res = await env.ASSETS.fetch(areq);
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('text/html')) return res;
     const out = new HTMLRewriter().on('body', { element(el) { /* profile menu now lives in the app itself */ } }).transform(res);
