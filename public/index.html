@@ -327,8 +327,8 @@ h2{background:linear-gradient(90deg,var(--accent),var(--c-five));-webkit-backgro
 .prec{display:grid;gap:6px;margin-top:8px;font-size:.85rem}
 .prec div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:4px}
 .psync{font-size:.75rem;color:var(--muted)}
-.tabbar.off2 .in{grid-template-columns:repeat(5,1fr)!important}
-@media (min-width:760px){.tabbar.off2 .in{grid-template-columns:repeat(5,minmax(0,12rem))!important}}
+.tabbar.off2 .in{grid-template-columns:repeat(8,1fr)!important}
+@media (min-width:760px){.tabbar.off2 .in{grid-template-columns:repeat(8,minmax(0,10rem))!important}}
 .brandrow>div:first-child{min-width:0;flex:1 1 auto}h2{line-height:1.35;padding-bottom:.12em}h1{line-height:1.2}
 h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
 @media (max-width:520px){.sbw .streak{max-width:6.5rem;overflow:hidden;text-overflow:ellipsis}}
@@ -1296,7 +1296,7 @@ function renderKit(){
 }
 seg($('#kitSeg'),function(v){ks.v=v;renderKit()});
 if(OFFLINE){
-  ['today','ask','english','saved'].forEach(function(t){var b=$('#tb-'+t);if(b)b.hidden=true});
+  ['saved'].forEach(function(t){var b=$('#tb-'+t);if(b)b.hidden=true});
   $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='book'&&b.dataset.v!=='exam'&&b.dataset.v!=='weekly'&&b.dataset.v!=='optics')b.hidden=true});
   var tb=$('.tabbar');if(tb)tb.classList.add('off2');
   $$('#tab-today,#tab-ask,#tab-english,#tab-saved').forEach(function(x){x.hidden=true});
@@ -1586,7 +1586,7 @@ function exMcqCard(q,i,mk){
   q.o.forEach(function(o,j){
     var ob=el('button','opt',LB(j)+(o?'  '+o:(q.s==='n'?'':'.  ')));ob.type='button';
     if(picked!=null){ob.disabled=true;if(j===q.a)ob.classList.add('good');else if(j===picked)ob.classList.add('bad')}
-    ob.addEventListener('click',function(){exs.pick[q.id]=j;renderExam(true)});
+    ob.addEventListener('click',function(){exs.pick[q.id]=j;exRefresh()});
     c.append(ob);
   });
   if(q.fig)c.append(el('p','muted',exT('fig')));
@@ -1597,9 +1597,9 @@ function exMcqCard(q,i,mk){
     String(q.sol||'').split('\n').forEach(function(t){if(t)fb.append(el('p',null,t))});
     if(q.a>=0&&q.atext&&q.zb&&!q.edited)fb.append(el('p',null,q.atext));
     if(q.s==='n'){if(q.nt)fb.append(el('p','note',(isTa()?'குறிப்பு: ':'Note: ')+q.nt));fb.append(el('p','muted',exT('nnote')));if(q.vl)fb.append(neetVLBtn(q.vl))}
-    exExtras(q,fb);var hb=button(isTa()?'விடையை மறை':'Hide answer','btn ghost small',function(){delete exs.pick[q.id];renderExam(true)});hb.style.marginTop='10px';fb.append(hb);c.append(fb);
+    exExtras(q,fb);var hb=button(isTa()?'விடையை மறை':'Hide answer','btn ghost small',function(){delete exs.pick[q.id];exRefresh()});hb.style.marginTop='10px';fb.append(hb);c.append(fb);
   }else{
-    var bt=button(exT('show'),'btn ghost small',function(){exs.pick[q.id]=-1;renderExam(true)});bt.style.marginTop='10px';c.append(bt);
+    var bt=button(exT('show'),'btn ghost small',function(){exs.pick[q.id]=-1;exRefresh()});bt.style.marginTop='10px';c.append(bt);
   }
   exEditBtn(q,c);
   return c;
@@ -1804,8 +1804,9 @@ function exInfoEn(H){
     'Pattern (70 marks, 3 hours): Part I 15 objective questions of 1 mark; Part II 9 questions of 2 marks, answer any 6, question 24 compulsory numerical; Part III 9 questions of 3 marks, answer any 6, question 33 compulsory numerical; Part IV 5 questions of 5 marks, each with an either/or choice.']));
   H.append(d);
 }
+function exRefresh(){(exs.cb||renderExam)(true)}
 function renderExam(keep){
-  exModeShow();if(exs.mode==='top'||exs.mode==='qb'){renderExMode(keep);return}
+  exs.cb=null;exModeShow();if(exs.mode==='top'||exs.mode==='qb'){renderExMode(keep);return}
   var H=$('#exHost'),y=window.pageYOffset,ta=isTa(),mk=exs.m;
   H.replaceChildren();
   /* mark tabs with counts */
@@ -1896,6 +1897,7 @@ function exModeShow(){
   $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி')})[b.dataset.k]});
 }
 function renderExMode(keep){
+  exs.cb=null;
   var H=$('#exTop'),y=window.pageYOffset,kind=exs.mode,st=kind==='top'?exs.tm:exs.qb,ta=isTa();
   H.replaceChildren();
   var parts=kind==='top'?['o',2,3,5]:[2,3,5];
@@ -8540,6 +8542,240 @@ function neetVLBtn(id){
   document.getElementById('tb-neet').addEventListener('click',function(){render()});
   var med=document.getElementById('exMed');if(med)med.addEventListener('change',function(){if(!document.getElementById('tab-neet').hidden)render(true)});
   window.neetRender=render;
+})();
+
+/* ---------- Offline Today and Ask (no Claude needed) ---------- */
+(function(){
+  if(!OFFLINE)return;
+  function T(en,tm){return isTa()?tm:en}
+  var KEY='sundarabahu_today_v1',ST={off:0,unit:0};
+  try{var sv=JSON.parse(localStorage.getItem(KEY)||'{}');ST.off=sv.off||0;ST.unit=sv.unit||0}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify({off:ST.off,unit:ST.unit}))}catch(e){}}
+  function rng(seed){var a=seed>>>0;return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+  function take(arr,n,r){var c=arr.slice(),o=[];while(c.length&&o.length!==n){o.push(c.splice(Math.floor(r()*c.length),1)[0])}return o}
+  function medSel(after){
+    var s=document.createElement('select');
+    [['en','English medium'],['ta','Tamil medium (தமிழ் வழி)']].forEach(function(o){var p=document.createElement('option');p.value=o[0];p.textContent=o[1];s.append(p)});
+    s.value=document.getElementById('exMed').value;
+    s.addEventListener('change',function(){var m=document.getElementById('exMed');m.value=s.value;m.dispatchEvent(new Event('change'));after()});
+    var l=el('label','f','Medium · வழி');l.append(s);return l;
+  }
+  function unitSel(first,val,fn){
+    var s=document.createElement('select'),o0=document.createElement('option');o0.value='0';o0.textContent=first;s.append(o0);
+    BOOK.units.forEach(function(u){var p=document.createElement('option');p.value=String(u.no);p.textContent=exUnitLabel(+u.no);s.append(p)});
+    s.value=String(val);s.addEventListener('change',function(){fn(+s.value)});
+    var l=el('label','f',T('Unit','பாடம்'));l.append(s);return l;
+  }
+  /* ---- Today ---- */
+  var tt=document.getElementById('tab-today'),th=el('div','tab');th.id='todayOff';th.style.paddingTop='0';
+  ['noai','dailyList'].forEach(function(i){var x=document.getElementById(i);if(x)x.hidden=true});
+  Array.prototype.forEach.call(tt.children,function(c){if(c.matches('details.panel,.foot'))c.hidden=true});
+  tt.append(th);
+  function renderToday(keep){
+    exs.cb=renderToday;
+    var y=window.pageYOffset,units=BOOK.units.map(function(u){return +u.no}),dayNo=Math.floor((Date.now()+19800000)/864e5);
+    var unit=ST.unit||units[(dayNo+ST.off)%units.length],r=rng(dayNo*1000+unit*10+ST.off);
+    th.replaceChildren();
+    var P=el('div','panel');
+    P.append(el('p','muted',T('A fresh set of revision questions every day, from one unit at a time. Tap an option or Show answer. Use New set for another set, or pick a unit yourself.','ஒவ்வொரு நாளும் ஒரு பாடத்திலிருந்து புதிய மீள்பார்வை வினாக்கள். தேர்வைத் தொடுக; அல்லது விடையைக் காட்டு. வேறு தொகுப்புக்குப் புதிய தொகுப்பைத் தொடுக; அல்லது நீங்களே பாடத்தைத் தேர்க.')));
+    var g=el('div','grid2');
+    g.append(medSel(function(){renderToday()}));
+    g.append(unitSel(T('Unit of the day','இன்றைய பாடம்'),ST.unit,function(v){ST.unit=v;ST.off=0;save();renderToday()}));
+    P.append(g);
+    var ac=el('div','actions');ac.append(button(T('New set','புதிய தொகுப்பு'),'btn ghost small',function(){ST.off=ST.off+1;save();renderToday()}));
+    P.append(ac);th.append(P);
+    th.append(el('h3','uhead',exUnitLabel(unit)));
+    var src={p:true,b:true,x:true},k=0;
+    function sec(title,mk,n){
+      var L=take(exPick(mk,unit,src,false),n,r);if(!L.length)return;
+      th.append(el('h3',null,title));
+      L.forEach(function(q,i){th.append(mk==='o'?exMcqCard(q,i,mk):exQaCard(q,i,mk))});
+    }
+    sec(T('Objective questions','கொள்குறி வினாக்கள்'),'o',5);
+    sec(T('2 marks','2 மதிப்பெண்'),2,2);
+    sec(T('3 marks','3 மதிப்பெண்'),3,2);
+    sec(T('5 marks','5 மதிப்பெண்'),5,1);
+    var vt=(window.VL&&VL.topics||[]).filter(function(t){return t.u===unit});
+    if(vt.length){var v=vt[Math.floor(r()*vt.length)];th.append(el('h3',null,T('See it in action','செயல்பாட்டில் பாருங்கள்')));th.append(neetVLBtn(v.id))}
+    if(keep)window.scrollTo(0,y);
+  }
+  /* ---- Ask: search the whole app ---- */
+  var at=document.getElementById('tab-ask'),ah=el('div','tab');ah.id='askOff';ah.style.paddingTop='0';
+  Array.prototype.forEach.call(at.children,function(c,i){if(i>0)c.hidden=true});
+  var lab=at.querySelector('.lab'),h2=at.querySelector('h2');if(lab)lab.textContent='Search';if(h2)h2.textContent='Find a question or a simulation';
+  at.append(ah);
+  var AS={q:'',kind:'all',max:30},res=null,inp=null;
+  function renderAsk(keep){
+    exs.cb=renderAsk;
+    var y=window.pageYOffset;
+    if(!res){
+      var P=el('div','panel');
+      P.append(el('p','muted','Search every question (objective, 2, 3 and 5 marks, and NEET Class 12) and every Visual Learning topic. This works without internet and without Claude.'));
+      P.append(medSel(function(){renderAsk()}));
+      inp=document.createElement('input');inp.type='search';inp.id='askQ';inp.placeholder=T('Type words, for example lens, transformer, photoelectric','சொற்களை உள்ளிடுக');inp.value=AS.q;
+      var tmr=null;inp.addEventListener('input',function(){clearTimeout(tmr);tmr=setTimeout(function(){AS.q=inp.value;AS.max=30;renderAsk()},250)});
+      var lf=el('label','f','Search');lf.append(inp);P.append(lf);
+      var ch=el('div','chips');ch.id='askKinds';
+      [['all','All'],['q','Questions'],['vl','Visual Learning']].forEach(function(o){var b=el('button','chip',o[1]);b.type='button';b.dataset.k=o[0];b.addEventListener('click',function(){AS.kind=o[0];AS.max=30;renderAsk()});ch.append(b)});
+      P.append(ch);ah.append(P);res=el('div',null);ah.append(res);
+    }
+    $$('#askKinds button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===AS.kind?'true':'false')});
+    res.replaceChildren();
+    var words=AS.q.toLowerCase().split(/\s+/).filter(function(w){return w});
+    if(!words.length){res.append(el('p','muted',T('Type a word to start.','தேட ஒரு சொல்லை உள்ளிடுக.')));return}
+    function hit(txt){var t=String(txt).toLowerCase();for(var i=0;i!==words.length;i++){if(t.indexOf(words[i])===-1)return false}return true}
+    var vls=[],qs=[];
+    if(AS.kind!=='q')vls=(window.VL&&VL.topics||[]).filter(function(t){return hit(t.t+' '+(t.model||''))});
+    if(AS.kind!=='vl')['o',2,3,5].forEach(function(mk){exData()[mk].forEach(function(q){if(hit(q.q+' '+(q.o||[]).join(' ')))qs.push([mk,q])})});
+    res.append(el('p','muted',vls.length+' '+T('Visual Learning topics','காட்சி வழிக் கற்றல் தலைப்புகள்')+' · '+qs.length+' '+T('questions','வினாக்கள்')));
+    if(vls.length){res.append(el('h3',null,T('Visual Learning','காட்சி வழிக் கற்றல்')));vls.slice(0,15).forEach(function(t){var b=button(t.n+'. '+t.t+' ('+exUnitLabel(t.u)+')','btn ghost small',function(){neetGoVL(t.id)});b.style.display='block';b.style.margin='6px 0';res.append(b)})}
+    if(qs.length){
+      res.append(el('h3',null,T('Questions','வினாக்கள்')));
+      qs.slice(0,AS.max).forEach(function(p,i){
+        var q=p[1],mk=p[0];
+        res.append(el('div','muted',(mk==='o'?T('Objective','கொள்குறி'):exT(mk))+' · '+exUnitLabel(q.u)));
+        res.append(mk==='o'?exMcqCard(q,i,mk):exQaCard(q,i,mk));
+      });
+      if(qs.length>AS.max){var mb=button(T('Show more','மேலும் காட்டு'),'btn ghost',function(){AS.max+=30;renderAsk(true)});mb.style.marginTop='10px';res.append(mb)}
+    }
+    if(keep)window.scrollTo(0,y);
+  }
+  document.getElementById('tb-today').addEventListener('click',function(){renderToday()});
+  document.getElementById('tb-ask').addEventListener('click',function(){renderAsk()});
+  document.getElementById('exMed').addEventListener('change',function(){if(!document.getElementById('tab-today').hidden)renderToday();else if(!document.getElementById('tab-ask').hidden){res=null;ah.replaceChildren();renderAsk()}});
+})();
+
+/* ---------- Offline English: fixed lessons and quizzes (no Claude needed) ---------- */
+(function(){
+  if(!OFFLINE)return;
+  var LES=[
+  {t:'Describing a graph',i:'Use exact verbs and nouns, so that students can picture the graph without seeing it.',
+   p:['Going up: rises, increases, climbs. Going down: falls, decreases, drops.','No change: remains constant, stays the same, levels off.','Highest and lowest points: the graph reaches a peak (maximum) or a minimum.','Relationships: directly proportional (a straight line through the origin), inversely proportional (a curve that falls as the other quantity rises).','Name the axes first: "The graph shows how the current varies with the potential difference."'],
+   x:['The current increases steadily as the voltage rises.','The graph is a straight line through the origin, so V is directly proportional to I.','After 5 seconds the velocity remains constant at 10 m/s.','The activity of the sample falls to half its value every 4 days.'],
+   q:[{q:'A line graph of V against I is a straight line through the origin. Which sentence is correct?',o:['V is inversely proportional to I.','V is directly proportional to I.','V remains constant as I changes.','V falls as I rises.'],a:1,e:'A straight line through the origin means direct proportion.'},
+      {q:'Choose the best word: "After 5 seconds the speed ____ at 10 m/s."',o:['remains constant','is increasing quickly','falls sharply','reaches a peak and falls'],a:0,e:'"Remains constant" describes a flat part of the graph.'},
+      {q:'Which verb describes the highest point of a curve?',o:['levels off','reaches a peak','remains','drops'],a:1,e:'A peak is the maximum point.'},
+      {q:'Which sentence introduces a graph most clearly?',o:['Here is a graph.','The graph shows how the current varies with the potential difference.','Look at this thing.','The graph is about current.'],a:1,e:'Name the two quantities and say what the graph shows.'}]},
+  {t:'Writing a definition',i:'A good definition names the term, puts it in a group, and says what makes it different.',
+   p:['Pattern 1: "X is defined as the ratio of A to B."','Pattern 2: "X is the quantity of ..." or "X is the force that ...".','Give the SI unit after the definition: "Its SI unit is the farad (F)."','Do not repeat the term inside its own definition.','Use "per unit" for ratios: "Electric field is the force per unit positive charge."'],
+   x:['Capacitance is defined as the ratio of the charge stored to the potential difference across the conductor. Its SI unit is the farad.','The refractive index of a medium is the ratio of the speed of light in vacuum to its speed in the medium. It has no unit.','Electric flux is the total number of electric field lines passing through a surface.'],
+   q:[{q:'Which is the best definition of capacitance?',o:['Capacitance is the capacity of a capacitor.','Capacitance is the ratio of the charge stored to the potential difference.','Capacitance is how much a capacitor has.','Capacitance is measured in farad.'],a:1,e:'The first option repeats the word; the best one gives a ratio.'},
+      {q:'Complete: "Electric field is the force ____ unit positive charge."',o:['on','per','at','by'],a:1,e:'"Per unit" is the standard way to define a ratio.'},
+      {q:'Which sentence gives the unit correctly?',o:['The SI unit of resistance is ohm.','The SI unit of resistance is the ohm.','The SI unit of resistance is a ohm.','SI unit resistance is ohm.'],a:1,e:'Use "the" before the name of the unit in a full sentence.'},
+      {q:'Refractive index has no unit because it is a ____.',o:['difference','ratio of two similar quantities','product','sum'],a:1,e:'It is the ratio of two speeds, so the units cancel.'}]},
+  {t:'Giving instructions in class',i:'Use the imperative, and soften it with "please" or "let us" so the class feels invited.',
+   p:['Direct: "Open your textbook to page 42."','Polite: "Please note down the formula."','Inclusive: "Let us look at the circuit again."','Avoid: "You must", "You should do" many times; they sound strict.','Give one instruction at a time, and check: "Is that clear?"'],
+   x:['Please draw the ray diagram in your notebook.','Let us solve the next problem together.','Take a minute to discuss this with your partner.','Everyone, look at the board.'],
+   q:[{q:'Which instruction is the most inclusive?',o:['Copy this at once.','Let us derive the formula together.','You must listen.','Do it now.'],a:1,e:'"Let us" includes the teacher and the class.'},
+      {q:'Choose the correct sentence.',o:['Please opens your book.','Please open your book.','Please opened your book.','Please to open your book.'],a:1,e:'After "please", use the base form of the verb.'},
+      {q:'Which is a good way to check understanding?',o:['Understood?','Is that clear, or shall I explain it again?','You understand.','No questions.'],a:1,e:'It invites a real answer.'},
+      {q:'Which gives students time to think?',o:['Answer now.','Take a minute to discuss this with your partner.','Do not talk.','Write quickly.'],a:1,e:'It gives a time and a task.'}]},
+  {t:'Cause and effect',i:'Physics explains why things happen, so you need clean words for cause and result.',
+   p:['Cause first: because, since, as, due to, owing to.','Result first: so, therefore, hence, consequently, as a result.','"Because" is followed by a clause; "because of" and "due to" are followed by a noun.','Verbs: leads to, results in, causes, produces.','Do not use "because" and "so" in the same sentence.'],
+   x:['The bulb glows because current flows through the filament.','Current flows through the filament; therefore, the bulb glows.','The speed of light decreases in glass due to the optical density of glass.','Heating the wire increases its resistance, which results in a smaller current.'],
+   q:[{q:'Choose the correct sentence.',o:['Because it rained, so the match stopped.','Because it rained, the match stopped.','The match stopped because of it rained.','The match stopped due to it rained.'],a:1,e:'Do not use "because" and "so" together.'},
+      {q:'Complete: "The ship floats ____ its density is less than that of water."',o:['because of','because','due','so'],a:1,e:'A clause follows "because".'},
+      {q:'Which word shows a result?',o:['since','therefore','because','as'],a:1,e:'"Therefore" introduces the result.'},
+      {q:'Choose the correct sentence.',o:['The delay was because of heavy traffic.','The delay was because of heavy traffic was there.','The delay due heavy traffic.','The delay because heavy traffic.'],a:0,e:'A noun phrase follows "because of".'}]},
+  {t:'Comparing and contrasting',i:'Many topics are pairs: AC and DC, series and parallel, nuclear fission and fusion.',
+   p:['Contrast: whereas, while, but, however, in contrast, unlike.','Similarity: both, similarly, likewise, also, in the same way.','Comparative: "Light travels faster in air than in glass."','Equal: "as ... as": "The two bulbs are as bright as each other."','Put a comma before "whereas" or "while" in the middle of a sentence.'],
+   x:['In a series circuit the current is the same, whereas in a parallel circuit the voltage is the same.','Unlike AC, DC does not change its direction.','Both fission and fusion release energy.','Sound travels faster in water than in air.'],
+   q:[{q:'Choose the correct word: "Light travels faster in air ____ in glass."',o:['that','than','then','as'],a:1,e:'Use "than" after a comparative.'},
+      {q:'Which sentence shows contrast?',o:['Both are scalars.','Mass is a scalar, whereas weight is a vector.','Mass and weight are alike.','Similarly, mass is a scalar.'],a:1,e:'"Whereas" joins two different facts.'},
+      {q:'Complete: "____ AC, DC does not change its direction."',o:['Like','Unlike','Both','As'],a:1,e:'"Unlike" introduces a difference.'},
+      {q:'Which sentence compares equals correctly?',o:['The two wires are as long as each other.','The two wires are so long than each other.','The two wires are same long.','The two wires are as long that.'],a:0,e:'"As ... as" shows equality.'}]},
+  {t:'Articles and prepositions in physics',i:'Small words decide whether a physics sentence is correct.',
+   p:['Use "a/an" for a general noun and "the" for a particular one: "a lens", "the lens in the figure".','No article before general uncountable quantities: "Light travels in a straight line"; "Energy is conserved."','Fixed phrases: in a vacuum, at rest, at a distance, by a factor of, per second, in the direction of, with respect to.','"Increase by 2" gives the amount of change; "increase to 2" gives the final value.','"Different from", "similar to", "divided by", "multiplied by".'],
+   x:['A body at rest remains at rest unless an external force acts on it.','The speed of light in a vacuum is 3 × 10⁸ m/s.','The voltage increased from 6 V to 9 V, that is, by 3 V.','The force is directly proportional to the mass.'],
+   q:[{q:'Choose the correct sentence.',o:['Light travels in vacuum at 3 × 10⁸ m/s.','Light travels in a vacuum at 3 × 10⁸ m/s.','Light travels at the vacuum.','Light travels on vacuum.'],a:1,e:'The usual phrase is "in a vacuum".'},
+      {q:'The current rose from 2 A to 5 A. It increased ____ 3 A.',o:['to','by','at','with'],a:1,e:'"By" gives the amount of the change.'},
+      {q:'Complete: "A body ____ rest stays at rest."',o:['in','at','on','by'],a:1,e:'"At rest" is a fixed phrase.'},
+      {q:'Which is correct?',o:['The force is proportional of the mass.','The force is proportional to the mass.','The force is proportional with the mass.','The force is proportional for the mass.'],a:1,e:'We say "proportional to".'}]},
+  {t:'Asking and answering questions',i:'Good questions make students think; good replies keep them speaking.',
+   p:['Open questions: "Why does ...?", "What would happen if ...?", "How can we ...?"','Check questions: "Can anyone tell me ...?" and "Who can explain ...?"','Indirect questions use statement order: "Can you tell me why the sky is blue?" (not "why is the sky blue").','Praise the effort: "Good attempt. Let us look at it again."','Wrong answers: "Not quite. Think about the direction of the force."'],
+   x:['What would happen if the distance between the charges were doubled?','Can anyone tell me why a battery gets warm?','Who can explain why the image is inverted?','Good try. Check the sign of the charge once more.'],
+   q:[{q:'Choose the correct indirect question.',o:['Can you tell me why is the sky blue?','Can you tell me why the sky is blue?','Can you tell me why does the sky blue?','Can you tell me the sky is why blue?'],a:1,e:'In an indirect question, keep statement word order.'},
+      {q:'Which question makes students think most?',o:['Is current measured in ampere?','What would happen if the resistance were doubled?','Yes or no?','Did I say it correctly?'],a:1,e:'It asks for a prediction and a reason.'},
+      {q:'Which reply to a wrong answer is the most helpful?',o:['Wrong.','Not quite. Think about the direction of the force.','No, sit down.','That is silly.'],a:1,e:'It guides the student to the next step.'},
+      {q:'Complete: "____ can explain why the image is inverted?"',o:['Who','Whom','Whose','Which of'],a:0,e:'"Who" is the subject of the verb "can explain".'}]},
+  {t:'Saying numbers and units',i:'Read symbols aloud the same way every time, so students learn them correctly.',
+   p:['3 × 10⁸ m/s: "three times ten to the power eight metres per second".','m/s²: "metres per second squared".','Plural units: 5 volts, 2 amperes, but "1 volt".','Unit names are written in small letters (newton, joule); the symbol of a unit named after a person is a capital (N, J).','Say "one point five" for 1.5, not "one point fifty".'],
+   x:['The resistance is 4.5 Ω: "four point five ohms".','g = 9.8 m/s²: "g equals nine point eight metres per second squared".','The charge is 1 coulomb; the current is 2 amperes.','The wavelength is 5 × 10⁻⁷ m: "five times ten to the power minus seven metres".'],
+   q:[{q:'How do you say "9.8 m/s²"?',o:['nine point eight metre per second two','nine point eight metres per second squared','nine eight metres second square','nine point eight meter second'],a:1,e:'The "²" is read as "squared".'},
+      {q:'Which is correct?',o:['The current is 2 ampere.','The current is 2 amperes.','The current is 2 Amperes.','The current is 2 ampere\u2019s.'],a:1,e:'Units take the plural form after 2 or more, and the unit name is written in small letters.'},
+      {q:'How do you say 1.5?',o:['one point fifty','one point five','one and fifty','one five'],a:1,e:'Read each digit after the decimal point separately.'},
+      {q:'Which unit symbol is written correctly?',o:['n for newton','N for newton','NEWTON','newton N'],a:1,e:'The symbol of a unit named after a person is a capital letter.'}]},
+  {t:'Words that are often confused',i:'These pairs cause mistakes in notes and question papers.',
+   p:['effect (noun) and affect (verb): "Heat affects resistance; the effect is an increase."','principle and principal: "Pascal’s principle"; the principal of a school.','fewer (countable) and less (uncountable): fewer electrons, less charge.','number (countable) and amount (uncountable): the number of turns, the amount of heat.','its and it’s: "The coil and its core"; "it’s" means "it is".','"Data" is plural in formal scientific writing: "The data are shown in the table."'],
+   x:['Temperature affects the resistance of a conductor.','The Doppler effect changes the pitch of a sound.','There are fewer electrons in a positively charged body.','The principle of superposition applies to waves.'],
+   q:[{q:'Choose the correct word: "Light has a ____ on the photoelectric surface."',o:['affect','effect','affects','effects of'],a:1,e:'"Effect" is the noun.'},
+      {q:'Complete: "A cell has ____ internal resistance than a battery of the same size."',o:['fewer','less','few','many'],a:1,e:'Resistance is uncountable, so use "less".'},
+      {q:'Which sentence is correct?',o:['The principal of superposition is useful.','The principle of superposition is useful.','The principel of superposition is useful.','The principals of superposition is useful.'],a:1,e:'"Principle" is a rule or law.'},
+      {q:'Choose the correct sentence.',o:['The coil and it’s core are heated.','The coil and its core are heated.','The coil and its’ core are heated.','The coil and it core are heated.'],a:1,e:'"Its" shows possession; "it’s" means "it is".'}]},
+  {t:'Joining the steps of an explanation',i:'Link-words guide students through a derivation or an experiment.',
+   p:['Sequence: first, next, then, after that, finally.','Example: for example, for instance, such as.','Restating: in other words, that is.','Adding: moreover, in addition, also.','Concluding: therefore, hence, in summary, to sum up.','Contrast: however, but, on the other hand.'],
+   x:['First, connect the circuit. Next, close the switch. Then note the ammeter reading. Finally, repeat with a different resistor.','Metals conduct well; for example, copper and silver.','The speed is constant; in other words, the acceleration is zero.','Therefore, the image is real and inverted.'],
+   q:[{q:'Choose the best word: "First, connect the circuit. ____, close the switch."',o:['Next','However','Therefore','For example'],a:0,e:'"Next" continues a sequence.'},
+      {q:'Which phrase restates an idea in simpler words?',o:['in other words','however','for instance','finally'],a:0,e:'"In other words" restates.'},
+      {q:'Which word starts a conclusion?',o:['Moreover','Hence','First','Such as'],a:1,e:'"Hence" introduces a conclusion.'},
+      {q:'Complete: "Many metals conduct well; ____, copper and silver."',o:['for example','therefore','however','finally'],a:0,e:'"For example" introduces examples.'}]}
+  ];
+  var KEY='sundarabahu_eng_v1',S={d:{}};
+  try{S=JSON.parse(localStorage.getItem(KEY)||'{}');if(!S.d)S.d={}}catch(e){S={d:{}}}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+  var tab=document.getElementById('tab-english'),host=el('div','tab');host.id='engOff';host.style.paddingTop='0';
+  Array.prototype.forEach.call(tab.children,function(c,i){if(i>0)c.hidden=true});
+  var lab=tab.querySelector('.lab'),h2=tab.querySelector('h2');if(lab)lab.textContent='English';if(h2)h2.textContent='English for the classroom';
+  tab.append(host);
+  var view={m:'list',i:0,ans:{}},qz=null;
+  function shuffle(a){var c=a.slice(),i,j,t;for(i=c.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=c[i];c[i]=c[j];c[j]=t}return c}
+  function qcard(q,key,onAns){
+    var c=el('div','qc'),done=view.ans[key]!=null;
+    c.append(el('p','qt',q.q));
+    q.o.forEach(function(o,j){
+      var b=el('button','opt',String.fromCharCode(65+j)+'  '+o);b.type='button';
+      if(done){b.disabled=true;if(j===q.a)b.classList.add('good');else if(j===view.ans[key])b.classList.add('bad')}
+      b.addEventListener('click',function(){view.ans[key]=j;onAns();render(true)});
+      c.append(b);
+    });
+    if(done){var fb=el('div','sbox');fb.append(el('span','lab',view.ans[key]===q.a?'Correct.':'Not correct. The answer is '+String.fromCharCode(65+q.a)+'.'));fb.append(el('p',null,q.e));c.append(fb)}
+    return c;
+  }
+  function render(keep){
+    var y=window.pageYOffset;host.replaceChildren();
+    var sg=el('div','seg');
+    [['list','Lessons'],['quiz','Mixed quiz']].forEach(function(o){var b=el('button',null,o[1]);b.type='button';b.setAttribute('aria-pressed',(view.m===o[0]||(view.m==='lesson'&&o[0]==='list'))?'true':'false');b.addEventListener('click',function(){view.m=o[0];view.ans={};qz=null;render()});sg.append(b)});
+    host.append(sg);
+    if(view.m==='list'){
+      var P=el('div','panel');P.append(el('p','muted','Ten short lessons on the English that physics teachers use every day, each with a quiz. Everything works without Claude and without internet. Tap a lesson.'));host.append(P);
+      LES.forEach(function(L,i){
+        var d=S.d[i],b=button((i+1)+'. '+L.t+(d&&d.b!=null?'  ·  best '+d.b+'/'+L.q.length:''),'btn ghost',function(){view.m='lesson';view.i=i;view.ans={};render()});
+        b.style.display='block';b.style.width='100%';b.style.margin='8px 0';b.style.textAlign='left';host.append(b);
+      });
+    }else if(view.m==='lesson'){
+      var L=LES[view.i];
+      host.append(button('Back to lessons','btn ghost small',function(){view.m='list';render()}));
+      var P2=el('div','panel');P2.append(el('h3',null,(view.i+1)+'. '+L.t),el('p','muted',L.i));
+      var ul=el('ul');L.p.forEach(function(t){ul.append(el('li',null,t))});P2.append(ul);
+      P2.append(el('h3',null,'Examples'));var ul2=el('ul');L.x.forEach(function(t){ul2.append(el('li',null,t))});P2.append(ul2);host.append(P2);
+      host.append(el('h3',null,'Check yourself'));
+      L.q.forEach(function(q,j){host.append(qcard(q,'l'+j,function(){}))});
+      var n=0,all=0;L.q.forEach(function(q,j){var a=view.ans['l'+j];if(a!=null){all++;if(a===q.a)n++}});
+      if(all===L.q.length){
+        var d=S.d[view.i]||(S.d[view.i]={});if(d.b==null||n>d.b){d.b=n;save()}
+        var sc=el('div','panel');sc.append(el('h3',null,'Score: '+n+' of '+L.q.length));
+        sc.append(button('Try again','btn ghost small',function(){view.ans={};render()}));host.append(sc);
+      }
+    }else{
+      if(!qz){var all2=[];LES.forEach(function(L2){L2.q.forEach(function(q){all2.push(q)})});qz=shuffle(all2).slice(0,10)}
+      qz.forEach(function(q,j){host.append(qcard(q,'z'+j,function(){}))});
+      var n2=0,a2=0;qz.forEach(function(q,j){var a=view.ans['z'+j];if(a!=null){a2++;if(a===q.a)n2++}});
+      if(a2===qz.length){var sc2=el('div','panel');sc2.append(el('h3',null,'Score: '+n2+' of '+qz.length));sc2.append(button('New quiz','btn small',function(){view.ans={};qz=null;render()}));host.append(sc2)}
+      else host.append(el('p','muted',a2+' of '+qz.length+' answered'));
+    }
+    if(keep)window.scrollTo(0,y);
+  }
+  document.getElementById('tb-english').addEventListener('click',function(){render()});
 })();
 
 /* ---------- profile menu + log out (online/login version only) ---------- */
