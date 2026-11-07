@@ -732,7 +732,7 @@ function button(label,cls,fn){var b=el('button',cls||'btn',label);b.type='button
 function fill(sel,arr){arr.forEach(function(x){var o=document.createElement('option');o.textContent=x;sel.appendChild(o)})}
 
 /* ---------- Claude access ---------- */
-var sample=null,downloads=null;var OFFLINE=!window.claude;
+var sample=null,downloads=null;var OFFLINE=!window.claude;var STUDENT=false;
 var ready=(async function(){
   var c=window.claude;
   try{sample=c&&c.use?await c.use('sample'):null}catch(e){sample=null}
@@ -8645,6 +8645,323 @@ function neetVLBtn(id){
   document.getElementById('exMed').addEventListener('change',function(){if(!document.getElementById('tab-today').hidden)renderToday();else if(!document.getElementById('tab-ask').hidden){res=null;ah.replaceChildren();renderAsk()}});
 })();
 
+/* ---------- Speaking practice and AI partner (works with the phone's own speech tools) ---------- */
+(function(){
+  if(!OFFLINE)return;
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition,TTS=window.speechSynthesis;
+  var READS=[
+   ['Light travels in a straight line.',1],['A magnet has two poles, north and south.',1],['The unit of force is the newton.',1],['Sound cannot travel through a vacuum.',1],
+   ['Please open your books to the next page.',1],['Water boils at one hundred degrees Celsius.',1],['Today we will learn about electric current.',1],['The speed of light is very large.',1],
+   ['The current increases steadily as the voltage rises.',2],['Because the resistance is high, the current is small.',2],['Capacitance is the ratio of the charge stored to the potential difference.',2],
+   ['Unlike alternating current, direct current does not change its direction.',2],['A body at rest remains at rest unless an external force acts on it.',2],['Let us solve this problem together and check the answer.',2],
+   ['The image formed by a concave mirror can be real or virtual.',2],['Energy can neither be created nor destroyed.',2],['When light enters glass, it bends towards the normal.',2],['The wavelength of light is shorter in a denser medium.',2],
+   ['The refractive index of a medium is the ratio of the speed of light in a vacuum to its speed in that medium.',3],['In a series circuit the current is the same, whereas in a parallel circuit the voltage is the same.',3],
+   ['Therefore, the electric flux through a closed surface depends only on the enclosed charge.',3],['The photoelectric effect cannot be explained by the wave nature of light.',3],
+   ['Radioactive decay is a random process, and the activity of a sample falls to half its value in one half-life.',3],['Interference occurs when two coherent waves meet and their displacements add together.',3]];
+  var TALKS=[
+   ['Explain why the sky is blue.',['The sky looks blue because','Sunlight is made of','In other words']],
+   ['Describe your favourite experiment in the physics laboratory.',['First, we','Then we noticed that','I liked it because']],
+   ['Explain how a rainbow is formed.',['A rainbow is formed when','For example','Therefore']],
+   ['Tell us about a scientist you admire.',['I admire','She or he is famous for','I would like to']],
+   ['How does electricity reach your home?',['Electricity is produced','Next, it is carried by','Finally']],
+   ['Why should we save electricity? Give two reasons.',['The first reason is','The second reason is','In conclusion']],
+   ['Describe your journey to school.',['Every morning I','On the way','I usually reach']],
+   ['What will you do after Class twelve?',['After Class twelve I want to','I chose this because','To achieve this, I will']],
+   ['Explain what a magnet is and how it works.',['A magnet is','It attracts','For example']],
+   ['Why do ships float on water?',['A ship floats because','The density of','As a result']],
+   ['Describe a festival you enjoy and why.',['My favourite festival is','We usually','I enjoy it because']],
+   ['Explain the difference between speed and velocity.',['Speed is','Velocity is','The difference is that']],
+   ['How do mobile phones use waves?',['A mobile phone uses','These waves travel','Because of this']],
+   ['Tell us about something new you learned this week.',['This week I learned','It was interesting because','Now I can']]];
+  var DIAS=[
+   {t:'In the physics laboratory',a:'Teacher',b:'Student',l:[[0,'Good morning. What are we going to measure today?'],[1,'Good morning, madam. We are going to measure the resistance of a wire.'],[0,'Which instrument will you use to measure the current?'],[1,'I will use an ammeter, and I will connect it in series.'],[0,'Very good. What should you do if the reading keeps changing?'],[1,'I will check the connections and take the reading again.']]},
+   {t:'Asking a friend for help',a:'Friend A',b:'Friend B',l:[[0,'Excuse me, can you help me with this numerical problem?'],[1,'Of course. Which step is difficult for you?'],[0,'I do not understand how to find the equivalent resistance.'],[1,'First, check whether the resistors are in series or in parallel.'],[0,'They are in parallel, so I should add the reciprocals.'],[1,'Exactly. Now try it yourself and I will check your answer.']]},
+   {t:'A doubt after class',a:'Student',b:'Teacher',l:[[0,'Madam, may I ask a question about today’s lesson?'],[1,'Yes, please go ahead.'],[0,'Why does a convex lens form an inverted image?'],[1,'Because the rays from the top of the object cross after refraction and reach the bottom of the screen.'],[0,'Now I understand. Thank you, madam.'],[1,'You are welcome. Please ask whenever you have a doubt.']]},
+   {t:'At the science exhibition',a:'Visitor',b:'Presenter',l:[[0,'Hello, what is your project about?'],[1,'Hello. Our project shows how a transformer changes the voltage.'],[0,'How does it work?'],[1,'It works on electromagnetic induction. A changing current in one coil produces a voltage in the other coil.'],[0,'That is very interesting. Where is it used?'],[1,'It is used in power stations, chargers and many other devices.']]},
+   {t:'Explaining to a younger student',a:'Younger student',b:'You',l:[[0,'Akka, why does ice float on water?'],[1,'Ice floats because it is less dense than water.'],[0,'What does density mean?'],[1,'Density is the mass of a substance in each unit of volume.'],[0,'So ice has less mass in the same space?'],[1,'Yes, that is right. Well done.']]}];
+  var SIMW=['increases','decreases','remains constant','because','therefore','as a result','for example','directly proportional','moves towards','moves away from'];
+
+  /* ----- helpers ----- */
+  var css=document.createElement('style');
+  css.textContent='.spk .w{display:inline-block;margin:2px 3px;padding:2px 7px;border-radius:8px;font-weight:600}.spk .w.ok{background:#E3F2E6;color:#1E5E2E}.spk .w.no{background:#F8DCDC;color:#8A1F1F}'+
+  '.spk .big{font-size:1.15rem;line-height:1.6}.spk .mic{width:100%;margin-top:10px}.spk .mic.on{background:#B3261E;color:#fff}'+
+  '.spk .bub{max-width:88%;margin:8px 0;padding:10px 12px;border-radius:14px;line-height:1.5}.spk .bub.a{background:#F1E6D6;margin-right:auto}.spk .bub.u{background:#E3EEF9;margin-left:auto}'+
+  '.spk .bar{height:12px;border-radius:8px;background:#E8DCC8;overflow:hidden}.spk .bar i{display:block;height:100%;background:#2E7D4F}'+
+  '.spk .chipx{display:inline-block;margin:3px;padding:4px 10px;border-radius:999px;background:#F1E6D6;font-size:.85rem}';
+  document.head.append(css);
+  function norm(t){return String(t).toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(w){return w})}
+  function same(a,b){return a===b||(a.length>3&&b.length>3&&(a+'s'===b||b+'s'===a))}
+  function align(tw,sw){
+    var n=tw.length,m=sw.length,d=[],i,j;
+    for(i=0;i!==n+1;i++){d.push(new Array(m+1).fill(0))}
+    for(i=1;i!==n+1;i++){for(j=1;j!==m+1;j++){d[i][j]=same(tw[i-1],sw[j-1])?d[i-1][j-1]+1:Math.max(d[i-1][j],d[i][j-1])}}
+    var ok=new Array(n).fill(false);i=n;j=m;
+    while(i>0&&j>0){if(same(tw[i-1],sw[j-1])){ok[i-1]=true;i--;j--}else if(d[i-1][j]>=d[i][j-1])i--;else j--}
+    return ok;
+  }
+  var voice=null;
+  function pickVoice(){if(!TTS)return;var v=TTS.getVoices()||[];voice=v.filter(function(x){return x.lang==='en-IN'})[0]||v.filter(function(x){return /^en-(GB|US|AU)/.test(x.lang)})[0]||v.filter(function(x){return /^en/.test(x.lang)})[0]||null}
+  if(TTS){pickVoice();TTS.onvoiceschanged=pickVoice}
+  function say(t,done,rate){
+    if(!TTS){if(done)done();return}
+    TTS.cancel();var u=new SpeechSynthesisUtterance(t);u.lang=voice?voice.lang:'en-IN';if(voice)u.voice=voice;u.rate=rate||0.92;
+    u.onend=function(){if(done)done()};u.onerror=function(){if(done)done()};TTS.speak(u);
+  }
+  var active=null;
+  function listen(o){
+    if(!SR){o.end('nosr','');return null}
+    var r=new SR(),fin='',done=false,tm=null;r.lang='en-IN';r.interimResults=true;r.continuous=!!o.cont;r.maxAlternatives=1;
+    function finish(err){if(done)return;done=true;clearTimeout(tm);if(active&&active.r===r)active=null;o.end(err,fin.trim())}
+    r.onresult=function(e){var interim='';for(var i=e.resultIndex;i!==e.results.length;i++){var t=e.results[i][0].transcript;if(e.results[i].isFinal){fin+=t+' ';if(o.seg)o.seg(t)}else interim+=t}o.on((fin+interim).trim(),interim==='')};
+    r.onerror=function(e){finish(e.error||'error')};r.onend=function(){finish('')};
+    try{r.start()}catch(e){finish('start');return null}
+    if(o.ms)tm=setTimeout(function(){try{r.stop()}catch(e){}},o.ms);
+    var c={r:r,stop:function(){try{r.stop()}catch(e){}}};active=c;return c;
+  }
+  function stopAll(){if(active){try{active.stop()}catch(e){}active=null}if(TTS)TTS.cancel()}
+  function errMsg(err){
+    if(err==='nosr')return 'This browser cannot listen. Please open the app in Chrome on an Android phone or a computer.';
+    if(err==='not-allowed'||err==='service-not-allowed')return 'The microphone is blocked. Allow the microphone for this website in the browser settings, then try again.';
+    if(err==='no-speech')return 'I could not hear anything. Move closer to the phone and try again.';
+    if(err==='network')return 'Speech recognition needs the internet. Please check your connection.';
+    return '';
+  }
+  /* ----- log buffer ----- */
+  var LB={},lbN=0,lbT=null;
+  function nameGet(){try{return localStorage.getItem('sb_spk_name')||''}catch(e){return ''}}
+  function nameSet(v){try{localStorage.setItem('sb_spk_name',v)}catch(e){}}
+  function dayKey(){return new Date().toISOString().slice(0,10)}
+  function tally(add){try{var d=JSON.parse(localStorage.getItem('sb_spk_day')||'{}');if(d.d!==dayKey())d={d:dayKey(),n:0};if(add)d.n+=add;localStorage.setItem('sb_spk_day',JSON.stringify(d));return d.n}catch(e){return 0}}
+  function flush(){
+    clearTimeout(lbT);lbT=null;var items=Object.keys(LB).map(function(k){var x=LB[k];return {k:k,n:x.n,c:x.c,s:x.c?Math.round(x.s/x.c):0}});
+    if(!items.length)return;LB={};lbN=0;
+    try{fetch('/api/speaklog',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:nameGet(),items:items}),keepalive:true}).catch(function(){})}catch(e){}
+  }
+  function addLog(k,n,s){
+    var x=LB[k]||(LB[k]={n:0,c:0,s:0});x.n+=n;x.c+=1;x.s+=s;lbN++;tally(n);
+    if(lbN>=6)flush();else if(!lbT)lbT=setTimeout(flush,90000);
+    var t=document.getElementById('spkTally');if(t)t.textContent=String(tally(0));
+  }
+  document.addEventListener('visibilitychange',function(){if(document.hidden)flush()});
+  window.addEventListener('pagehide',flush);
+
+  /* ----- shared header: name, today's count, class challenge ----- */
+  function head(host){
+    var P=el('div','panel');
+    P.append(el('p','muted','Speak out loud. Your phone listens and shows what you said. Mistakes are fine: that is how we learn.'));
+    var nm=document.createElement('input');nm.type='text';nm.maxLength=24;nm.placeholder='Your first name';nm.value=nameGet();
+    nm.addEventListener('change',function(){nameSet(nm.value.replace(/[^A-Za-z0-9 .]/g,'').trim())});
+    var lb=el('label','f','Your name (your teacher can see who practised)');lb.append(nm);P.append(lb);
+    var row=el('div','muted');row.append('Sentences you spoke today: ');var tl=el('strong',null,String(tally(0)));tl.id='spkTally';row.append(tl);P.append(row);
+    var cc=el('div');cc.id='spkClass';P.append(cc);
+    host.append(P);
+    try{fetch('/api/speakstats',{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+      if(!j||!cc.isConnected)return;var pc=Math.min(100,Math.round(j.total*100/j.goal));
+      cc.append(el('p',null,'Class challenge this week: '+j.total+' of '+j.goal+' sentences'));var b=el('div','bar'),i=document.createElement('i');i.style.width=pc+'%';b.append(i);cc.append(b);
+      if(j.total>=j.goal)cc.append(el('p','muted','Goal reached. Well done, everyone!'))}).catch(function(){})}catch(e){}
+  }
+  function coloured(tw,ok,orig){
+    var box=el('div','big');orig.forEach(function(w,i){var s=el('span','w '+(ok[i]?'ok':'no'),w);box.append(s)});return box;
+  }
+  function verdict(sc){return sc>=85?'Excellent! Clear and correct.':sc>=60?'Good. Look at the red words and try once more.':'Keep going. Listen to the sentence first, then say it slowly.'}
+
+  /* ----- 1. read aloud ----- */
+  var RS={lvl:0,i:0,done:false,res:null};
+  function readView(host){
+    var pool=READS.filter(function(r){return !RS.lvl||r[1]===RS.lvl});if(RS.i>=pool.length)RS.i=0;
+    var sent=pool[RS.i][0],words=sent.split(/\s+/);
+    var lv=el('div','chips');[[0,'All'],[1,'Easy'],[2,'Medium'],[3,'Hard']].forEach(function(o){var b=el('button','chip',o[1]);b.type='button';b.setAttribute('aria-pressed',RS.lvl===o[0]?'true':'false');b.addEventListener('click',function(){stopAll();RS.lvl=o[0];RS.i=0;RS.res=null;render()});lv.append(b)});
+    host.append(lv);
+    var C=el('div','panel');C.append(el('div','muted','Sentence '+(RS.i+1)+' of '+pool.length));
+    var show=el('div','big');
+    if(RS.res){C.append(coloured(null,RS.res.ok,words))}else{C.append(el('div','big',sent))}
+    var ac=el('div','actions');
+    ac.append(button('Listen','btn ghost small',function(){say(sent)}),button('Slow','btn ghost small',function(){say(sent,null,0.65)}));
+    C.append(ac);
+    var mic=button(SR?'Tap and read the sentence':'Microphone not available','btn mic',function(){
+      if(!SR)return;
+      if(mic.classList.contains('on')){if(active)active.stop();return}
+      stopAll();mic.classList.add('on');mic.textContent='Listening... tap to stop';
+      var heard='';
+      listen({cont:false,ms:20000,on:function(t){heard=t},end:function(err,fin){
+        mic.classList.remove('on');var t=fin||heard;
+        if(!t){var m=errMsg(err);if(m)toast(m,4200);mic.textContent='Tap and read the sentence';return}
+        var ok=align(norm(sent),norm(t)),n=ok.filter(Boolean).length,sc=Math.round(n*100/ok.length);
+        RS.res={ok:ok,sc:sc,t:t};addLog('read',1,sc);render();
+      }});
+    });
+    C.append(mic);
+    if(RS.res){C.append(el('p',null,'You scored '+RS.res.sc+'%. '+verdict(RS.res.sc)));C.append(el('p','muted','I heard: '+RS.res.t))}
+    var nx=el('div','actions');nx.style.marginTop='10px';
+    nx.append(button('Try again','btn ghost small',function(){stopAll();RS.res=null;render()}),button('Next sentence','btn small',function(){stopAll();RS.i++;RS.res=null;render()}));
+    C.append(nx);host.append(C);
+  }
+
+  /* ----- 2. speak for 60 seconds ----- */
+  var TS={i:0,run:false,txt:'',left:60,res:null,tm:null};
+  function stopTalk(){TS.run=false;clearInterval(TS.tm);stopAll()}
+  function talkView(host){
+    var T=TALKS[TS.i%TALKS.length];
+    var C=el('div','panel');C.append(el('div','muted','Prompt '+(TS.i%TALKS.length+1)+' of '+TALKS.length));
+    C.append(el('h3',null,T[0]));
+    C.append(el('div','muted','Helpful phrases:'));var fr=el('div');T[1].forEach(function(f){fr.append(el('span','chipx',f+' ...'))});C.append(fr);
+    var tx=el('div','big');tx.id='talkTx';tx.textContent=TS.txt||'';tx.style.minHeight='3rem';C.append(tx);
+    var tm=el('div','muted');tm.id='talkTm';tm.textContent=TS.run?TS.left+' seconds left':'You have 60 seconds.';C.append(tm);
+    var mic=button(SR?(TS.run?'Stop':'Start speaking'):'Microphone not available','btn mic'+(TS.run?' on':''),function(){
+      if(!SR)return;
+      if(TS.run){finishTalk();return}
+      stopAll();TS.run=true;TS.txt='';TS.left=60;TS.res=null;var acc='';
+      TS.tm=setInterval(function(){TS.left--;var e=document.getElementById('talkTm');if(e)e.textContent=TS.left+' seconds left';if(TS.left===0)finishTalk()},1000);
+      function go(){
+        listen({cont:true,ms:TS.left*1000,on:function(t){var e=document.getElementById('talkTx');TS.txt=(acc+' '+t).trim();if(e)e.textContent=TS.txt},
+          end:function(err,fin){acc=(acc+' '+fin).trim();TS.txt=acc;if(!TS.run)return;
+            if(err&&err!=='')  {var m=errMsg(err);if(m)toast(m,4200);finishTalk();return}
+            if(TS.left===1||TS.left===0){finishTalk();return}go()}});
+      }
+      go();render(true);
+    });
+    C.append(mic);
+    if(TS.res){
+      var r=TS.res;C.append(el('h3',null,r.words+' words · '+r.sents+' sentences'));
+      C.append(el('p',null,r.msg));
+      if(r.used.length)C.append(el('p','muted','Phrases you used: '+r.used.join(', ')));
+    }
+    var nx=el('div','actions');nx.style.marginTop='10px';nx.append(button('New prompt','btn small',function(){stopTalk();TS.i++;TS.txt='';TS.res=null;render()}));C.append(nx);
+    host.append(C);
+  }
+  function finishTalk(){
+    if(!TS.run&&TS.res)return;
+    var txt=TS.txt;stopTalk();var words=norm(txt).length,sents=Math.max(words?1:0,Math.round(words/9));
+    var T=TALKS[TS.i%TALKS.length],low=' '+norm(txt).join(' ')+' ',used=T[1].filter(function(f){var k=norm(f).slice(0,2).join(' ');return low.indexOf(' '+k+' ')!==-1});
+    var msg=words===0?'I did not hear any words. Check the microphone and try again.':words>=70?'Wonderful! You spoke fluently. Try using all three phrases next time.':words>=40?'Very good. Try to add one more sentence with a helpful phrase.':'Good start. Speak a little longer next time, even short sentences count.';
+    TS.res={words:words,sents:sents,used:used,msg:msg};if(words)addLog('talk',sents,0);render();
+  }
+
+  /* ----- 3. role play ----- */
+  var RP={d:-1,role:0,step:0,res:null,sc:[]};
+  function roleView(host){
+    if(RP.d===-1){
+      var P=el('div','panel');P.append(el('p','muted','Choose a conversation. Your phone plays one person and you play the other.'));host.append(P);
+      DIAS.forEach(function(d,i){var b=button((i+1)+'. '+d.t,'btn ghost',function(){RP.d=i;RP.role=0;RP.step=0;RP.res=null;RP.sc=[];render()});b.style.display='block';b.style.width='100%';b.style.margin='6px 0';b.style.textAlign='left';host.append(b)});
+      return;
+    }
+    var D=DIAS[RP.d],C=el('div','panel');C.append(el('h3',null,D.t));
+    var rs=el('div','chips');[[0,D.a],[1,D.b]].forEach(function(o){var b=el('button','chip','I am the '+o[1].toLowerCase());b.type='button';b.setAttribute('aria-pressed',RP.role===o[0]?'true':'false');b.addEventListener('click',function(){stopAll();RP.role=o[0];RP.step=0;RP.res=null;RP.sc=[];render()});rs.append(b)});C.append(rs);
+    for(var i=0;i!==RP.step&&i!==D.l.length;i++){var ln=D.l[i];C.append(el('div','bub '+(ln[0]===RP.role?'u':'a'),(ln[0]===0?D.a:D.b)+': '+ln[1]))}
+    if(RP.step>=D.l.length){
+      var avg=RP.sc.length?Math.round(RP.sc.reduce(function(a,b){return a+b},0)/RP.sc.length):0;
+      C.append(el('h3',null,'Conversation complete. Your average: '+avg+'%'));
+      C.append(button('Back to conversations','btn small',function(){RP.d=-1;render()}));host.append(C);return;
+    }
+    var cur=D.l[RP.step];
+    if(cur[0]!==RP.role){
+      C.append(el('div','bub a',(cur[0]===0?D.a:D.b)+': '+cur[1]));
+      C.append(button('Hear this line','btn ghost small',function(){say(cur[1])}));
+      var nb=button('Continue','btn small',function(){stopAll();RP.step++;RP.res=null;render()});nb.style.marginLeft='8px';C.append(nb);
+      host.append(C);setTimeout(function(){if(RP.d===DIAS.indexOf(D)&&RP.step===D.l.indexOf(cur))say(cur[1])},150);return;
+    }
+    var words=cur[1].split(/\s+/);
+    C.append(el('div','muted','Your line:'));
+    C.append(RP.res?coloured(null,RP.res.ok,words):el('div','big',cur[1]));
+    var ac=el('div','actions');ac.append(button('Listen','btn ghost small',function(){say(cur[1])}));C.append(ac);
+    var mic=button(SR?'Tap and say your line':'Microphone not available','btn mic',function(){
+      if(!SR)return;if(mic.classList.contains('on')){if(active)active.stop();return}
+      stopAll();mic.classList.add('on');mic.textContent='Listening... tap to stop';var heard='';
+      listen({cont:false,ms:20000,on:function(t){heard=t},end:function(err,fin){mic.classList.remove('on');var t=fin||heard;
+        if(!t){var m=errMsg(err);if(m)toast(m,4200);mic.textContent='Tap and say your line';return}
+        var ok=align(norm(cur[1]),norm(t)),sc=Math.round(ok.filter(Boolean).length*100/ok.length);RP.res={ok:ok,sc:sc};render()}});
+    });
+    C.append(mic);
+    if(RP.res){C.append(el('p',null,'You scored '+RP.res.sc+'%. '+verdict(RP.res.sc)));
+      var nx=el('div','actions');nx.style.marginTop='8px';nx.append(button('Try again','btn ghost small',function(){RP.res=null;render()}),button('Next line','btn small',function(){RP.sc.push(RP.res.sc);addLog('role',1,RP.res.sc);RP.step++;RP.res=null;render()}));C.append(nx)}
+    host.append(C);
+  }
+
+  /* ----- 4. describe a simulation ----- */
+  var SS={id:null,txt:'',run:false,left:45,res:null,tm:null};
+  function topics(){return (window.VL&&VL.topics)||[]}
+  function stopSim(){SS.run=false;clearInterval(SS.tm);stopAll()}
+  function simView(host){
+    var C=el('div','panel');
+    if(!SS.id){var t0=topics();if(t0.length)SS.id=t0[Math.floor(Math.random()*t0.length)].id}
+    var T=topics().filter(function(x){return x.id===SS.id})[0];
+    if(!T){C.append(el('p','muted','No simulations found.'));host.append(C);return}
+    C.append(el('p','muted','Open the simulation, watch what happens, then come back and describe it in English for 45 seconds.'));
+    C.append(el('h3',null,T.n+'. '+T.t));
+    if(T.accept)C.append(el('p','muted','Look for: '+T.accept));
+    var ac=el('div','actions');ac.append(button('Open the simulation','btn small',function(){stopSim();neetGoVL(T.id)}),button('Another topic','btn ghost small',function(){stopSim();var a=topics();SS.id=a[Math.floor(Math.random()*a.length)].id;SS.txt='';SS.res=null;render()}));C.append(ac);
+    C.append(el('div','muted','Useful words:'));var wb=el('div');SIMW.forEach(function(w){wb.append(el('span','chipx',w))});C.append(wb);
+    var tx=el('div','big');tx.id='simTx';tx.textContent=SS.txt;tx.style.minHeight='3rem';C.append(tx);
+    var tm=el('div','muted');tm.id='simTm';tm.textContent=SS.run?SS.left+' seconds left':'You have 45 seconds.';C.append(tm);
+    var mic=button(SR?(SS.run?'Stop':'Start describing'):'Microphone not available','btn mic'+(SS.run?' on':''),function(){
+      if(!SR)return;if(SS.run){finishSim(T);return}
+      stopAll();SS.run=true;SS.txt='';SS.left=45;SS.res=null;var acc='';
+      SS.tm=setInterval(function(){SS.left--;var e=document.getElementById('simTm');if(e)e.textContent=SS.left+' seconds left';if(SS.left===0)finishSim(T)},1000);
+      function go(){listen({cont:true,ms:SS.left*1000,on:function(t){SS.txt=(acc+' '+t).trim();var e=document.getElementById('simTx');if(e)e.textContent=SS.txt},
+        end:function(err,fin){acc=(acc+' '+fin).trim();SS.txt=acc;if(!SS.run)return;if(err){var m=errMsg(err);if(m)toast(m,4200);finishSim(T);return}if(SS.left===1||SS.left===0){finishSim(T);return}go()}})}
+      go();render(true);
+    });
+    C.append(mic);
+    if(SS.res){C.append(el('h3',null,SS.res.words+' words · key words used: '+SS.res.hit+' of '+SS.res.tot));C.append(el('p',null,SS.res.msg))}
+    host.append(C);
+  }
+  function finishSim(T){
+    if(!SS.run&&SS.res)return;var txt=SS.txt;stopSim();var tw=norm(txt),words=tw.length,low=' '+tw.join(' ')+' ';
+    var keys={};norm(T.t+' '+(T.accept||'')).forEach(function(w){if(w.length>=5)keys[w]=1});SIMW.forEach(function(w){keys[norm(w).join(' ')]=1});
+    var ks=Object.keys(keys),hit=ks.filter(function(k){return low.indexOf(' '+k+' ')!==-1}).length,tot=Math.min(ks.length,12);hit=Math.min(hit,tot);
+    var msg=words===0?'I did not hear any words. Try again.':hit>=5?'Excellent description with good science words!':hit>=2?'Good. Try to use more of the useful words.':'Good start. Watch the simulation again and use the useful words.';
+    SS.res={words:words,hit:hit,tot:tot,msg:msg};if(words)addLog('sim',Math.max(1,Math.round(words/9)),0);render();
+  }
+
+  /* ----- 6. AI partner ----- */
+  var AI={topic:'Free talk',m:[],busy:false,voice:true,cid:null,started:false};
+  try{AI.cid=localStorage.getItem('sb_cid');if(!AI.cid){AI.cid='c'+Math.random().toString(36).slice(2,12)+Date.now().toString(36);localStorage.setItem('sb_cid',AI.cid)}}catch(e){AI.cid='c'+Math.random().toString(36).slice(2,12)}
+  var GREET={'Free talk':'Hello! I am your English practice friend. How are you today?','School life':'Hello! Let us talk about school. What was the best part of your day today?','Physics in daily life':'Hello! Physics is all around us. What is one thing at home that uses electricity?','My future plans':'Hello! Let us talk about your future. What would you like to study after Class twelve?'};
+  function aiView(host){
+    var P=el('div','panel');P.append(el('p','muted','Chat with a friendly AI partner in English. Speak or type. It answers in short sentences and gently corrects one mistake at a time. Do not share your full name, address or phone number.'));
+    var ch=el('div','chips');Object.keys(GREET).forEach(function(k){var b=el('button','chip',k);b.type='button';b.setAttribute('aria-pressed',AI.topic===k?'true':'false');b.addEventListener('click',function(){stopAll();AI.topic=k;AI.m=[];AI.started=false;render()});ch.append(b)});P.append(ch);host.append(P);
+    if(!AI.started){AI.started=true;AI.m=[{r:'a',t:GREET[AI.topic]}];setTimeout(function(){if(AI.voice&&AI.m.length===1)say(AI.m[0].t)},200)}
+    var box=el('div');box.id='aiBox';AI.m.forEach(function(x){box.append(el('div','bub '+(x.r==='a'?'a':'u'),x.t))});host.append(box);
+    var row=el('div','panel');
+    var inp=document.createElement('input');inp.type='text';inp.maxLength=300;inp.placeholder='Type here, or tap the microphone';inp.id='aiIn';
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter')send(inp.value)});
+    row.append(inp);var ac=el('div','actions');ac.style.marginTop='8px';
+    var mic=button(SR?'Speak':'Microphone not available','btn small',function(){
+      if(!SR||AI.busy)return;if(mic.classList.contains('on')){if(active)active.stop();return}
+      stopAll();mic.classList.add('on');mic.textContent='Listening... tap to stop';
+      listen({cont:false,ms:20000,on:function(t){inp.value=t},end:function(err,fin){mic.classList.remove('on');mic.textContent='Speak';var t=fin||inp.value;if(!t){var m=errMsg(err);if(m)toast(m,4200);return}send(t)}});
+    });
+    ac.append(mic,button('Send','btn small',function(){send(inp.value)}),button(AI.voice?'Voice on':'Voice off','btn ghost small',function(){AI.voice=!AI.voice;if(!AI.voice)stopAll();render(true)}),button('Start again','btn ghost small',function(){stopAll();AI.m=[];AI.started=false;render()}));
+    row.append(ac);host.append(row);
+    function send(t){
+      t=String(t||'').trim();if(!t||AI.busy)return;AI.busy=true;AI.m.push({r:'u',t:t});inp.value='';
+      var b2=document.getElementById('aiBox');if(b2){b2.append(el('div','bub u',t));var w=el('div','bub a','...');w.id='aiWait';b2.append(w);w.scrollIntoView({block:'nearest'})}
+      fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cid:AI.cid,topic:AI.topic,m:AI.m.slice(-10)})})
+       .then(function(r){return r.json().catch(function(){return {error:'The AI partner is resting. Please try again later.'}})})
+       .then(function(j){
+         AI.busy=false;var wt=document.getElementById('aiWait');if(wt)wt.remove();
+         if(j.reply){AI.m.push({r:'a',t:j.reply});addLog('ai',1,0);if(b2)b2.append(el('div','bub a',j.reply));if(AI.voice)say(j.reply)}
+         else{AI.m.pop();var e=j.error||'The AI partner is resting. Please try again later.';if(b2)b2.append(el('div','muted',e))}
+       }).catch(function(){AI.busy=false;AI.m.pop();var wt=document.getElementById('aiWait');if(wt)wt.remove();if(b2)b2.append(el('div','muted','The AI partner works only on the school website after you sign in, and needs internet.'))});
+    }
+  }
+
+  /* ----- speak mode shell ----- */
+  var SM='read',cur=null;
+  function render(keep){
+    if(!cur)return;var host=cur.host,y=window.pageYOffset;host.replaceChildren();host.classList.add('spk');
+    if(cur.mode==='ai'){head(host);aiView(host)}
+    else{
+      head(host);
+      var sg=el('div','seg');[['read','Read aloud'],['talk','Speak 60 s'],['role','Role-play'],['sim','Describe']].forEach(function(o){var b=el('button',null,o[1]);b.type='button';b.setAttribute('aria-pressed',SM===o[0]?'true':'false');b.addEventListener('click',function(){stopAll();stopTalk();stopSim();SM=o[0];render()});sg.append(b)});
+      host.append(sg);
+      if(SM==='read')readView(host);else if(SM==='talk')talkView(host);else if(SM==='role')roleView(host);else simView(host);
+    }
+    if(keep)window.scrollTo(0,y);
+  }
+  window.SPK={render:function(host,mode){cur={host:host,mode:mode};render()},stop:function(){stopAll();stopTalk();stopSim();flush()}};
+})();
+
 /* ---------- Offline English: fixed lessons and quizzes (no Claude needed) ---------- */
 (function(){
   if(!OFFLINE)return;
@@ -8744,9 +9061,10 @@ function neetVLBtn(id){
   function render(keep){
     var y=window.pageYOffset;host.replaceChildren();
     var sg=el('div','seg');
-    [['list','Lessons'],['quiz','Mixed quiz']].forEach(function(o){var b=el('button',null,o[1]);b.type='button';b.setAttribute('aria-pressed',(view.m===o[0]||(view.m==='lesson'&&o[0]==='list'))?'true':'false');b.addEventListener('click',function(){view.m=o[0];view.ans={};qz=null;render()});sg.append(b)});
+    [['list','Lessons'],['quiz','Quiz'],['speak','Speak'],['ai','Talk with AI']].forEach(function(o){var b=el('button',null,o[1]);b.type='button';b.setAttribute('aria-pressed',(view.m===o[0]||(view.m==='lesson'&&o[0]==='list'))?'true':'false');b.addEventListener('click',function(){if(window.SPK)SPK.stop();view.m=o[0];view.ans={};qz=null;render()});sg.append(b)});
     host.append(sg);
-    if(view.m==='list'){
+    if(view.m==='speak'||view.m==='ai'){var sh=el('div');host.append(sh);SPK.render(sh,view.m)}
+    else if(view.m==='list'){
       var P=el('div','panel');P.append(el('p','muted','Ten short lessons on the English that physics teachers use every day, each with a quiz. Everything works without Claude and without internet. Tap a lesson.'));host.append(P);
       LES.forEach(function(L,i){
         var d=S.d[i],b=button((i+1)+'. '+L.t+(d&&d.b!=null?'  ·  best '+d.b+'/'+L.q.length:''),'btn ghost',function(){view.m='lesson';view.i=i;view.ans={};render()});
@@ -8864,6 +9182,14 @@ function showMain(v){
 }
 seg($('#mainSeg'),showMain);
 showMain('book');
+if(STUDENT){
+  $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='exam'&&b.dataset.v!=='optics')b.hidden=true});
+  var tl=$('#tb-teach');if(tl){var nd=tl.lastChild;if(nd&&nd.nodeType===3)nd.textContent='Learn'}
+  var th2=$('#tab-teach h2'),tlb=$('#tab-teach .lab');if(th2)th2.textContent='Practice and simulations';if(tlb)tlb.textContent='Learn';
+  var te=$('#tb-tour');if(te)te.hidden=true;
+  var tbn=$('.tabbar .in');if(tbn)tbn.style.setProperty('grid-template-columns','repeat(7,1fr)','important');
+  setSeg($('#mainSeg'),'exam');showMain('exam');
+}
 
 /* ---------- Saved ---------- */
 function renderSaved(){
