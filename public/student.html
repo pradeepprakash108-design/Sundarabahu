@@ -2002,7 +2002,7 @@ function renderExMode(keep){
   var sl=document.createElement('select');sl.id='exTopUnit';
   opts.forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(+o[0]===st.unit)op.selected=true;sl.append(op)});
   sl.addEventListener('change',function(){st.unit=+sl.value;renderExMode()});
-  var lb=el('label','f',exT('unit'));lb.append(sl);P.append(lb);H.append(P);
+  var lb=el('label','f',exT('unit'));lb.append(sl);P.append(lb);if(kind==='top')H.append(P);else st.unit=0;
   var L=exModeList(kind,st.part,st.unit);
   var head=el('div','exhead');head.append(el('strong',null,L.length+' '+exT('q')),el('span','muted',' · '+(st.unit?exUnitLabel(st.unit):exT('all'))));H.append(head);
   var fn=kind==='top'?'class12-physics-toppers-material':'class12-physics-question-bank';
