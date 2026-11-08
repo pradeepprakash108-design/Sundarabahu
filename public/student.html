@@ -1748,11 +1748,11 @@ function exSecsFor(marks,unit,src,nb){
 }
 function exSecs(all){return all===true?exSecsFor(EXMARKS,0,{p:true,b:true,x:true}):exSecsFor([exs.m],exs.unit,exs.src,exs.nb)}
 function exEsc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/\x3c/g,'&lt;').replace(/>/g,'&gt;')}
-function exDocHtml(all,ttl){
+function exDocHtml(all,ttl,word){
   var ta=isTa();
-  var LB=ta?'அஆஇஈ':'ABCD',AN=ta?'விடை':'Answer',SO=ta?'விளக்கம்':'Solution',KP=ta?'மதிப்பெண் புள்ளிகள்':'Key points';
+  var LB=ta?'அஆஇஈஉ':'ABCDE',AN=ta?'விடை':'Answer',SO=ta?'விளக்கம்':'Solution',KP=ta?'மதிப்பெண் புள்ளிகள்':'Key points';
   var font=ta?"Vijaya,'Noto Sans Tamil',Latha,'Nirmala UI',Arial,sans-serif":"Calibri,Arial,sans-serif";
-  var h='\x3c!doctype html>\x3chtml lang="'+(ta?'ta':'en')+'">\x3chead>\x3cmeta charset="utf-8">\x3ctitle>'+exEsc(ttl||(ta?'சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல்':'Sundarabahu: Class 12 Physics exam practice'))+'\x3c/title>\x3cstyle>body{font-family:'+font+';font-size:'+(ta?'13pt':'11pt')+';line-height:1.45;margin:24px}h1{font-size:18pt}h2{font-size:14pt;border-bottom:1px solid #888;margin-top:22px}.q{margin:10px 0 2px;font-weight:bold}.o{margin:0 0 0 22px}.s{margin:3px 0 8px 22px;color:#222}.src{font-size:9pt;color:#555}@media print{h2{page-break-after:avoid}.b{page-break-inside:avoid}}\x3c/style>\x3c/head>\x3cbody>\x3ch1>'+exEsc(ttl||(ta?'சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் – வினா வங்கி':'Sundarabahu: Class 12 Physics exam practice'))+'\x3c/h1>';
+  var h='\x3ch1>'+exEsc(ttl||(ta?'சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் – வினா வங்கி':'Sundarabahu: Class 12 Physics exam practice'))+'\x3c/h1>';
   (typeof all==='function'?all():Array.isArray(all)?all:exSecs(all)).forEach(function(S){
     var items=S.m||S.p;if(!items||!items.length)return;
     h+='\x3ch2>'+exEsc(S.t)+'\x3c/h2>';
@@ -1760,13 +1760,40 @@ function exDocHtml(all,ttl){
       h+='\x3cdiv class="b">\x3cp class="q">'+(i+1)+'. '+exEsc(ta&&q.qq?q.qq:q.q)+(S.k?' ['+S.k+']':'')+'\x3c/p>';
       if(q.fig&&q.n&&!ta)h+='\x3cp class="src">Figure: see the textbook book-back exercises, Unit '+q.u+', question '+q.n+'\x3c/p>';
       
-      if(q.o&&q.o.length)h+=q.o.map(function(o,j){return '\x3cp class="o">'+LB[j]+') '+exEsc(o)+'\x3c/p>'}).join('')+'\x3cp class="s">\x3cb>'+AN+': '+(typeof q.a==='string'?q.a:LB[q.a])+'.\x3c/b> '+exEsc(q.s)+'\x3c/p>';
+      if(q.o&&q.o.length){
+        var oo=q.o,seq=oo.every(function(o,j){var m=/^\(?([a-eA-E])\)\s+/.exec(String(o));return m&&m[1].toLowerCase()===String.fromCharCode(97+j)});
+        if(seq)oo=oo.map(function(o){return String(o).replace(/^\(?[a-eA-E]\)\s+/,'')});
+        var mx=0;oo.forEach(function(o){mx=Math.max(mx,String(o).length)});
+        var cols=(mx===0||mx>18||oo.length>4)?2:oo.length;
+        h+='\x3ctable class="ot">';
+        oo.forEach(function(o,j){if(j%cols===0)h+='\x3ctr>';h+='\x3ctd style="width:'+Math.floor(100/cols)+'%">'+LB[j]+') '+exEsc(o)+'\x3c/td>';if(j%cols===cols-1||j===oo.length-1)h+='\x3c/tr>'});
+        h+='\x3c/table>';
+        if(!q.noa)h+='\x3cp class="s">\x3cb>'+AN+': '+(typeof q.a==='string'?q.a:LB[q.a])+'.\x3c/b> '+exEsc(q.s)+'\x3c/p>';
+      }
       else if(q.p){h+=q.p.map(function(t){return '\x3cp class="s">'+exEsc(t)+'\x3c/p>'}).join('');if(q.k&&q.k.length)h+='\x3cp class="s">\x3cb>'+KP+':\x3c/b> '+q.k.map(exEsc).join(' ')+'\x3c/p>'}
       else h+='\x3cp class="s">\x3cb>'+SO+':\x3c/b> '+exEsc(q.s)+'\x3c/p>';
       h+='\x3c/div>';
     });
   });
-  return h+'\x3c/body>\x3c/html>';
+  return docWrap(ttl||(ta?'சுந்தரபாகு':'Sundarabahu'),h,ta,word,'');
+}
+
+function docWrap(title,body,ta,word,extra){
+  var red='#6B1D2A',ff="'Times New Roman',Times,Vijaya,'Noto Sans Tamil',serif";
+  var css='@page{size:A4;margin:'+(word?'20mm':'12mm')+'}'+
+   'body{font-family:'+ff+';mso-bidi-font-family:Vijaya;mso-fareast-font-family:Vijaya;font-size:14pt;line-height:1.5;text-align:justify;margin:0}'+
+   'p,li,td{font-size:14pt;text-align:justify}'+
+   'h1,h2,h3{font-family:'+ff+';text-align:center}'+
+   'h1{font-size:20pt;color:'+red+';margin:4pt 0 12pt}'+
+   'h2{font-size:16pt;color:'+red+';border-bottom:1.5pt solid '+red+';padding-bottom:3pt;margin:18pt 0 8pt}'+
+   'h3{font-size:14pt;margin:12pt 0 3pt}'+
+   '.q{margin:10pt 0 2pt;font-weight:bold}.s{margin:3pt 0 8pt 22pt;color:#222}.src{font-size:11pt;color:#555}'+
+   'table.ot{width:100%;border-collapse:collapse;margin:1pt 0 3pt 14pt}table.ot td{padding:1pt 10pt 1pt 0;vertical-align:top;text-align:left}'+
+   '.sbhead{text-align:right;font-style:italic;font-size:13pt;color:'+red+';margin:0 0 6pt}'+
+   (word?'.sbframe{border:2.25pt double '+red+';padding:12pt}':'.sbframe0{position:fixed;top:0;left:0;right:0;bottom:0;border:2.5pt double '+red+'}table.sbpage{width:100%;border-collapse:collapse}table.sbpage td.sbc{padding:0 9mm}table.sbpage .sbhead{padding:5mm 0 3mm;margin:0}')+
+   '@media print{h2{page-break-after:avoid}.b{page-break-inside:avoid}}'+(extra||'');
+  return '\x3c!doctype html>\x3chtml lang="'+(ta?'ta':'en')+'">\x3chead>\x3cmeta charset="utf-8">\x3ctitle>'+exEsc(title)+'\x3c/title>\x3cstyle>'+css+'\x3c/style>\x3c/head>\x3cbody>'+
+    (word?'\x3cdiv class="sbframe">\x3cp class="sbhead">Sundarabahu\x3c/p>'+body+'\x3c/div>':'\x3cdiv class="sbframe0">\x3c/div>\x3ctable class="sbpage">\x3cthead>\x3ctr>\x3ctd class="sbc">\x3cp class="sbhead">Sundarabahu\x3c/p>\x3c/td>\x3c/tr>\x3c/thead>\x3ctfoot>\x3ctr>\x3ctd>\x3cdiv style="height:9mm">\x3c/div>\x3c/td>\x3c/tr>\x3c/tfoot>\x3ctbody>\x3ctr>\x3ctd class="sbc">'+body+'\x3c/td>\x3c/tr>\x3c/tbody>\x3c/table>')+'\x3c/body>\x3c/html>';
 }
 
 function exPdf(all,ttl){
@@ -1777,7 +1804,7 @@ function exPdf(all,ttl){
     document.body.appendChild(f);toast('In the print window choose Save as PDF');
   }catch(e){toast('Printing is not available here. Use the Word download instead.')}
 }
-function exWord(all,name,ttl){saveFile(name,exDocHtml(all,ttl))}
+function exWord(all,name,ttl){saveFile(name,exDocHtml(all,ttl,true))}
 function exDlPanel(title,all,name,ttl){
   var p=el('div','panel dl');p.append(el('h3',null,title));
   var r=el('div','actions');
@@ -1891,6 +1918,50 @@ function exModeSecs(kind,parts,unit){
   });
   return S;
 }
+
+exs.bd={u:{},m:{2:1,3:1,5:1},sums:false};
+function exBdSecs(withAns){
+  var us=Object.keys(exs.bd.u).filter(function(k){return exs.bd.u[k]}).map(Number),S=[];
+  [2,3,5].filter(function(m){return exs.bd.m[m]}).forEach(function(mk){
+    var L=(exData()[mk]||[]).filter(function(q){return exQbFilter(q)&&(!us.length||us.indexOf(q.u)!==-1)&&(!exs.bd.sums||exIsNum(q))}).sort(function(a,b){return (a.u||0)-(b.u||0)}),byU={};
+    L.forEach(function(q){(byU[q.u||0]=byU[q.u||0]||[]).push(q)});
+    Object.keys(byU).map(Number).sort(function(a,b){return a-b}).forEach(function(u){
+      S.push({t:exT(mk)+(exs.bd.sums?' '+X('sums','கணக்குகள்'):'')+(u?' – '+exUnitLabel(u):''),k:'',p:byU[u].map(function(q){
+        var tx=q.q+' ('+exTimes(q)+')';
+        return withAns?{q:tx,p:(q.p||[]).concat((q.eq||[]).length?[q.eq.join('; ')]:[]),k:q.k}:{q:tx,p:[]};
+      })});
+    });
+  });
+  return S;
+}
+function exBdCount(){
+  var n=0;exBdSecs(false).forEach(function(S){n+=S.p.length});return n;
+}
+function exBdPanel(){
+  var P=el('div','panel');P.append(el('h3',null,X('Download builder','பதிவிறக்க அமைப்பு')));
+  P.append(el('p','muted',X('Choose the units and marks, then download with or without answers. Nothing selected under Units means all units.','பாடங்களையும் மதிப்பெண்களையும் தேர்ந்தெடுத்து, விடையுடன் அல்லது விடையின்றிப் பதிவிறக்குக. பாடம் எதுவும் தேர்ந்தெடுக்காவிட்டால் எல்லாப் பாடங்களும்.')));
+  function chips(label,items,get,toggle){
+    P.append(el('div','muted',label));var c=el('div','chips');
+    items.forEach(function(it){var b=el('button','chip',it[1]);b.type='button';b.setAttribute('aria-pressed',get(it[0])?'true':'false');b.addEventListener('click',function(){toggle(it[0]);renderExMode(true)});c.append(b)});P.append(c);
+  }
+  var ui=[['all',exT('all')]].concat(BOOK.units.map(function(u){return [+u.no,String(u.no)]}));
+  chips(X('Units','பாடங்கள்'),ui,function(k){var sel=Object.keys(exs.bd.u).filter(function(x){return exs.bd.u[x]});return k==='all'?!sel.length:!!exs.bd.u[k]},function(k){if(k==='all')exs.bd.u={};else exs.bd.u[k]=!exs.bd.u[k]});
+  chips(X('Marks','மதிப்பெண்'),[[2,'2'],[3,'3'],[5,'5']],function(k){return !!exs.bd.m[k]},function(k){exs.bd.m[k]=!exs.bd.m[k]});
+  var sc=el('label','srcopt'),cb=document.createElement('input');cb.type='checkbox';cb.checked=exs.bd.sums;cb.addEventListener('change',function(){exs.bd.sums=cb.checked;renderExMode(true)});
+  sc.append(cb,document.createTextNode(' '+X('Sums only (numerical problems)','கணக்குகள் மட்டும்')));sc.style.display='block';sc.style.margin='10px 0';P.append(sc);
+  var pre=button(X('2 and 3 marks sums only','2, 3 மதிப்பெண் கணக்குகள் மட்டும்'),'btn ghost small',function(){exs.bd.m={2:1,3:1};exs.bd.sums=true;renderExMode(true)});P.append(pre);
+  var n=exBdCount();P.append(el('p',null,n+' '+exT('q')));
+  var nm=n?'':' disabled';
+  var fn='class12-physics-question-bank'+(exs.bd.sums?'-sums':'')+(isTa()?'-tamil':''),ttl0=X('Sundarabahu: Class 12 Physics question bank','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் வினா வங்கி');
+  [[false,X('without answers','விடைகள் இல்லாமல்')],[true,X('with answers','விடைகளுடன்')]].forEach(function(o){
+    var r=el('div','actions');r.style.marginTop='8px';r.append(el('span','muted',o[1]+': '));
+    var w=button(exT('word'),'btn ghost small',function(){exWord(function(){return exBdSecs(o[0])},fn+(o[0]?'-with-answers':'-no-answers')+'.doc',ttl0+' ('+o[1]+')')}),
+        d=button(exT('pdf'),'btn small',function(){exPdf(function(){return exBdSecs(o[0])},ttl0+' ('+o[1]+')')});
+    if(!n){w.disabled=true;d.disabled=true}
+    r.append(d,w);P.append(r);
+  });
+  return P;
+}
 function exModeShow(){
   var m=exs.mode,pr=m==='p';
   $('#exMark').hidden=!pr;$('#exFilter').hidden=!pr;$('#exHost').hidden=!pr;$('#exTop').hidden=pr;
@@ -1905,7 +1976,7 @@ function renderExMode(keep){
   intro.append(el('h3',null,kind==='top'?X('Toppers material','முதன்மை மாணவர் தொகுப்பு'):X('Question bank','வினா வங்கி')));
   intro.append(el('p','muted',kind==='top'
     ?X('Objective questions asked in previous exams that come from the interior lessons (not the book-back exercises), and every numerical problem asked in previous year question papers (2, 3 and 5 marks), each with its answer. Tap Show answer on a question, or download everything.','முந்தைய தேர்வுகளில் கேட்கப்பட்ட, பாடங்களின் உட்பகுதியிலிருந்து (பின் பயிற்சி வினாக்கள் அல்லாத) கொள்குறி வினாக்கள், மற்றும் முந்தைய ஆண்டு வினாத்தாள்களில் (2, 3, 5 மதிப்பெண்) கேட்கப்பட்ட அனைத்துக் கணக்குகள், விடைகளுடன். விடையைக் காண ஒவ்வொரு வினாவிலும் தொடுக; அல்லது முழுவதையும் பதிவிறக்குக.')
-    :X('Only the 2, 3 and 5 mark questions asked in previous year question papers. No answers. You can download it.','முந்தைய ஆண்டு வினாத்தாள்களில் கேட்கப்பட்ட 2, 3, 5 மதிப்பெண் வினாக்கள் மட்டும். விடைகள் இல்லை. பதிவிறக்கலாம்.')));
+    :X('The 2, 3 and 5 mark questions asked in previous year question papers. The list shows questions only. Use the Download builder below to get chosen units, with or without answers, or only the sums.','முந்தைய ஆண்டு வினாத்தாள்களில் கேட்கப்பட்ட 2, 3, 5 மதிப்பெண் வினாக்கள். பட்டியலில் வினாக்கள் மட்டும். கீழே உள்ள பதிவிறக்க அமைப்பில் தேர்ந்த பாடங்களை விடையுடன் அல்லது விடையின்றி, அல்லது கணக்குகளை மட்டும் பெறலாம்.')));
   H.append(intro);
   var tabs=el('div','marktabs');
   parts.forEach(function(m){
@@ -1927,7 +1998,8 @@ function renderExMode(keep){
   var fn=kind==='top'?'class12-physics-toppers-material':'class12-physics-question-bank';
   var ttl=kind==='top'?X('Sundarabahu: Class 12 Physics toppers material','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் முதன்மை மாணவர் தொகுப்பு'):X('Sundarabahu: Class 12 Physics question bank (previous year questions, no answers)','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் வினா வங்கி (முந்தைய ஆண்டு வினாக்கள், விடைகள் இல்லை)');
   var sfx=ta?'-tamil':'';
-  if(L.length)H.append(exDlPanel(X('Download this list','இந்தப் பட்டியலைப் பதிவிறக்குக'),function(){return exModeSecs(kind,[st.part],st.unit)},fn+'-'+(st.part==='o'?'objective':st.part+'-marks')+sfx+'.doc',ttl));
+  if(kind==='qb')H.append(exBdPanel());
+  if(L.length&&kind==='top')H.append(exDlPanel(X('Download this list','இந்தப் பட்டியலைப் பதிவிறக்குக'),function(){return exModeSecs(kind,[st.part],st.unit)},fn+'-'+(st.part==='o'?'objective':st.part+'-marks')+sfx+'.doc',ttl));
   if(!L.length)H.append(el('div','panel',exT('none')));
   else{
     var grid=el('div','exgrid'),lastU=-1,k=0;
@@ -1939,7 +2011,7 @@ function renderExMode(keep){
     });
     H.append(grid);
   }
-  H.append(exDlPanel(kind==='top'?X('Download the whole toppers material','முழு தொகுப்பையும் பதிவிறக்குக'):X('Download the whole question bank','முழு வினா வங்கியையும் பதிவிறக்குக'),function(){return exModeSecs(kind,parts,0)},fn+sfx+'.doc',ttl));
+  if(kind==='top')H.append(exDlPanel(X('Download the whole toppers material','முழு தொகுப்பையும் பதிவிறக்குக'),function(){return exModeSecs(kind,parts,0)},fn+sfx+'.doc',ttl));
   if(keep)window.scrollTo(0,y);
 }
 $$('#exMode button').forEach(function(b){b.addEventListener('click',function(){exs.mode=b.dataset.k;renderExam()})});
@@ -2112,15 +2184,14 @@ function wkDayLines(w,ta){
   });
 }
 function wkMd(w,ta){return null}
-function wkDocHtml(list,ta){
-  var font=ta?"Vijaya,'Noto Sans Tamil',Latha,'Nirmala UI',Arial,sans-serif":"Calibri,Arial,sans-serif";
-  var h='\x3c!doctype html>\x3chtml lang="'+(ta?'ta':'en')+'">\x3chead>\x3cmeta charset="utf-8">\x3ctitle>'+(ta?'வாரப் பாடத்திட்டம்':'Weekly lesson plan')+'\x3c/title>\x3cstyle>body{font-family:'+font+';font-size:'+(ta?'12pt':'10.5pt')+';line-height:1.3;margin:0}@page{size:8.5in 13in;margin:0.6in 0.7in}@page Section1{size:8.5in 13in;margin:0.6in 0.7in;mso-page-orientation:portrait}div.Section1{page:Section1}h1{font-size:18pt}h2{font-size:15pt;border-bottom:2px solid #444;margin-top:0}h3{font-size:12pt;margin:12px 0 2px}p,li{margin:2px 0}.wk{page-break-before:always}.wk:first-of-type{page-break-before:avoid}pre{font-family:inherit;white-space:pre-wrap;margin:2px 0}\x3c/style>\x3c/head>\x3cbody>\x3cdiv class="Section1">\x3ch1>'+(ta?'சுந்தரபாகு – பன்னிரண்டாம் வகுப்பு இயற்பியல் – வாரப் பாடத்திட்டம்':'Sundarabahu – Class 12 Physics – Weekly lesson plan')+'\x3c/h1>\x3cp>'+(ta?'மொத்த வேலை நாட்கள்: ':'Working days in the year: ')+WK.days+' ('+wkWeeks().length+(ta?' வாரங்கள்)':' weeks)')+'\x3c/p>';
+function wkDocHtml(list,ta,word){
+  var h='\x3ch1>'+(ta?'சுந்தரபாகு – பன்னிரண்டாம் வகுப்பு இயற்பியல் – வாரப் பாடத்திட்டம்':'Sundarabahu – Class 12 Physics – Weekly lesson plan')+'\x3c/h1>\x3cp>'+(ta?'மொத்த வேலை நாட்கள்: ':'Working days in the year: ')+WK.days+' ('+wkWeeks().length+(ta?' வாரங்கள்)':' weeks)')+'\x3c/p>';
   list.forEach(function(w){
     h+='\x3cdiv class="wk">\x3ch2>'+(ta?'வாரம் ':'Week ')+w.n+' – '+exEsc(wkTitle(w,ta))+'\x3c/h2>';
     wkSections(w,ta).forEach(function(S,i){h+='\x3ch3>'+(i+1)+'. '+exEsc(S.h)+'\x3c/h3>'+S.l.map(function(l){return '\x3cp style="white-space:pre-wrap;margin:4px 0">'+exEsc(l)+'\x3c/p>'}).join('')});
     h+='\x3c/div>';
   });
-  return h+'\x3c/div>\x3c/body>\x3c/html>';
+  return docWrap(ta?'வாரப் பாடத்திட்டம்':'Weekly lesson plan',h,ta,word,'@page{size:8.5in 13in}.wk{page-break-before:always}.wk:first-of-type{page-break-before:avoid}');
 }
 function docPdf(html){
   try{
@@ -2133,7 +2204,7 @@ function docPdf(html){
 function wkDl(list,name){
   var ta=$('#wkMed').value==='ta';
   var r=el('div','actions');
-  r.append(button('Download as PDF','btn',function(){docPdf(wkDocHtml(list,ta))}),button('Download as Word','btn ghost',function(){saveFile(name+(ta?'-tamil':'')+'.doc',wkDocHtml(list,ta))}));
+  r.append(button('Download as PDF','btn',function(){docPdf(wkDocHtml(list,ta))}),button('Download as Word','btn ghost',function(){saveFile(name+(ta?'-tamil':'')+'.doc',wkDocHtml(list,ta,true))}));
   return r;
 }
 function renderWeekly(){
