@@ -1902,7 +1902,7 @@ function exModeList(kind,part,unit){
   var f=kind==='top'?exTopFilter(part):exQbFilter;
   return (exData()[part]||[]).filter(function(q){return (!unit||q.u===unit)&&f(q)}).sort(function(a,b){return (a.u||0)-(b.u||0)});
 }
-function exModeSecs(kind,parts,unit){
+function exModeSecs(kind,parts,unit,noAns){
   var S=[];
   parts.forEach(function(mk){
     var L=exModeList(kind,mk,unit),byU={};
@@ -1912,8 +1912,8 @@ function exModeSecs(kind,parts,unit){
       if(kind==='top')t=(mk==='o'?X('Objective questions from the interior lessons','பாடங்களின் உட்பகுதியிலிருந்து கொள்குறி வினாக்கள்'):exT(mk)+' '+X('problems asked in previous exams','முந்தைய தேர்வுகளில் கேட்கப்பட்ட கணக்குகள்'));
       else t=exT(mk);
       t+=u?' – '+exUnitLabel(u):'';
-      if(mk==='o')S.push({t:t,m:items.map(function(q){return {q:exFq(q),o:q.o,a:Math.max(0,q.a),s:[q.sol].concat(q.eq||[]).filter(function(x){return x}).join(' '),fig:q.fig,n:q.n,u:q.u}})});
-      else S.push({t:t,p:items.map(function(q){return kind==='qb'?{q:q.q+' ('+exTimes(q)+')',p:[]}:{q:exFq(q),p:(q.p||[]).concat((q.eq||[]).length?[q.eq.join('; ')]:[]),k:q.k}}),k:''});
+      if(mk==='o')S.push({t:t,m:items.map(function(q){return {q:exFq(q),o:q.o,a:Math.max(0,q.a),s:[q.sol].concat(q.eq||[]).filter(function(x){return x}).join(' '),fig:q.fig,n:q.n,u:q.u,noa:!!noAns}})});
+      else S.push({t:t,p:items.map(function(q){return (kind==='qb'||noAns)?{q:(kind==='qb'?q.q+' ('+exTimes(q)+')':exFq(q)),p:[]}:{q:exFq(q),p:(q.p||[]).concat((q.eq||[]).length?[q.eq.join('; ')]:[]),k:q.k}}),k:''});
     });
   });
   return S;
@@ -1962,6 +1962,16 @@ function exBdPanel(){
   });
   return P;
 }
+
+function exDl2(title,secsFn,name,ttl){
+  var P=el('div','panel');P.append(el('h3',null,title));
+  [[false,X('with answers','விடைகளுடன்')],[true,X('questions only (no answers)','வினாக்கள் மட்டும் (விடைகள் இல்லை)')]].forEach(function(o){
+    var r=el('div','actions');r.style.marginTop='8px';r.append(el('span','muted',o[1]+': '));
+    r.append(button(exT('pdf'),'btn small',function(){exPdf(function(){return secsFn(o[0])},ttl+' ('+o[1]+')')}),button(exT('word'),'btn ghost small',function(){exWord(function(){return secsFn(o[0])},name.replace(/\.doc$/,'')+(o[0]?'-questions-only':'-with-answers')+'.doc',ttl+' ('+o[1]+')')}));
+    P.append(r);
+  });
+  return P;
+}
 function exModeShow(){
   var m=exs.mode,pr=m==='p';
   $('#exMark').hidden=!pr;$('#exFilter').hidden=!pr;$('#exHost').hidden=!pr;$('#exTop').hidden=pr;
@@ -1999,7 +2009,7 @@ function renderExMode(keep){
   var ttl=kind==='top'?X('Sundarabahu: Class 12 Physics toppers material','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் முதன்மை மாணவர் தொகுப்பு'):X('Sundarabahu: Class 12 Physics question bank (previous year questions, no answers)','சுந்தரபாகு: பன்னிரண்டாம் வகுப்பு இயற்பியல் வினா வங்கி (முந்தைய ஆண்டு வினாக்கள், விடைகள் இல்லை)');
   var sfx=ta?'-tamil':'';
   if(kind==='qb')H.append(exBdPanel());
-  if(L.length&&kind==='top')H.append(exDlPanel(X('Download this list','இந்தப் பட்டியலைப் பதிவிறக்குக'),function(){return exModeSecs(kind,[st.part],st.unit)},fn+'-'+(st.part==='o'?'objective':st.part+'-marks')+sfx+'.doc',ttl));
+  if(L.length&&kind==='top')H.append(exDl2(X('Download this list','இந்தப் பட்டியலைப் பதிவிறக்குக'),function(na){return exModeSecs(kind,[st.part],st.unit,na)},fn+'-'+(st.part==='o'?'objective':st.part+'-marks')+sfx+'.doc',ttl));
   if(!L.length)H.append(el('div','panel',exT('none')));
   else{
     var grid=el('div','exgrid'),lastU=-1,k=0;
@@ -2011,7 +2021,7 @@ function renderExMode(keep){
     });
     H.append(grid);
   }
-  if(kind==='top')H.append(exDlPanel(X('Download the whole toppers material','முழு தொகுப்பையும் பதிவிறக்குக'),function(){return exModeSecs(kind,parts,0)},fn+sfx+'.doc',ttl));
+  if(kind==='top')H.append(exDl2(X('Download the whole toppers material','முழு தொகுப்பையும் பதிவிறக்குக'),function(na){return exModeSecs(kind,parts,0,na)},fn+sfx+'.doc',ttl));
   if(keep)window.scrollTo(0,y);
 }
 $$('#exMode button').forEach(function(b){b.addEventListener('click',function(){exs.mode=b.dataset.k;renderExam()})});
