@@ -448,7 +448,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
   </div>
   <div id="teach-exam" class="tab" style="padding-top:0" hidden>
     <div class="panel exmed"><label class="f">Medium · வழி<select id="exMed"><option value="en">English medium</option><option value="ta">Tamil medium (தமிழ் வழி)</option></select></label></div>
-    <div class="seg" id="exMode" role="group" aria-label="Exam practice mode" style="margin:10px 0"><button type="button" data-k="p" aria-pressed="true">Practice</button><button type="button" data-k="top" aria-pressed="false">Toppers material</button><button type="button" data-k="paper" aria-pressed="false">Question paper</button><button type="button" data-k="games" aria-pressed="false">Crosswords and games</button><button type="button" data-k="qb" aria-pressed="false">Question bank</button></div>
+    <div class="seg" id="exMode" role="group" aria-label="Exam practice mode" style="margin:10px 0"><button type="button" data-k="p" aria-pressed="true">Practice</button><button type="button" data-k="top" aria-pressed="false">Toppers material</button><button type="button" data-k="paper" aria-pressed="false">Question paper</button><button type="button" data-k="games" aria-pressed="false">Crosswords and games</button><button type="button" data-k="draw" aria-pressed="false">Draw and practice</button><button type="button" data-k="qb" aria-pressed="false">Question bank</button></div>
     <div class="marktabs" id="exMark" role="group" aria-label="Question type">
       <button type="button" data-m="o" class="mk-o" aria-pressed="true"><span class="mn">Objective</span><span class="mc">0</span></button>
       <button type="button" data-m="2" class="mk-2" aria-pressed="false"><span class="mn">2 marks</span><span class="mc">0</span></button>
@@ -1165,6 +1165,7 @@ function viewDeck(host,D,st,regen,more){
       try{saveFile(fname+'.pptx',await buildPptx(D))}catch(e){toast('The PowerPoint file could not be built')}
     }));
   }
+  acts.append(button('Present: animated slideshow','btn small',function(){window.presentDeck(D)}));
   if(true)acts.append(button('Download outline','btn ghost small',function(){saveFile(fname+'.md',deckMd(D))}));
   acts.append(button('Save outline','btn ghost small',function(){addSaved('Slides - '+D.topic,deckMd(D))}));
   if(more)acts.append(button('Explain this more','btn ghost small',more));
@@ -1838,7 +1839,7 @@ function exInfoEn(H){
 }
 function exRefresh(){(exs.cb||renderExam)(true)}
 function renderExam(keep){
-  exs.cb=null;exModeShow();if(exs.mode==='top'||exs.mode==='qb'||exs.mode==='paper'||exs.mode==='games'){renderExMode(keep);return}
+  exs.cb=null;exModeShow();if(exs.mode==='top'||exs.mode==='qb'||exs.mode==='paper'||exs.mode==='games'||exs.mode==='draw'){renderExMode(keep);return}
   var H=$('#exHost'),y=window.pageYOffset,ta=isTa(),mk=exs.m;
   H.replaceChildren();
   /* mark tabs with counts */
@@ -1984,11 +1985,12 @@ function exDl2(title,secsFn,name,ttl){
 function exModeShow(){
   var m=exs.mode,pr=m==='p';
   $('#exMark').hidden=!pr;$('#exFilter').hidden=!pr;$('#exHost').hidden=!pr;$('#exTop').hidden=pr;
-  $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி'),paper:X('Question paper','வினாத்தாள்'),games:X('Crosswords and games','குறுக்கெழுத்து, விளையாட்டுகள்')})[b.dataset.k]});
+  $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி'),paper:X('Question paper','வினாத்தாள்'),games:X('Crosswords and games','குறுக்கெழுத்து, விளையாட்டுகள்'),draw:X('Draw and practice','வரைந்து பயில்க')})[b.dataset.k]});
 }
 function renderExMode(keep){
   if(exs.mode==='paper'){renderPaper(keep);return}
   if(exs.mode==='games'){renderGames(keep);return}
+  if(exs.mode==='draw'){renderDraw(keep);return}
   exs.cb=null;
   var H=$('#exTop'),y=window.pageYOffset,kind=exs.mode,st=kind==='top'?exs.tm:exs.qb,ta=isTa();
   H.replaceChildren();
@@ -4052,7 +4054,7 @@ function openTopic(id,keepState){
   setTimeout(function(){
     try{
       stage.replaceChildren();
-      if(mp&&ENG[mp.eng])page=buildPage(t,mp,keepS);else stage.append(plannedPage(t));
+      if(mp&&ENG[mp.eng]){page=buildPage(t,mp,keepS);var sp=stage.querySelector('.vlsplit');if(sp&&!keepState)setTimeout(function(){window.scrollTo({top:Math.max(0,sp.getBoundingClientRect().top+window.pageYOffset-70),behavior:'smooth'})},60)}else stage.append(plannedPage(t));
     }catch(e){showError(t,e&&e.message||String(e))}
   },0);
 }
@@ -4126,8 +4128,11 @@ function buildPage(t,mp,keepS){
   pracEl=el('div','panel');qs=(def.practice?def.practice(S):[]);
   /* guided teaching */
   teachEl=el('div','panel');
-  c1.append(cp,teachEl);c2.append(rp,ep,pracEl);grid.append(c1,c2);
-  root.append(head,box,capEl,bar,grid,specBox(t));
+  c1.append(teachEl);c2.append(rp,ep,pracEl);grid.append(c1,c2);
+  if(!document.getElementById('vlsplitcss')){var sty=document.createElement('style');sty.id='vlsplitcss';sty.textContent='.vlsplit{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:14px;align-items:start}.vlleft{min-width:0}.vlside{position:sticky;top:8px;max-height:calc(100vh - 20px);overflow:auto}.vlside .panel{margin-top:0}@media (max-width:860px){.vlsplit{grid-template-columns:1fr}.vlleft{position:sticky;top:0;z-index:6;background:#f6efe3;padding-bottom:4px}.vlside{position:static;max-height:none}}';document.head.append(sty)}
+  var split=el('div','vlsplit'),vleft=el('div','vlleft'),vside=el('div','vlside');
+  vleft.append(box,capEl,bar);vside.append(cp);split.append(vleft,vside);
+  root.append(head,split,grid,specBox(t));
   function mkControl(k){
     var w;
     if(k.t==='sel'){
@@ -9249,7 +9254,7 @@ function neetExplain(d){
 })();
 /* ---------- Question paper generator (annual-exam blueprint, several sets) ---------- */
 /* note: no less-than sign in this file (it is escaped when injected) */
-exs.pp={u:{},set:1};
+exs.pp={u:{},set:1,size:70};
 function ppRng(seed){
   var a=seed>>>0;
   return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296};
@@ -9267,9 +9272,8 @@ function ppUnits(){
 }
 /* blueprint: marks for each part. Full paper = Tamil Nadu annual pattern (70). One or two lessons = the same pattern, reduced (35). */
 function ppBlue(){
-  var n=ppUnits().length;
-  if(n>=3)return {full:true,marks:70,hrs:3,o:15,a2:9,n2:6,a3:9,n3:6,a5:5};
-  return {full:false,marks:35,hrs:1.5,o:10,a2:5,n2:3,a3:4,n3:3,a5:2};
+  if(exs.pp.size===35)return {full:false,marks:35,hrs:1.5,o:10,a2:5,n2:3,a3:4,n3:3,a5:2};
+  return {full:true,marks:70,hrs:3,o:15,a2:9,n2:6,a3:9,n3:6,a5:5};
 }
 function ppPool(mk,units){
   return (exData()[mk]||[]).filter(function(q){
@@ -9366,6 +9370,7 @@ function renderPaper(keep){
   }
   var ui=[['all',exT('all')]].concat(BOOK.units.map(function(u){return [+u.no,String(u.no)]}));
   chips(X('Lessons (nothing chosen = all lessons)','பாடங்கள் (எதுவும் தேர்ந்தெடுக்கவில்லை = அனைத்தும்)'),ui,function(k){var s=Object.keys(exs.pp.u).filter(function(x){return exs.pp.u[x]});return k==='all'?!s.length:!!exs.pp.u[k]},function(k){if(k==='all')exs.pp.u={};else exs.pp.u[k]=!exs.pp.u[k]});
+  chips(X('Paper size','வினாத்தாள் அளவு'),[[70,X('70 marks (full annual pattern)','70 மதிப்பெண் (முழு ஆண்டுத் தேர்வு வடிவம்)')],[35,X('35 marks (shorter paper)','35 மதிப்பெண் (சிறிய வினாத்தாள்)')]],function(k){return k===exs.pp.size},function(k){exs.pp.size=k});
   chips(X('Set','தொகுப்பு'),[1,2,3,4,5,6].map(function(n){return [n,'Set '+'ABCDEF'.charAt(n-1)]}),function(k){return k===set},function(k){exs.pp.set=k});
   H.append(P);
   /* blueprint */
@@ -9374,7 +9379,7 @@ function renderPaper(keep){
   var tb=document.createElement('table');tb.className='ptab';tb.style.cssText='width:100%;border-collapse:collapse';
   rows.forEach(function(r){var tr=document.createElement('tr');r.forEach(function(c,i){var td=document.createElement('td');td.textContent=String(c);td.style.cssText='padding:4px 6px;border-bottom:1px solid rgba(128,128,128,.3);'+(i===2?'text-align:right':'');tr.append(td)});tb.append(tr)});
   bp.append(tb);
-  bp.append(el('p','muted',B.full?X('Covers the lessons you chose, with more questions from the lessons that had more questions in previous years. Question 24 of Part II and question 33 of Part III are numerical problems and compulsory, as in the annual paper.','நீங்கள் தேர்ந்தெடுத்த பாடங்களை உள்ளடக்கும்; முந்தைய ஆண்டுகளில் அதிக வினாக்கள் வந்த பாடங்களிலிருந்து அதிக வினாக்கள் வரும். ஆண்டுத் தேர்வைப் போலவே பகுதி II இன் கடைசி வினாவும் பகுதி III இன் கடைசி வினாவும் கணக்குகள்; அவை கட்டாயம்.'):X('One or two lessons use the same pattern, reduced to 35 marks. The last question of Part II and of Part III is a numerical problem and compulsory.','ஒன்று அல்லது இரண்டு பாடங்களுக்கு இதே அமைப்பு 35 மதிப்பெண்ணாகக் குறைக்கப்படும். பகுதி II, III இன் கடைசி வினா கணக்கு; அது கட்டாயம்.')));
+  bp.append(el('p','muted',B.full?X('The 70-mark annual pattern, whichever lessons you choose. With a few lessons, all questions come from those lessons. The last question of Part II and of Part III is a numerical problem and compulsory, as in the annual paper.','நீங்கள் எந்தப் பாடங்களைத் தேர்ந்தாலும் 70 மதிப்பெண் ஆண்டுத் தேர்வு வடிவம். சில பாடங்களை மட்டும் தேர்ந்தால் வினாக்கள் அவற்றிலிருந்தே வரும். பகுதி II, III இன் கடைசி வினா கணக்கு; அது கட்டாயம்.'):X('A shorter 35-mark paper in the same pattern. The last question of Part II and of Part III is a numerical problem and compulsory.','அதே வடிவில் சிறிய 35 மதிப்பெண் வினாத்தாள். பகுதி II, III இன் கடைசி வினா கணக்கு; அது கட்டாயம்.')));
   /* how much there is to choose from */
   var av=[['o',B.o],[2,B.a2],[3,B.a3],[5,B.a5*2]].map(function(r){return {m:r[0],need:r[1],have:ppPool(r[0],U).length}});
   var tight=av.filter(function(a){return a.need*6>a.have});
@@ -10010,12 +10015,9 @@ function oddGame(b,items){
 
 /* ===== Timepass games ===== */
 var TP=[
-  ['river',['River crossing','ஆறு கடத்தல்'],['Farmer, wolf, goat and cabbage','விவசாயி, ஓநாய், ஆடு, முட்டைக்கோஸ்']],
-  ['bridge',['Bridge and torch','பாலமும் தீப்பந்தமும்'],['Four people, one torch, 17 minutes','நால்வர், ஒரு தீப்பந்தம், 17 நிமிடம்']],
   ['mem',['Memory flip','நினைவாற்றல் அட்டைகள்'],['Find the matching pictures','பொருந்தும் படங்களைக் கண்டுபிடி']],
   ['hanoi',['Tower of Hanoi','ஹனோய் கோபுரம்'],['Move the disks to the last peg','வட்டுகளை கடைசிக் கம்பிக்கு நகர்த்து']],
   ['slide',['Slide puzzle','நகர்த்தும் புதிர்'],['Put the numbers in order','எண்களை வரிசைப்படுத்து']],
-  ['lights',['Lights out','விளக்குகள் அணை'],['Switch off every light','எல்லா விளக்குகளையும் அணை']]
 ];
 function tpMenu(){
   if(window.gmStop)gmStop();
@@ -10028,57 +10030,7 @@ function tpMenu(){
 function tpOpen(k){
   var P=sbox(tph,X(TP.filter(function(t){return t[0]===k})[0][1][0],TP.filter(function(t){return t[0]===k})[0][1][1])),back=button(X('Back to games','விளையாட்டுகளுக்குத் திரும்பு'),'gbtn',tpMenu);back.style.marginBottom='8px';
   P.append(back);var b=el('div');P.append(b);
-  ({river:river,bridge:bridge,mem:memo,hanoi:hanoi,slide:slide,lights:lights})[k](b);
-}
-/* river crossing */
-function river(b){
-  var items=[['🌾','cabbage','முட்டைக்கோஸ்'],['🐐','goat','ஆடு'],['🐺','wolf','ஓநாய்']],L=items.map(function(x,i){return i}),R=[],boat='L',cargo=-1,moves=0;
-  b.append(el('p','muted',X('Take everything across the river. The boat carries the farmer and one item. Never leave the wolf with the goat, or the goat with the cabbage, when the farmer is on the other bank.','எல்லாவற்றையும் ஆற்றைக் கடத்துக. படகில் விவசாயியும் ஒரு பொருளும் மட்டுமே செல்லலாம். விவசாயி மறுகரையில் இருக்கும்போது ஓநாயை ஆட்டுடனோ ஆட்டை முட்டைக்கோஸுடனோ விடக்கூடாது.')));
-  var area=el('div'),info=el('p','gscore','');b.append(area,info,button(X('Restart','மீண்டும் தொடங்கு'),'gbtn',function(){L=items.map(function(x,i){return i});R=[];boat='L';cargo=-1;moves=0;draw('')}));
-  function bad(side){var s=side.slice();return (s.indexOf(2)!==-1&&s.indexOf(1)!==-1)||(s.indexOf(1)!==-1&&s.indexOf(0)!==-1)}
-  function draw(note){
-    area.replaceChildren();var g=el('div','rv'),l=el('div','rvb'),r=el('div','rvb'),w=el('div','rvw');
-    function chip(i,from){var c=el('button','rvi',items[i][0]);c.title=X(items[i][1],items[i][2]);c.addEventListener('click',function(){if(boat!==from)return;if(cargo===i)cargo=-1;else if(cargo===-1||true)cargo=i;draw('')});if(cargo===i)c.classList.add('on');return c}
-    L.forEach(function(i){l.append(chip(i,'L'))});R.forEach(function(i){r.append(chip(i,'R'))});
-    w.append(el('div','rvboat',(boat==='L'?'⬅ ':'')+'🚣'+(boat==='R'?' ➡':'')));
-    g.append(l,w,r);area.append(g);
-    var go=button(X('Row across','படகைச் செலுத்து'),'gbtn on',function(){
-      var from=boat==='L'?L:R,to=boat==='L'?R:L;
-      if(cargo!==-1){from.splice(from.indexOf(cargo),1);to.push(cargo)}
-      boat=boat==='L'?'R':'L';cargo=-1;moves++;
-      var left=boat==='L'?R:L; /* bank the farmer just left */
-      if(bad(left)){draw(X('Oh no! Something was eaten. Restart and try again.','ஐயோ! ஒன்று தின்னப்பட்டது. மீண்டும் தொடங்கிப் பாருங்கள்.'));lock();return}
-      if(R.length===3){draw(X('You did it in ','முடித்துவிட்டீர்கள்: ')+moves+X(' crossings. The best is 7.',' பயணங்கள். சிறந்தது 7.'));lock();return}
-      draw('');
-    });
-    area.append(go);
-    info.textContent=X('Crossings: ','பயணங்கள்: ')+moves+(note?'  ·  '+note:'');
-    function lock(){go.disabled=true;area.querySelectorAll('.rvi').forEach(function(x){x.disabled=true})}
-  }
-  draw('');
-}
-/* bridge and torch */
-function bridge(b){
-  var P=[['👦','Ravi',1],['👧','Meena',2],['👨','Father',5],['👵','Grandma',10]],side=[0,0,0,0],torch=0,time=0,sel=[];
-  b.append(el('p','muted',X('Four people must cross a bridge at night with one torch. At most two can cross at once and they walk at the slower person\'s pace. Someone must bring the torch back. Can you get everyone across in 17 minutes?','நால்வர் இரவில் ஒரே தீப்பந்தத்துடன் பாலத்தைக் கடக்க வேண்டும். ஒரே நேரத்தில் இருவர் வரை செல்லலாம்; மெதுவாக நடப்பவரின் வேகத்தில் செல்வர். தீப்பந்தத்தை யாராவது திருப்பிக் கொண்டுவர வேண்டும். 17 நிமிடத்தில் எல்லோரையும் கடத்த முடியுமா?')));
-  var area=el('div');b.append(area,button(X('Restart','மீண்டும் தொடங்கு'),'gbtn',function(){side=[0,0,0,0];torch=0;time=0;sel=[];draw()}));
-  function draw(){
-    area.replaceChildren();var g=el('div','rv'),l=el('div','rvb'),r=el('div','rvb'),w=el('div','rvw');
-    P.forEach(function(p,i){
-      var c=el('button','rvi',p[0]+' '+p[2]);c.title=p[1]+' – '+p[2]+' min';if(sel.indexOf(i)!==-1)c.classList.add('on');
-      c.addEventListener('click',function(){if(side[i]!==torch)return;var k=sel.indexOf(i);if(k!==-1)sel.splice(k,1);else if(2>sel.length)sel.push(i);draw()});
-      (side[i]===0?l:r).append(c);
-    });
-    w.append(el('div','rvboat',(torch===0?'🔦 ⬅':'➡ 🔦')));g.append(l,w,r);area.append(g);
-    var go=button(X('Cross with the torch','தீப்பந்தத்துடன் கடக்க'),'gbtn on',function(){
-      if(sel.length===0)return;
-      var t=Math.max.apply(null,sel.map(function(i){return P[i][2]}));time+=t;sel.forEach(function(i){side[i]=torch===0?1:0});torch=torch===0?1:0;sel=[];draw();
-    });
-    area.append(go,el('p','gscore',X('Time used: ','எடுத்த நேரம்: ')+time+' / 17 '+X('minutes','நிமிடம்')));
-    if(side.every(function(s){return s===1})){go.disabled=true;area.append(el('p',time>17?'gno':'gok',time>17?X('Everyone crossed, but it took too long. Try again!','எல்லோரும் கடந்தனர், ஆனால் நேரம் அதிகம். மீண்டும் முயலுங்கள்!'):X('Brilliant! You solved it.','அருமை! புதிரைத் தீர்த்துவிட்டீர்கள்.')))}
-    else if(time>17)area.append(el('p','gno',X('More than 17 minutes already. Restart and try another plan.','ஏற்கனவே 17 நிமிடத்துக்கு மேல். மீண்டும் தொடங்கி வேறு திட்டம் முயலுங்கள்.')));
-  }
-  draw();
+  ({mem:memo,hanoi:hanoi,slide:slide})[k](b);
 }
 /* memory flip with pictures */
 function memo(b){
@@ -10153,21 +10105,328 @@ function slide(b){
   }
   shuffle();draw();
 }
-/* lights out */
-function lights(b){
-  var g,moves=0;
-  function toggle(i){var x=i%5,y=Math.floor(i/5);[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){var a=x+d[0],c=y+d[1];if(a>=0&&5>a&&c>=0&&5>c)g[c*5+a]=!g[c*5+a]})}
-  function fresh(){g=[];for(var i=0;25>i;i++)g.push(false);var r=ppRng(Date.now());for(var k=0;8>k;k++)toggle(Math.floor(r()*25));if(g.every(function(v){return !v}))toggle(12);moves=0}
-  function draw(){
-    b.replaceChildren(el('p','muted',X('Tap a light to flip it and its four neighbours. Switch them all off.','ஒரு விளக்கைத் தொட்டால் அதுவும் அதன் நான்கு அண்டை விளக்குகளும் மாறும். எல்லாவற்றையும் அணைக்கவும்.')));
-    var p=el('div','lo');
-    g.forEach(function(on,i){var c=el('button',on?'on':'');c.setAttribute('aria-label','light '+(i+1));c.addEventListener('click',function(){toggle(i);moves++;draw()});p.append(c)});
-    b.append(p,el('p','gscore',X('Moves: ','நகர்வுகள்: ')+moves));
-    if(g.every(function(v){return !v}))b.append(el('p','gok',X('All lights are off. Well done!','எல்லா விளக்குகளும் அணைந்தன. பாராட்டுகள்!')));
-    b.append(button(X('New puzzle','புதிய புதிர்'),'gbtn',function(){fresh();draw()}));
-  }
-  fresh();draw();
+})();
+/* ---------- Draw and practice: diagram drawing boards for students (up to three screens) ---------- */
+/* note: no less-than sign anywhere in this file; write comparisons with the larger number first */
+(function(){
+var sty=document.createElement('style');
+sty.textContent='.dpbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.dptabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.dptabs button{border:1px solid rgba(122,34,48,.35);background:#fffdf8;border-radius:10px 10px 0 0;padding:8px 14px;font:inherit;cursor:pointer;color:#2b1d14}.dptabs button.on{background:#7a2230;color:#fff}'+
+'.dpgrid{display:grid;gap:10px}.dppane{border:1px solid rgba(122,34,48,.35);border-radius:12px;padding:10px;background:#fffdf8;min-width:0}.dppane.fs{padding:14px;overflow:auto;background:#fffdf8}'+
+'.dpsel{display:flex;flex-wrap:wrap;gap:6px}.dpsel select,.dpsel input{flex:1 1 140px;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid rgba(0,0,0,.25);font:inherit;background:#fff}'+
+'.dptask{font-weight:700;color:#7a2230;margin:8px 0 4px}.dptools{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:6px 0}.dptools button{border:1px solid rgba(0,0,0,.25);background:#fff;border-radius:8px;padding:6px 9px;font:inherit;cursor:pointer;color:#2b1d14}.dptools button.on{outline:3px solid #b8862b}.dptools .sw{width:26px;height:26px;border-radius:50%;padding:0}'+
+'.dpcv{position:relative;width:100%;aspect-ratio:10/6.8;background:#fff;border:2px solid #6b5a4a;border-radius:8px;overflow:hidden;touch-action:none}.dpcv img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.22;pointer-events:none}.dpcv canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}'+
+'.dpmodel{margin-top:8px;border:1px dashed #b8862b;border-radius:8px;padding:6px;text-align:center}.dpmodel img{max-width:100%;max-height:420px;cursor:zoom-in}.dptime{font:700 15px monospace;color:#7a2230;margin-left:auto}';
+document.head.append(sty);
+
+/* diagram prompts that are commonly asked for in the board examination (no model picture) */
+var PROMPTS={
+1:['Electric field lines of a positive and of a negative point charge','Electric field lines of an electric dipole','Equipotential surfaces and field lines for a point charge','Electric dipole in a uniform electric field, showing the torque','Parallel plate capacitor with a dielectric slab','Capacitors connected in series','Capacitors connected in parallel','Van de Graaff generator','Gaussian surface around a point charge','Electrostatic shielding: a hollow conductor in an electric field'],
+2:['Circuit to verify Ohm\'s law','Wheatstone bridge with the balance condition','Metre bridge circuit','Potentiometer circuit to compare two emfs','Kirchhoff\'s current law at a junction','Cell with internal resistance connected to a load','Resistors in series and in parallel','Thermocouple showing the Seebeck effect','Circuit to find the internal resistance of a cell using a potentiometer'],
+3:['Magnetic field lines of a bar magnet','Magnetic field of a straight current-carrying conductor','Biot–Savart law: field due to a current element','Magnetic field lines of a solenoid','Toroid with its magnetic field','Cyclotron','Moving coil galvanometer','Conversion of a galvanometer into an ammeter','Conversion of a galvanometer into a voltmeter','Force between two parallel current-carrying wires','Hysteresis loop of a ferromagnetic material','Elements of the earth\'s magnetic field'],
+4:['Faraday\'s experiment with a coil and a bar magnet','Lenz\'s law: direction of induced current','AC generator (alternator)','Transformer with primary and secondary coils','Eddy currents in a metal plate','Series LCR circuit','Phasor diagram of a series LCR circuit','Resonance curve of a series LCR circuit','Mutual induction between two coils'],
+5:['Propagation of an electromagnetic wave (E, B and direction)','Electromagnetic spectrum in order of wavelength','Displacement current between the plates of a capacitor','Hertz\'s experiment to produce electromagnetic waves'],
+6:['Image formation by a concave mirror for different object positions','Image formation by a convex mirror','Refraction at a single spherical surface','Image formation by a convex lens','Image formation by a concave lens','Total internal reflection and the critical angle','Deviation of light by a prism','Formation of a rainbow','Optical fibre and total internal reflection','Refraction through a glass slab (lateral shift)'],
+7:['Compound microscope: ray diagram','Astronomical telescope in normal adjustment','Reflecting telescope (Cassegrain)','Young\'s double slit experiment','Single slit diffraction pattern','Huygens construction for reflection of a plane wave','Huygens construction for refraction of a plane wave','Polarisation by reflection (Brewster\'s law)','Two polaroids with crossed axes','Human eye with its parts'],
+8:['Experimental arrangement for the photoelectric effect','Photocurrent versus voltage for different intensities','Stopping potential versus frequency graph','Kinetic energy versus frequency graph','Davisson–Germer experiment arrangement','Coolidge tube for producing X-rays'],
+9:['Rutherford\'s alpha particle scattering experiment','Energy level diagram of the hydrogen atom','Spectral series of hydrogen','Binding energy per nucleon versus mass number','Nuclear reactor: schematic','Nuclear chain reaction','Radioactive decay curve with half life','Bohr\'s orbits of the hydrogen atom'],
+10:['p–n junction in forward bias','p–n junction in reverse bias','V–I characteristics of a p–n junction diode','Half wave rectifier with waveforms','Full wave rectifier with waveforms','Zener diode as a voltage regulator','n–p–n transistor in common emitter configuration','Input and output characteristics of a transistor','Symbols of basic logic gates','Block diagram of a communication system','Amplitude modulation waveforms','Modes of propagation of radio waves'],
+11:['Structure of graphene','Structure of a carbon nanotube','Block diagram of a robot (sensor, controller, actuator)','Simple schematic of a gravitational wave detector (interferometer)','Block diagram of an ultrasound imaging system']
+};
+function figs(unit){
+  var L=isTa()?'ta':'en',seen={},out=[],D=exData();
+  ['o',2,3,5].forEach(function(m){(D[m]||[]).forEach(function(q){
+    if(q.u!==unit)return;
+    (q.dg||[]).forEach(function(d){
+      var key=d.f&&d.f[L];if(!key||!ZIMG[key]||seen[key])return;seen[key]=1;
+      out.push({id:'f'+key,t:(d.fig?exT('fig2')+' '+d.fig+' · ':'')+(d.cap&&d.cap[L]||d.id),img:ZIMG[key]});
+    });
+  })});
+  return out;
 }
+function options(unit){
+  var o=[];
+  (PROMPTS[unit]||[]).forEach(function(t,i){o.push({id:'p'+i,t:t,img:''})});
+  figs(unit).forEach(function(f){o.push(f)});
+  return o;
+}
+exs.dp={n:1,view:'tabs',cur:0,panes:[]};
+function newPane(i){return {u:1+i,id:'',name:'',strokes:[],color:'#111111',w:3,eraser:false,model:false,trace:false,t0:0,tsec:0}}
+function ensure(){
+  var s=exs.dp;
+  while(s.n>s.panes.length)s.panes.push(newPane(s.panes.length));
+  if(s.cur>=s.n)s.cur=0;
+}
+var TM=0;
+function tick(){
+  var nodes=document.querySelectorAll('.dptime');
+  if(nodes.length===0){clearInterval(TM);TM=0;return}
+  nodes.forEach(function(n){var p=exs.dp.panes[+n.dataset.i];if(!p)return;var s=p.t0?p.tsec+Math.floor((Date.now()-p.t0)/1000):p.tsec;n.textContent='⏱ '+Math.floor(s/60)+':'+('0'+(s%60)).slice(-2)});
+}
+function paint(c,p){
+  var g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.lineCap='round';g.lineJoin='round';
+  p.strokes.forEach(function(s){
+    g.globalCompositeOperation=s.e?'destination-out':'source-over';g.strokeStyle=s.c;g.lineWidth=s.w;g.beginPath();
+    s.p.forEach(function(q,i){if(i===0)g.moveTo(q[0],q[1]);else g.lineTo(q[0],q[1])});
+    if(s.p.length===1)g.lineTo(s.p[0][0]+0.1,s.p[0][1]);
+    g.stroke();
+  });
+  g.globalCompositeOperation='source-over';
+}
+function pane(p,i){
+  var P=el('div','dppane'),opts=options(p.u),cur=opts.filter(function(o){return o.id===p.id})[0];
+  var sel=el('div','dpsel'),us=document.createElement('select'),ds=document.createElement('select'),nm=document.createElement('input');
+  us.setAttribute('aria-label','Lesson');ds.setAttribute('aria-label','Diagram');
+  BOOK.units.forEach(function(u){var o=el('option',null,exUnitLabel(+u.no));o.value=u.no;us.append(o)});us.value=String(p.u);
+  var o0=el('option',null,X('Choose a diagram…','ஒரு படத்தைத் தேர்ந்தெடுக்கவும்…'));o0.value='';ds.append(o0);
+  opts.forEach(function(o){var op=el('option',null,(o.img?'🖼 ':'✏ ')+o.t);op.value=o.id;ds.append(op)});ds.value=p.id;
+  nm.placeholder=X('Student name','மாணவர் பெயர்');nm.value=p.name;nm.maxLength=30;
+  us.addEventListener('change',function(){p.u=+us.value;p.id='';p.strokes=[];p.model=false;p.trace=false;renderDraw(true)});
+  ds.addEventListener('change',function(){p.id=ds.value;p.strokes=[];p.model=false;p.trace=false;renderDraw(true)});
+  nm.addEventListener('change',function(){p.name=nm.value.trim();renderDraw(true)});
+  sel.append(us,ds,nm);P.append(sel);
+  P.append(el('div','dptask',cur?X('Draw: ','வரைக: ')+cur.t:X('Choose a lesson and a diagram above.','மேலே ஒரு பாடத்தையும் படத்தையும் தேர்ந்தெடுக்கவும்.')));
+  /* tools */
+  var tl=el('div','dptools');
+  ['#111111','#c0392b','#1f5fbf','#1e8449','#b8862b'].forEach(function(c){
+    var b=el('button','sw');b.style.background=c;b.setAttribute('aria-label','Pen colour '+c);if(!p.eraser&&p.color===c)b.classList.add('on');
+    b.addEventListener('click',function(){p.color=c;p.eraser=false;renderDraw(true)});tl.append(b);
+  });
+  [[2,X('Thin','மெல்லிய')],[4,X('Medium','நடுத்தர')],[8,X('Thick','தடித்த')]].forEach(function(w){
+    var b=el('button',null,w[1]);if(p.w===w[0]&&!p.eraser)b.classList.add('on');b.addEventListener('click',function(){p.w=w[0];p.eraser=false;renderDraw(true)});tl.append(b);
+  });
+  var er=el('button',null,X('Eraser','அழிப்பான்'));if(p.eraser)er.classList.add('on');er.addEventListener('click',function(){p.eraser=!p.eraser;renderDraw(true)});tl.append(er);
+  tl.append(el('button',null,X('Undo','பின்செல்')),el('button',null,X('Clear','அழி')));
+  var tm=el('span','dptime','');tm.dataset.i=String(i);tl.append(tm);
+  P.append(tl);
+  /* drawing surface */
+  var cvw=el('div','dpcv'),im=null;
+  if(cur&&cur.img&&p.trace){im=document.createElement('img');im.src=cur.img;im.alt='';cvw.append(im)}
+  var c=document.createElement('canvas');c.width=1000;c.height=680;cvw.append(c);P.append(cvw);paint(c,p);
+  var down=false,st=null;
+  function pos(e){var r=c.getBoundingClientRect();return [Math.round((e.clientX-r.left)*1000/r.width),Math.round((e.clientY-r.top)*680/r.height)]}
+  c.addEventListener('pointerdown',function(e){e.preventDefault();c.setPointerCapture(e.pointerId);down=true;st={c:p.color,w:p.eraser?Math.max(p.w*4,16):p.w,e:p.eraser,p:[pos(e)]};p.strokes.push(st);paint(c,p)});
+  c.addEventListener('pointermove',function(e){if(!down)return;e.preventDefault();st.p.push(pos(e));paint(c,p)});
+  function up(){down=false;st=null}
+  c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  tl.children[tl.children.length-3].addEventListener('click',function(){p.strokes.pop();paint(c,p)});
+  tl.children[tl.children.length-2].addEventListener('click',function(){p.strokes=[];paint(c,p)});
+  /* actions */
+  var ac=el('div','dptools');
+  var tb=el('button',null,(p.t0?X('Pause timer','நேரத்தை நிறுத்து'):X('Start timer','நேரத்தைத் தொடங்கு')));
+  tb.addEventListener('click',function(){if(p.t0){p.tsec+=Math.floor((Date.now()-p.t0)/1000);p.t0=0}else p.t0=Date.now();renderDraw(true)});ac.append(tb);
+  var tr=el('button',null,X('Timer reset','நேரம் மீட்டமை'));tr.addEventListener('click',function(){p.t0=0;p.tsec=0;renderDraw(true)});ac.append(tr);
+  if(cur&&cur.img){
+    var mb=el('button',null,p.model?X('Hide model','மாதிரியை மறை'):X('Show model diagram','மாதிரிப் படத்தைக் காட்டு'));if(p.model)mb.classList.add('on');
+    mb.addEventListener('click',function(){p.model=!p.model;renderDraw(true)});ac.append(mb);
+    var tc=el('button',null,X('Trace over the model','மாதிரியின் மேல் வரை'));if(p.trace)tc.classList.add('on');tc.addEventListener('click',function(){p.trace=!p.trace;renderDraw(true)});ac.append(tc);
+  }
+  var fs=el('button',null,X('Full screen','முழுத்திரை'));
+  fs.addEventListener('click',function(){
+    if(document.fullscreenElement){document.exitFullscreen();return}
+    if(P.requestFullscreen)P.requestFullscreen().catch(function(){});
+  });ac.append(fs);
+  P.append(ac);
+  if(cur&&cur.img&&p.model){
+    var md=el('div','dpmodel'),mi=document.createElement('img');mi.src=cur.img;mi.alt=cur.t;mi.addEventListener('click',function(){exZoom(cur.img,cur.t)});
+    md.append(mi,el('p','muted',cur.t));P.append(md);
+  }
+  return P;
+}
+window.renderDraw=function(keep){
+  exs.cb=null;if(window.gmStop)gmStop();
+  var H=$('#exTop'),y=window.pageYOffset,s=exs.dp;ensure();
+  H.replaceChildren();
+  var top=el('div','panel');
+  top.append(el('h3',null,X('Draw and practice diagrams','படம் வரைந்து பயிலுக')));
+  top.append(el('p','muted',X('Choose a lesson and a diagram, then call a student to draw it on the screen. Use up to three screens, each with its own lesson, diagram and student. Pictures marked 🖼 come from the textbook and have a model diagram you can show afterwards or trace over; ✏ are diagrams commonly asked in the examination.','ஒரு பாடத்தையும் படத்தையும் தேர்ந்தெடுத்து, மாணவரை அழைத்துத் திரையில் வரையச் செய்க. ஒவ்வொன்றிலும் தனித் தனிப் பாடம், படம், மாணவருடன் மூன்று திரைகள் வரை பயன்படுத்தலாம். 🖼 குறியிட்டவை பாடநூல் படங்கள்; பிறகு மாதிரிப் படத்தைக் காட்டலாம் அல்லது அதன் மேல் வரையலாம். ✏ குறியிட்டவை தேர்வில் அடிக்கடி கேட்கப்படும் படங்கள்.')));
+  var bar=el('div','dpbar');
+  bar.append(el('span','muted',X('Screens:','திரைகள்:')));
+  [1,2,3].forEach(function(n){var b=el('button','chip',String(n));b.type='button';b.setAttribute('aria-pressed',s.n===n?'true':'false');b.addEventListener('click',function(){s.n=n;if(n===1)s.view='tabs';ensure();renderDraw(true)});bar.append(b)});
+  if(s.n>1){
+    bar.append(el('span','muted',X('View:','காட்சி:')));
+    [['tabs',X('Tabs','தாவல்கள்')],['side',X('Side by side','அருகருகே')]].forEach(function(v){var b=el('button','chip',v[1]);b.type='button';b.setAttribute('aria-pressed',s.view===v[0]?'true':'false');b.addEventListener('click',function(){s.view=v[0];renderDraw(true)});bar.append(b)});
+  }
+  top.append(bar);H.append(top);
+  var side=s.view==='side'&&s.n>1&&window.innerWidth>760;
+  if(s.n>1&&!side){
+    var tabs=el('div','dptabs');
+    for(var i=0;s.n>i;i++)(function(i){var p=s.panes[i],b=el('button',i===s.cur?'on':'',X('Screen ','திரை ')+(i+1)+(p.name?' – '+p.name:''));b.addEventListener('click',function(){s.cur=i;renderDraw(true)});tabs.append(b)})(i);
+    H.append(tabs);
+  }
+  var g=el('div','dpgrid');
+  if(side)g.style.gridTemplateColumns='repeat('+s.n+',minmax(0,1fr))';
+  for(var j=0;s.n>j;j++){if(side||j===s.cur||s.n===1)g.append(pane(s.panes[j],j))}
+  H.append(g);
+  if(!TM)TM=setInterval(tick,1000);tick();
+  if(keep)window.scrollTo(0,y);
+};
+})();
+/* ---------- Animated full-screen presentation for every book concept ---------- */
+/* note: no less-than sign anywhere in this file */
+(function(){
+var sty=document.createElement('style');
+sty.textContent='#prOv{position:fixed;inset:0;z-index:9999;background:#0b1e24;color:#f4efe4;display:flex;flex-direction:column;overflow:hidden;font-family:inherit}'+
+'#prOv .prbg{position:absolute;inset:0;overflow:hidden;pointer-events:none}'+
+'#prOv .orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.35;animation:prfloat 14s ease-in-out infinite alternate}'+
+'#prOv .ring{position:absolute;border:2px solid rgba(255,255,255,.12);border-radius:50%;animation:prspin 40s linear infinite}'+
+'#prOv .ring i{position:absolute;top:-6px;left:50%;width:12px;height:12px;border-radius:50%;background:var(--ac,#e9c46a);box-shadow:0 0 14px var(--ac,#e9c46a)}'+
+'@keyframes prfloat{from{transform:translate(-30px,10px) scale(1)}to{transform:translate(40px,-30px) scale(1.25)}}'+
+'@keyframes prspin{to{transform:rotate(360deg)}}'+
+'@keyframes prup{from{opacity:0;transform:translateY(36px)}to{opacity:1;transform:none}}'+
+'@keyframes prpop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}'+
+'@keyframes prgrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}'+
+'@keyframes prpulse{0%,100%{box-shadow:0 0 0 0 rgba(233,196,106,.6)}50%{box-shadow:0 0 0 16px rgba(233,196,106,0)}}'+
+'@keyframes prdash{to{stroke-dashoffset:0}}'+
+'#prOv .prtop{position:relative;display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:14px;color:#c9d6d6}'+
+'#prOv .prbar{position:relative;height:5px;background:rgba(255,255,255,.12)}#prOv .prbar b{display:block;height:100%;background:var(--ac,#e9c46a);transition:width .5s}'+
+'#prOv .prstage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;padding:2vh 5vw;overflow:auto}'+
+'#prOv .prs{width:min(1100px,100%);margin:auto}'+
+'#prOv h1,#prOv h2{color:#fff}#prOv h1{font-size:clamp(30px,6vw,64px);margin:.2em 0;line-height:1.1;animation:prup .7s both}'+
+'#prOv h2{font-size:clamp(24px,4.2vw,46px);margin:0 0 .5em;line-height:1.15;animation:prup .6s both;border-bottom:4px solid var(--ac,#e9c46a);display:inline-block;padding-bottom:.1em}'+
+'#prOv .kick{color:var(--ac,#e9c46a);letter-spacing:.12em;text-transform:uppercase;font-size:clamp(12px,1.6vw,16px);animation:prup .5s both}'+
+'#prOv .sub{white-space:pre-line;color:#c9d6d6;font-size:clamp(14px,2vw,20px);animation:prup .9s .3s both}'+
+'#prOv .pt{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.08);border-left:6px solid var(--ac,#e9c46a);border-radius:12px;padding:12px 16px;margin:10px 0;font-size:clamp(16px,2.5vw,28px);line-height:1.35;animation:prup .6s both}'+
+'#prOv .pt .n{flex:none;width:2em;height:2em;border-radius:50%;background:var(--ac,#e9c46a);color:#10232a;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.8em}'+
+'#prOv .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}'+
+'#prOv .card{background:rgba(255,255,255,.09);border-top:6px solid var(--ac,#e9c46a);border-radius:14px;padding:16px;font-size:clamp(15px,2.2vw,24px);line-height:1.35;animation:prpop .55s both}'+
+'#prOv .card .n{display:block;font-size:2.2em;font-weight:700;color:var(--ac,#e9c46a);line-height:1}'+
+'#prOv .flow{display:flex;flex-direction:column;align-items:stretch;gap:0}'+
+'#prOv .node{background:rgba(255,255,255,.1);border:2px solid var(--ac,#e9c46a);border-radius:14px;padding:12px 18px;font-size:clamp(15px,2.3vw,26px);line-height:1.35;animation:prpop .5s both;text-align:center}'+
+'#prOv .arr{height:30px;display:flex;justify-content:center}#prOv .arr svg{height:30px;width:30px;stroke:var(--ac,#e9c46a);fill:none;stroke-width:3;stroke-dasharray:40;stroke-dashoffset:40;animation:prdash .5s both}'+
+'#prOv .box{margin-top:14px;border-radius:12px;padding:12px 16px;font-size:clamp(14px,2vw,22px);line-height:1.4;animation:prup .6s both;background:rgba(233,196,106,.14);border:1px dashed var(--ac,#e9c46a)}'+
+'#prOv .box b{display:block;color:var(--ac,#e9c46a);font-size:.75em;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}'+
+'#prOv .box.ask{animation:prup .6s both,prpulse 2.4s 1s infinite}'+
+'#prOv .sim{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin:10px 0;animation:prup .6s both;font-size:clamp(15px,2.2vw,24px)}'+
+'#prOv .sim span{flex:1}#prOv button{font:inherit}'+
+'#prOv .pbtn{background:var(--ac,#e9c46a);color:#10232a;border:0;border-radius:10px;padding:8px 16px;cursor:pointer;font-weight:700}'+
+'#prOv .gbtn{background:rgba(255,255,255,.12);color:#f4efe4;border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 12px;cursor:pointer}'+
+'#prOv .gbtn.on{background:var(--ac,#e9c46a);color:#10232a}'+
+'#prOv .rec{cursor:pointer;user-select:none}#prOv .rec .hid{filter:blur(9px);transition:filter .4s}#prOv .rec.show .hid{filter:none}'+
+'#prOv .prnav{position:relative;display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;flex-wrap:wrap}'+
+'#prOv .dots{display:flex;gap:5px}#prOv .dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer}#prOv .dots i.on{background:var(--ac,#e9c46a);transform:scale(1.4)}'+
+'@media (prefers-reduced-motion:reduce){#prOv *{animation-duration:.01s!important}}';
+document.head.append(sty);
+
+var HUES=['#e9c46a','#7bd3c7','#f4a261','#a0c4ff','#ff9aa2','#b8e986','#d0a5ff'];
+function sim(sec){
+  var out=[];
+  if(!window.VL||!VL.topics)return out;
+  VL.topics.forEach(function(t){var f=t.src?String(t.src).split(' ')[0]:'';if(f===sec||f.indexOf(sec+'.')===0)out.push(t)});
+  return out;
+}
+function close(){
+  var o=document.getElementById('prOv');if(o)o.remove();
+  document.removeEventListener('keydown',kd,true);
+  if(window._prT){clearInterval(window._prT);window._prT=0}
+  if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(function(){});
+}
+var kd=function(e){
+  var o=document.getElementById('prOv');if(!o||!o._go)return;
+  if(e.key==='Escape'){close();e.preventDefault();return}
+  if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '||e.key==='Enter'){o._go(1);e.preventDefault()}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){o._go(-1);e.preventDefault()}
+  else if(e.key==='Home'){o._set(0);e.preventDefault()}
+  else if(e.key==='End'){o._set(o._n-1);e.preventDefault()}
+};
+function pts(arr,layout,host){
+  var n=arr.length,i;
+  if(layout==='cards'){
+    var g=el('div','cards');
+    for(i=0;n>i;i++){var c=el('div','card');c.style.animationDelay=(0.25+i*0.28)+'s';c.append(el('span','n',String(i+1)),document.createTextNode(arr[i]));g.append(c)}
+    host.append(g);
+  }else if(layout==='flow'){
+    var f=el('div','flow');
+    for(i=0;n>i;i++){
+      var d=el('div','node',arr[i]);d.style.animationDelay=(0.25+i*0.55)+'s';f.append(d);
+      if(n-1>i){var a=el('div','arr');var NS='http://www.w3.org/2000/svg',sv=document.createElementNS(NS,'svg'),pa=document.createElementNS(NS,'path');sv.setAttribute('viewBox','0 0 30 30');pa.setAttribute('d','M15 3v22M7 17l8 8 8-8');sv.append(pa);a.append(sv);a.firstChild.style.animationDelay=(0.55+i*0.55)+'s';f.append(a)}
+    }
+    host.append(f);
+  }else{
+    for(i=0;n>i;i++){var p=el('div','pt');p.style.animationDelay=(0.25+i*0.45)+'s';p.append(el('span','n',String(i+1)),el('span',null,arr[i]));host.append(p)}
+  }
+}
+function build(D){
+  var sec=String(D.key||'').split('-')[0],sims=sim(sec),L=[],i;
+  L.push({k:'title'});
+  D.slides.forEach(function(s,j){L.push({k:'c',s:s,j:j})});
+  if(sims.length)L.push({k:'sim',t:sims});
+  L.push({k:'rec'});
+  return L;
+}
+function render(D,L,i,stage,ov){
+  var x=L[i],S=el('div','prs'),col=HUES[i%HUES.length];
+  ov.style.setProperty('--ac',col);
+  if(x.k==='title'){
+    S.append(el('div','kick',D.kicker||''),el('h1',null,D.topic),el('div','sub',D.sub||''));
+    var hint=el('div','sub',(typeof isTa==='function'&&isTa())?'← → விசைகள் அல்லது தொடுதிரையில் இழுக்கவும்':'Use the arrow keys, space, or swipe');hint.style.marginTop='1.5em';hint.style.animationDelay='1.2s';S.append(hint);
+  }else if(x.k==='c'){
+    var s=x.s;
+    if(s.partLabel)S.append(el('div','kick',s.partLabel));
+    S.append(el('h2',null,s.title));
+    var n=s.points.length,lay=(x.j%3===0)?'flow':(x.j%3===1?'cards':'list');
+    if(n>5)lay='list';if(2>n)lay='list';
+    if(lay==='flow'&&s.points.join('').length>420)lay='list';
+    pts(s.points,lay,S);
+    var base=0.5+n*0.5;
+    [['Example',s.example,''],['Ask the class',s.ask,' ask'],['On the board',s.board,''],['You can say',s.say,'']].forEach(function(b,k){
+      if(!b[1])return;var bx=el('div','box'+b[2]);bx.style.animationDelay=(base+k*0.3)+'s';bx.append(el('b',null,b[0]),document.createTextNode(b[1]));S.append(bx);
+    });
+  }else if(x.k==='sim'){
+    S.append(el('div','kick','Visual Learning'),el('h2',null,'See it move: live simulations for this concept'));
+    x.t.forEach(function(t,k){
+      var r=el('div','sim');r.style.animationDelay=(0.3+k*0.3)+'s';
+      r.append(el('span',null,t.t||t.n||t.id));
+      r.append(button('Open simulation','pbtn',function(){close();if(typeof neetGoVL==='function')neetGoVL(t.id)}));
+      S.append(r);
+    });
+  }else{
+    S.append(el('div','kick','Recap'),el('h2',null,'Remember these'));
+    var src=(D.recap&&D.recap.length)?D.recap:D.slides.map(function(s){return s.title});
+    var g=el('div','cards');
+    src.slice(0,9).forEach(function(t,k){
+      var c=el('div','card rec');c.style.animationDelay=(0.2+k*0.2)+'s';
+      c.append(el('span','n',String(k+1)));var h=el('span','hid',t);c.append(h);
+      c.addEventListener('click',function(){c.classList.toggle('show')});g.append(c);
+    });
+    S.append(g,el('div','sub','Tap a card to reveal it. Try to say the idea aloud first.'));
+    S.lastChild.style.marginTop='1em';
+  }
+  stage.replaceChildren(S);stage.scrollTop=0;
+}
+window.presentDeck=function(D){
+  if(!D||!D.slides||!D.slides.length)return;
+  close();
+  var L=build(D),i=0,ov=el('div');ov.id='prOv';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Presentation');
+  var bg=el('div','prbg');
+  [['#2a9d8f','-8vw','-10vh','46vw'],['#e76f51','60vw','50vh','40vw'],['#6a5acd','30vw','70vh','34vw']].forEach(function(o){var d=el('div','orb');d.style.background=o[0];d.style.left=o[1];d.style.top=o[2];d.style.width=o[3];d.style.height=o[3];bg.append(d)});
+  [['18vmin','72vw','8vh','30s'],['30vmin','5vw','55vh','55s']].forEach(function(o){var d=el('div','ring');d.style.width=o[0];d.style.height=o[0];d.style.left=o[1];d.style.top=o[2];d.style.animationDuration=o[3];d.append(el('i'));bg.append(d)});
+  var top=el('div','prtop'),ttl=el('span',null,D.topic);ttl.style.flex='1';ttl.style.overflow='hidden';ttl.style.textOverflow='ellipsis';ttl.style.whiteSpace='nowrap';
+  var cnt=el('span');
+  var auto=button('Auto','gbtn',function(){
+    if(window._prT){clearInterval(window._prT);window._prT=0;auto.classList.remove('on')}
+    else{auto.classList.add('on');window._prT=setInterval(function(){if(ov._i===L.length-1){clearInterval(window._prT);window._prT=0;auto.classList.remove('on');return}ov._go(1)},9000)}
+  });
+  var fsb=button('Full screen','gbtn',function(){if(document.fullscreenElement)document.exitFullscreen();else if(ov.requestFullscreen)ov.requestFullscreen().catch(function(){})});
+  var cl=button('Close','pbtn',close);
+  top.append(ttl,cnt,auto,fsb,cl);
+  var bar=el('div','prbar'),fill=el('b');bar.append(fill);
+  var stage=el('div','prstage');
+  var nav=el('div','prnav'),prev=button('Back','gbtn',function(){ov._go(-1)}),nx=button('Next','pbtn',function(){ov._go(1)}),dots=el('div','dots');
+  nav.append(prev,dots,nx);
+  ov.append(bg,top,bar,stage,nav);
+  ov._n=L.length;
+  ov._set=function(k){i=Math.max(0,Math.min(L.length-1,k));ov._i=i;render(D,L,i,stage,ov);cnt.textContent=(i+1)+' / '+L.length;fill.style.width=((i+1)*100/L.length)+'%';
+    prev.disabled=i===0;nx.disabled=i===L.length-1;
+    dots.querySelectorAll('i').forEach(function(d,j){d.className=j===i?'on':''})};
+  ov._go=function(d){ov._set(i+d)};
+  if(L.length>25)dots.hidden=true;
+  else L.forEach(function(q,j){var d=el('i');d.addEventListener('click',function(){ov._set(j)});dots.append(d)});
+  var x0=0,y0=0;
+  stage.addEventListener('touchstart',function(e){x0=e.changedTouches[0].clientX;y0=e.changedTouches[0].clientY},{passive:true});
+  stage.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)ov._go(0>dx?1:-1)},{passive:true});
+  document.body.append(ov);document.addEventListener('keydown',kd,true);
+  ov._set(0);
+};
 })();
 
 /* ---------- profile menu + log out (online/login version only) ---------- */
