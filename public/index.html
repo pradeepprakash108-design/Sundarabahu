@@ -448,7 +448,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
   </div>
   <div id="teach-exam" class="tab" style="padding-top:0" hidden>
     <div class="panel exmed"><label class="f">Medium · வழி<select id="exMed"><option value="en">English medium</option><option value="ta">Tamil medium (தமிழ் வழி)</option></select></label></div>
-    <div class="seg" id="exMode" role="group" aria-label="Exam practice mode" style="margin:10px 0"><button type="button" data-k="p" aria-pressed="true">Practice</button><button type="button" data-k="top" aria-pressed="false">Toppers material</button><button type="button" data-k="paper" aria-pressed="false">Question paper</button><button type="button" data-k="qb" aria-pressed="false">Question bank</button></div>
+    <div class="seg" id="exMode" role="group" aria-label="Exam practice mode" style="margin:10px 0"><button type="button" data-k="p" aria-pressed="true">Practice</button><button type="button" data-k="top" aria-pressed="false">Toppers material</button><button type="button" data-k="paper" aria-pressed="false">Question paper</button><button type="button" data-k="games" aria-pressed="false">Crosswords and games</button><button type="button" data-k="qb" aria-pressed="false">Question bank</button></div>
     <div class="marktabs" id="exMark" role="group" aria-label="Question type">
       <button type="button" data-m="o" class="mk-o" aria-pressed="true"><span class="mn">Objective</span><span class="mc">0</span></button>
       <button type="button" data-m="2" class="mk-2" aria-pressed="false"><span class="mn">2 marks</span><span class="mc">0</span></button>
@@ -521,11 +521,15 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
 
 <section class="tab" id="tab-spark" hidden>
   <div><div class="lab">One idea a day</div><h2>Daily Spark</h2></div>
+  <div class="seg" id="spMode" role="group" aria-label="Spark sections" style="margin:10px 0"><button type="button" data-k="spark" aria-pressed="true">Daily Spark</button><button type="button" data-k="games" aria-pressed="false">Games</button><button type="button" data-k="time" aria-pressed="false">Timepass</button></div>
+  <div id="spGames" hidden></div><div id="spTime" hidden></div>
+  <div id="spMain">
   <div id="spBody" class="tab" style="padding-top:0"></div>
   <div class="panel"><label class="f">Pick any spark<select id="spSel"></select></label></div>
   <div class="panel"><div class="lab" style="margin-bottom:8px">Choose a subject</div><div class="row" id="spChips"></div></div>
   <div class="panel" id="spStats"></div>
   <div class="panel" id="spRecent"></div>
+  </div>
 </section>
 
 <section class="tab" id="tab-tour" hidden>
@@ -1834,7 +1838,7 @@ function exInfoEn(H){
 }
 function exRefresh(){(exs.cb||renderExam)(true)}
 function renderExam(keep){
-  exs.cb=null;exModeShow();if(exs.mode==='top'||exs.mode==='qb'||exs.mode==='paper'){renderExMode(keep);return}
+  exs.cb=null;exModeShow();if(exs.mode==='top'||exs.mode==='qb'||exs.mode==='paper'||exs.mode==='games'){renderExMode(keep);return}
   var H=$('#exHost'),y=window.pageYOffset,ta=isTa(),mk=exs.m;
   H.replaceChildren();
   /* mark tabs with counts */
@@ -1980,10 +1984,11 @@ function exDl2(title,secsFn,name,ttl){
 function exModeShow(){
   var m=exs.mode,pr=m==='p';
   $('#exMark').hidden=!pr;$('#exFilter').hidden=!pr;$('#exHost').hidden=!pr;$('#exTop').hidden=pr;
-  $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி'),paper:X('Question paper','வினாத்தாள்')})[b.dataset.k]});
+  $$('#exMode button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===m?'true':'false');b.textContent=({p:X('Practice','பயிற்சி'),top:X('Toppers material','முதன்மை மாணவர் தொகுப்பு'),qb:X('Question bank','வினா வங்கி'),paper:X('Question paper','வினாத்தாள்'),games:X('Crosswords and games','குறுக்கெழுத்து, விளையாட்டுகள்')})[b.dataset.k]});
 }
 function renderExMode(keep){
   if(exs.mode==='paper'){renderPaper(keep);return}
+  if(exs.mode==='games'){renderGames(keep);return}
   exs.cb=null;
   var H=$('#exTop'),y=window.pageYOffset,kind=exs.mode,st=kind==='top'?exs.tm:exs.qb,ta=isTa();
   H.replaceChildren();
@@ -9389,6 +9394,781 @@ function renderPaper(keep){
   H.append(pv);
   if(keep)window.scrollTo(0,y);
 }
+/* Game content: unit glossaries (answer|clue) and pairs (quantity|unit or formula). No less-than sign in this file. */
+var GLOSS={
+1:['coulomb|SI unit of electric charge','quantisation|Charge exists only in whole-number multiples of e','conservation|Law that the net charge of an isolated system stays constant','dipole|Two equal and opposite charges a small distance apart','flux|Measure of electric field lines passing through a surface','gauss|Law linking flux through a closed surface to the enclosed charge','capacitor|Device that stores charge and electric energy','dielectric|Insulator placed between the plates of a capacitor','farad|SI unit of capacitance','permittivity|Property of a medium that appears in Coulomb\'s law, in C² N⁻¹ m⁻²','potential|Work done per unit charge in bringing it from infinity','equipotential|Surface on which every point is at the same potential','induction|Charging a body without touching it with a charged body','polarisation|Alignment of dipoles inside a dielectric in an electric field','conductor|Material in which charges move freely','insulator|Material that does not allow charges to flow','electroscope|Instrument that detects the presence of charge','shielding|Electrostatic ___: the field inside a hollow conductor is zero','lightning|Natural discharge between a cloud and the ground','arrester|Lightning ___ is a metal rod that protects tall buildings','torque|Turning effect on a dipole in a uniform electric field','volt|SI unit of electric potential','generator|Van de Graaff ___ builds very high voltages','density|Surface charge ___ is charge per unit area','field|Region around a charge where it exerts a force','lines|Electric field ___ never cross each other','energy|A charged capacitor stores electrical potential ___','parallel|Capacitors in ___ have the same potential difference','series|Capacitors in ___ carry the same charge','electron|Particle carrying a charge of −1.6 × 10⁻¹⁹ C'],
+2:['ampere|SI unit of electric current','resistance|Opposition a conductor offers to the flow of current','ohm|SI unit of resistance','resistivity|Property of a material that depends on its nature and temperature, not its size','conductivity|Reciprocal of resistivity','drift|___ velocity is the average velocity of electrons in a conductor','mobility|Drift velocity per unit electric field','electromotive|___ force: energy given by a cell per unit charge','battery|Two or more cells connected together','internal|The ___ resistance of a cell reduces its terminal voltage','kirchhoff|Gustav ___ gave two rules for circuits','junction|Point where several wires meet; current law applies here','loop|Closed path in a circuit; voltage law applies here','wheatstone|___ bridge compares resistances','potentiometer|Instrument that measures emf without drawing current','galvanometer|Instrument that detects small currents','shunt|Low resistance in parallel with a galvanometer to make an ammeter','ammeter|Instrument that measures current','voltmeter|Instrument that measures potential difference','thermistor|Resistor whose resistance changes strongly with temperature','superconductor|Material whose resistance vanishes below a critical temperature','heating|Joule\'s ___ effect: current produces heat in a resistor','power|Rate at which electrical energy is used','fuse|Safety wire that melts when the current is too high','thermocouple|Two different metals joined to give an emf when junctions differ in temperature','seebeck|Effect of producing emf in a thermocouple','peltier|Effect of heat absorbed or released at a junction when current flows','thomson|Effect of heat change along a conductor with a temperature gradient','rheostat|Variable resistor','colour|Resistors are marked with ___ bands','terminal|___ voltage is the potential difference across a cell when current flows','conduction|Flow of charge through a material'],
+3:['oersted|Hans Christian ___ discovered that a current produces a magnetic field','biot|___–Savart law gives the field of a current element','ampere|___\'s circuital law relates the line integral of B to current','solenoid|Long coil that behaves like a bar magnet','toroid|Ring-shaped solenoid','lorentz|___ force acts on a charge moving in electric and magnetic fields','cyclotron|Machine that accelerates charged particles in a magnetic field','galvanometer|Moving coil instrument used to detect current','torque|Turning effect on a bar magnet or current loop in a field','dipole|A bar magnet is a magnetic ___','tesla|SI unit of magnetic field','weber|SI unit of magnetic flux','permeability|Ability of a material to allow magnetic field lines through it','susceptibility|Ratio of magnetisation to magnetising field','diamagnetic|Material weakly repelled by a magnet','paramagnetic|Material weakly attracted by a magnet','ferromagnetic|Material strongly attracted, like iron','hysteresis|Lag of magnetisation behind the magnetising field','coercivity|Reverse field needed to bring magnetisation to zero','retentivity|Magnetisation remaining when the field is removed','domain|Small region of aligned magnetic moments in a ferromagnet','curie|___ temperature turns a ferromagnet into a paramagnet','declination|Angle between geographic and magnetic meridians','inclination|Angle of dip of the earth\'s field','electromagnet|Soft iron core magnetised by a current in a coil','neutral|___ point is where two magnetic fields cancel','meridian|Vertical plane through the poles of a magnet','magnetisation|Magnetic moment per unit volume','ammeter|Galvanometer with a shunt in parallel','voltmeter|Galvanometer with a high resistance in series'],
+4:['faraday|Michael ___ discovered electromagnetic induction','lenz|___\'s law gives the direction of induced current','induction|Production of emf by a changing magnetic flux','inductance|Property of a coil that opposes change of current','henry|SI unit of inductance','eddy|___ currents are induced in bulk conductors by changing flux','transformer|Device that changes AC voltage using mutual induction','generator|Machine that converts mechanical energy into electrical energy','dynamo|Another name for a generator','reactance|Opposition of an inductor or capacitor to AC','impedance|Total opposition of a circuit to AC','resonance|Condition in a series LCR circuit when XL equals XC','capacitive|___ reactance falls as frequency rises','inductive|___ reactance rises as frequency rises','phasor|Rotating vector used to represent AC quantities','frequency|Number of AC cycles per second','hertz|SI unit of frequency','choke|Coil used to reduce AC without much power loss','wattless|___ current has zero average power','factor|Power ___ of an AC circuit is cos φ','quality|___ factor tells how sharp the resonance is','mutual|___ inductance links two nearby coils','flux|Magnetic ___ is B times the area through which it passes','motional|___ emf is produced when a conductor moves in a magnetic field','primary|Input coil of a transformer','secondary|Output coil of a transformer','alternating|Current that reverses its direction periodically','peak|Maximum value of AC voltage','efficiency|Output power divided by input power','coil|Wire wound in loops, used for inductance','oscillation|Energy swings between L and C in an LC circuit','rms|Root mean square value of AC (three letters)'],
+5:['maxwell|James Clerk ___ predicted electromagnetic waves','displacement|___ current exists in a capacitor between the plates','hertz|Heinrich ___ produced radio waves in the laboratory','electromagnetic|Waves made of oscillating electric and magnetic fields','spectrum|Range of wavelengths of radiation','radio|Waves used for broadcasting','microwave|Waves used in ovens and radar','infrared|Heat radiation just beyond red light','visible|The only part of the spectrum seen by the eye','ultraviolet|Radiation beyond violet, absorbed by the ozone layer','xray|Radiation produced when fast electrons hit a metal target','gamma|Most penetrating radiation, from nuclei','transverse|Electromagnetic waves are ___ in nature','vacuum|Medium in which light travels at 3 × 10⁸ m s⁻¹','speed|Distance travelled by a wave in one second','wavelength|Distance between two successive crests','amplitude|Maximum displacement of a wave','ozone|___ layer absorbs harmful ultraviolet rays','greenhouse|___ effect traps heat in the atmosphere','radar|Uses microwaves to find the position of aircraft','photon|Quantum of electromagnetic radiation','emission|___ spectrum is given by a glowing source','absorption|___ spectrum shows dark lines on a bright background','fraunhofer|___ lines are dark lines in the solar spectrum','continuous|___ spectrum has all wavelengths without gaps','line|___ spectrum is produced by excited atoms','band|___ spectrum is produced by molecules','sunlight|Visible and ultraviolet radiation from the sun','permittivity|Property of a medium that, with permeability, fixes the speed of light','energy|Electromagnetic waves carry ___ and momentum'],
+6:['reflection|Light bouncing back from a surface','refraction|Bending of light when it passes from one medium to another','snell|___\'s law relates angles of incidence and refraction','critical|___ angle is the angle of incidence for which the refracted ray grazes the surface','internal|Total ___ reflection occurs in a denser medium beyond the critical angle','mirage|Optical illusion seen on hot roads','prism|Transparent solid with triangular faces','dispersion|Splitting of white light into colours','lens|Transparent piece with curved surfaces that focuses light','focal|___ length is the distance from the pole to the focus','concave|Mirror that curves inwards','convex|Mirror or lens that bulges outwards','aperture|Diameter of a mirror or lens opening','magnification|Ratio of image size to object size','telescope|Instrument for viewing distant objects','microscope|Instrument for viewing very small objects','myopia|Short sightedness','hypermetropia|Long sightedness','presbyopia|Loss of focusing power with age','astigmatism|Eye defect corrected by a cylindrical lens','rainbow|Colour arc formed by refraction and total reflection in raindrops','scattering|Light being sent in all directions by tiny particles','rayleigh|___ scattering makes the sky blue','optical|___ fibre guides light by total internal reflection','dioptre|Unit of power of a lens','spherical|___ aberration blurs the image formed by a lens or mirror with a large aperture','chromatic|___ aberration is caused by dispersion','principal|___ axis is the line through the centre of a lens or mirror','virtual|Image that cannot be obtained on a screen','real|Image that can be obtained on a screen','refractive|___ index is speed of light in vacuum divided by speed in the medium','deviation|Angle between the incident ray and emergent ray in a prism'],
+7:['huygens|Christiaan ___ proposed the wave theory of light','wavefront|Surface joining points vibrating in the same phase','interference|Redistribution of energy when two waves overlap','diffraction|Bending of waves around obstacles and slit edges','polarisation|Restricting vibrations of light to a single plane','polaroid|Sheet that produces plane polarised light','brewster|___\'s law: tan of polarising angle equals the refractive index','malus|___\'s law gives the intensity through an analyser','coherent|Sources with a constant phase difference are called ___','constructive|___ interference gives bright fringes','destructive|___ interference gives dark fringes','fringe|Bright or dark band in an interference pattern','young|Thomas ___ performed the double slit experiment','slit|Narrow opening used to obtain diffraction','monochromatic|Light of a single wavelength','phase|Stage of vibration of a wave at a point','path|___ difference decides whether interference is bright or dark','superposition|Principle that resultant displacement is the sum of individual displacements','resolving|___ power is the ability of an instrument to show two close objects separately','fraunhofer|___ diffraction is observed with parallel beams','fresnel|___ diffraction is observed with spherical wavefronts','bright|Fringe formed by constructive interference','dark|Fringe formed by destructive interference','maxima|Points of maximum intensity','minima|Points of minimum intensity','transverse|Only ___ waves can be polarised','unpolarised|Ordinary light is ___','secondary|Huygens: each point on a wavefront is a source of ___ wavelets','plane|___ polarised light vibrates in only one plane','axis|The direction in which a polaroid transmits light is its transmission ___','spacing|Fringe width depends on wavelength, screen distance and slit ___','analyser|Second polaroid used to examine polarised light'],
+8:['photon|Quantum of light','photoelectric|___ effect: emission of electrons from a metal by light','threshold|___ frequency is the minimum frequency to eject electrons','function|Work ___ is the minimum energy to remove an electron from a metal','stopping|___ potential just stops the fastest photoelectrons','einstein|Albert ___ explained the photoelectric effect','planck|Max ___ proposed the quantum of energy','hertz|Heinrich ___ first observed the photoelectric effect','lenard|Philipp ___ studied photoelectrons in detail','millikan|Robert ___ verified Einstein\'s photoelectric equation','broglie|Louis de ___ proposed matter waves','davisson|___ and Germer showed electron diffraction','germer|Davisson and ___ diffracted electrons from nickel','electron|Particle with wave nature shown by diffraction','wave|Matter shows ___ nature along with particle nature','particle|Light shows ___ nature in the photoelectric effect','duality|Wave–particle ___','quantum|Smallest packet of energy','photocell|Device that converts light into electric current','emission|Release of electrons from a surface','intensity|Brightness of light; sets the photocurrent','kinetic|Maximum ___ energy of photoelectrons depends on frequency','saturation|___ current is the maximum photocurrent','electronvolt|Energy gained by an electron through one volt','cathode|Electrode from which electrons are emitted','anode|Electrode that collects electrons','momentum|Mass times velocity; photon has h over lambda','wavelength|De Broglie ___ equals h divided by momentum','microscope|___ using electrons has higher resolution than an optical one','xray|Radiation of short wavelength produced when electrons strike a target','bremsstrahlung|Continuous X-rays are called ___ radiation','coolidge|___ tube produces X-rays'],
+9:['rutherford|Ernest ___ discovered the nucleus','thomson|J. J. ___ proposed the plum pudding model','bohr|Niels ___ proposed stationary orbits for the hydrogen atom','nucleus|Dense positive centre of an atom','proton|Positive particle in the nucleus','neutron|Neutral particle in the nucleus','isotope|Atoms with the same Z but different mass number','isobar|Atoms with the same mass number but different Z','isotone|Atoms with the same number of neutrons','spectrum|Pattern of wavelengths emitted by an atom','hydrogen|Simplest atom with one proton and one electron','lyman|___ series lies in the ultraviolet','balmer|___ series lies in the visible region','paschen|___ series lies in the infrared','orbit|Path of an electron around the nucleus in Bohr\'s model','ionisation|Removal of an electron from an atom','excitation|Raising an electron to a higher energy level','binding|___ energy holds nucleons together','defect|Mass ___ is the difference between the mass of nucleons and the nucleus','fission|Splitting of a heavy nucleus','fusion|Joining of light nuclei to form a heavier one','chain|___ reaction: neutrons from fission cause more fission','reactor|Device in which controlled fission takes place','moderator|Material that slows neutrons down','control|___ rods absorb neutrons in a reactor','neutrino|Neutral, almost massless particle emitted in beta decay','positron|Antiparticle of the electron','alpha|Helium nucleus emitted by radioactive atoms','beta|Fast electron emitted from a nucleus','becquerel|SI unit of radioactivity','halflife|Time for half the nuclei to decay','decay|Disintegration of an unstable nucleus','radioactivity|Spontaneous emission of radiation from nuclei','chadwick|James ___ discovered the neutron','fermi|Unit of length equal to 10⁻¹⁵ m','deuterium|Isotope of hydrogen with one neutron','coolant|Fluid that removes heat from a reactor core','uranium|Element used as fuel in nuclear reactors'],
+10:['semiconductor|Material whose conductivity lies between a conductor and an insulator','diode|Two-terminal device that allows current in one direction','transistor|Three-terminal semiconductor device used for amplification and switching','junction|Boundary between p-type and n-type material','depletion|___ region has no free charge carriers','rectifier|Circuit that converts AC to DC','zener|___ diode is used as a voltage regulator','forward|___ bias lowers the barrier of a p-n junction','reverse|___ bias raises the barrier of a p-n junction','doping|Adding impurity atoms to a semiconductor','donor|Impurity that gives free electrons','acceptor|Impurity that creates holes','intrinsic|Pure semiconductor','extrinsic|Doped semiconductor','hole|Vacancy that acts as a positive charge carrier','amplifier|Circuit that increases the strength of a signal','oscillator|Circuit that produces a continuous AC signal','logic|___ gates perform operations on binary inputs','gate|Basic building block of digital circuits','nand|Universal gate that is AND followed by NOT','nor|Universal gate that is OR followed by NOT','boolean|___ algebra deals with the variables 0 and 1','truth|___ table lists the outputs for all input combinations','emitter|Heavily doped region of a transistor that supplies carriers','collector|Region of a transistor that collects carriers','base|Thin, lightly doped middle region of a transistor','modulation|Putting a message on a carrier wave','antenna|Device that sends or receives electromagnetic waves','demodulation|Recovering the message from a modulated wave','bandwidth|Range of frequencies a signal occupies','carrier|High frequency wave that carries the message','signal|Information in electrical form','noise|Unwanted disturbance in a signal','transducer|Device that converts one form of energy into another','repeater|Receives, amplifies and retransmits a signal','satellite|Used to relay signals over very long distances','receiver|Picks up the signal at the destination','channel|Medium between transmitter and receiver','valence|___ band is the highest filled energy band','gap|Energy ___ separates the valence and conduction bands','photodiode|Diode used to detect light'],
+11:['nanoscience|Study of structures between 1 and 100 nanometres','nanotechnology|Using materials at the nanometre scale to make useful devices','nanometre|One billionth of a metre','graphene|Single layer of carbon atoms in a honeycomb pattern','fullerene|Hollow cage-like carbon molecule such as C60','nanotube|Rolled up sheet of carbon atoms','robot|Programmable machine that can carry out tasks automatically','robotics|Branch of technology dealing with robots','sensor|Part of a robot that detects its surroundings','actuator|Part of a robot that produces movement','automation|Use of machines to do work with little human help','artificial|___ intelligence lets machines learn and decide','ultrasound|Sound above 20 kHz used for imaging the body','endoscopy|Looking inside the body with a flexible tube and light','tomography|Imaging in slices, as in a CT scan','radiotherapy|Treating cancer with radiation','laser|Beam of coherent light used in eye surgery','pacemaker|Device that keeps the heart beating regularly','radiation|Energy that travels as waves or particles','isotope|Radioactive ___ are used as tracers in medicine','gravitational|___ waves are ripples in space-time','ligo|Observatory that detected gravitational waves in 2015','higgs|___ boson was discovered at CERN in 2012','cern|European laboratory that has the Large Hadron Collider','collider|Machine that smashes particles together at high energy','quantum|___ computer uses qubits','qubit|Quantum bit of information','superconductivity|Zero resistance state used in strong magnets','magnetic|___ resonance imaging uses strong fields and radio waves','chandrayaan|Indian Moon mission series','semiconductor|Material that made modern electronics possible','particle|___ accelerators study the building blocks of matter']
+};
+/* pairs: [what it is, its unit or formula] */
+var PAIRS={
+1:[['Electric charge','coulomb (C)'],['Electric field','N C⁻¹'],['Electric potential','volt (V)'],['Capacitance','farad (F)'],['Permittivity','C² N⁻¹ m⁻²'],['Dipole moment','C m'],['Electric flux','N m² C⁻¹'],['Energy of a capacitor','½ C V²']],
+2:[['Electric current','ampere (A)'],['Resistance','ohm (Ω)'],['Resistivity','Ω m'],['Conductivity','Ω⁻¹ m⁻¹ (S m⁻¹)'],['Electric power','watt (W)'],['Drift velocity','m s⁻¹'],['Mobility','m² V⁻¹ s⁻¹'],['Heat produced','I² R t']],
+3:[['Magnetic field','tesla (T)'],['Magnetic flux','weber (Wb)'],['Magnetic moment','A m²'],['Permeability of free space','4π × 10⁻⁷ T m A⁻¹'],['Force on a moving charge','q v B sin θ'],['Field of a long wire','μ₀ I / 2π r'],['Field inside a solenoid','μ₀ n I'],['Torque on a loop','N I A B sin θ']],
+4:[['Inductance','henry (H)'],['Induced emf','−dΦ/dt'],['Inductive reactance','ω L'],['Capacitive reactance','1 / ω C'],['Impedance','√(R² + (XL − XC)²)'],['Resonant frequency','1 / 2π√(LC)'],['Power factor','cos φ'],['RMS value of AC','peak ÷ √2']],
+5:[['Speed of light in vacuum','1 / √(μ₀ ε₀)'],['Frequency','hertz (Hz)'],['Speed of electromagnetic waves','3 × 10⁸ m s⁻¹'],['Displacement current','ε₀ dΦE/dt'],['Wave speed','ν λ'],['Photon energy','h ν'],['X-rays','Used in medical imaging'],['Ultraviolet','Absorbed by the ozone layer']],
+6:[['Mirror formula','1/v + 1/u = 1/f'],['Lens power','dioptre (D)'],['Lens maker formula','1/f = (n − 1)(1/R₁ − 1/R₂)'],['Snell\'s law','n₁ sin i = n₂ sin r'],['Critical angle','sin⁻¹(1/n)'],['Prism formula','n = sin((A + D)/2) / sin(A/2)'],['Magnification of a mirror','−v/u'],['Refractive index','c / v']],
+7:[['Fringe width','λ D / d'],['Condition for bright fringe','path difference = nλ'],['Condition for dark fringe','path difference = (n + ½)λ'],['Brewster\'s law','tan i = n'],['Malus\'s law','I = I₀ cos² θ'],['Single slit first minimum','a sin θ = λ'],['Resolving power of a telescope','D / 1.22 λ'],['Coherent sources','Constant phase difference']],
+8:[['Photon energy','h ν'],['Einstein\'s photoelectric equation','h ν = φ + KEmax'],['de Broglie wavelength','h / p'],['Stopping potential','KEmax / e'],['Work function','h ν₀'],['Planck\'s constant','6.63 × 10⁻³⁴ J s'],['Photon momentum','h / λ'],['Electron wavelength at V volts','12.27 / √V Å']],
+9:[['Radius of nucleus','R₀ A^(1/3)'],['Radioactive decay law','N = N₀ e^(−λt)'],['Half life','0.693 / λ'],['Binding energy','Δm c²'],['Activity','becquerel (Bq)'],['Bohr radius','0.529 Å'],['Energy of hydrogen ground state','−13.6 eV'],['1 atomic mass unit','931 MeV / c²']],
+10:[['AND gate output','A · B'],['OR gate output','A + B'],['NOT gate output','Ā'],['De Morgan\'s first theorem','(A + B)‾ = Ā · B̄'],['Current gain of a transistor','β = Ic / Ib'],['Forward bias','p to positive terminal'],['Depletion region','No free carriers'],['Bandwidth','Range of frequencies of a signal']],
+11:[['Nanometre','10⁻⁹ m'],['Graphene','One layer of carbon atoms'],['Ultrasound','Frequency above 20 kHz'],['Higgs boson','Discovered at CERN'],['LIGO','Detected gravitational waves'],['Qubit','Basis of quantum computing'],['Robot sensor','Detects surroundings'],['Radiotherapy','Treats cancer with radiation']]
+};
+/* Spark games: question banks. Each quiz row: [question, right answer, wrong, wrong, wrong]. No less-than sign here. */
+var GQ={
+History:[
+['Who was the first Prime Minister of independent India?','Jawaharlal Nehru','Sardar Patel','Mahatma Gandhi','Lal Bahadur Shastri'],
+['In which year did India become independent?','1947','1942','1950','1935'],
+['Who built the Brihadeeswarar Temple at Thanjavur?','Rajaraja Chola I','Rajendra Chola','Narasimhavarman Pallava','Krishnadevaraya'],
+['The Indus Valley city of Mohenjo-daro is in present-day…','Pakistan','Afghanistan','Nepal','Bangladesh'],
+['Who was the founder of the Mauryan Empire?','Chandragupta Maurya','Ashoka','Bindusara','Harsha'],
+['Which Mughal emperor built the Taj Mahal?','Shah Jahan','Akbar','Babur','Aurangzeb'],
+['The Battle of Plassey was fought in…','1757','1857','1664','1526'],
+['Who gave the slogan "Jai Jawan Jai Kisan"?','Lal Bahadur Shastri','Jawaharlal Nehru','Subhas Chandra Bose','Indira Gandhi'],
+['Who is known as the Father of the Indian Constitution?','B. R. Ambedkar','Rajendra Prasad','Jawaharlal Nehru','Sardar Patel'],
+['The Dandi March was led by…','Mahatma Gandhi','Subhas Chandra Bose','Bhagat Singh','Gopal Krishna Gokhale'],
+['Which dynasty built the Shore Temple at Mamallapuram?','Pallava','Chola','Pandya','Chera'],
+['Who was the first woman President of the Indian National Congress?','Annie Besant','Sarojini Naidu','Indira Gandhi','Vijaya Lakshmi Pandit'],
+['The Great Wall belongs to which country?','China','Japan','India','Mongolia'],
+['The Quit India Movement began in…','1942','1930','1919','1947'],
+['Who was the Chola king who sent a navy to Southeast Asia?','Rajendra Chola I','Karikala Chola','Aditya Chola','Vijayalaya Chola'],
+['Kalinga War is associated with which emperor?','Ashoka','Akbar','Chandragupta','Harshavardhana'],
+['Who discovered the sea route from Europe to India in 1498?','Vasco da Gama','Columbus','Magellan','Marco Polo'],
+['The first battle of Panipat was fought in…','1526','1556','1761','1757'],
+['Who was the first Indian woman Governor of a state?','Sarojini Naidu','Indira Gandhi','Sucheta Kriplani','Vijaya Lakshmi Pandit']],
+Grammar:[
+['Choose the correct sentence.','She doesn\'t like tea.','She don\'t like tea.','She not like tea.','She doesn\'t likes tea.'],
+['The plural of "child" is…','children','childs','childrens','childes'],
+['Fill in the blank: He ___ to school every day.','goes','go','going','gone'],
+['Which is a proper noun?','Chennai','city','river','mountain'],
+['The past tense of "write" is…','wrote','writed','written','writes'],
+['Choose the correct article: ___ umbrella','an','a','the','no article'],
+['The opposite of "ancient" is…','modern','old','historic','early'],
+['Which word is an adverb?','quickly','quick','quicker','quickness'],
+['Fill in the blank: I have ___ my homework.','finished','finish','finishing','finishs'],
+['"She sings beautifully." The word "beautifully" is a…','adverb','adjective','noun','verb'],
+['Choose the correct spelling.','necessary','neccessary','necesary','neccesary'],
+['The passive voice of "Ravi wrote a letter" is…','A letter was written by Ravi.','A letter is written by Ravi.','A letter wrote Ravi.','Ravi was written by a letter.'],
+['Which is a conjunction?','but','under','slowly','happy'],
+['The comparative of "good" is…','better','gooder','more good','best'],
+['Fill in the blank: Neither of the boys ___ present.','was','were','are','been'],
+['A word that means the same as "big" is…','large','tiny','thin','short'],
+['Which sentence is in the future tense?','They will arrive tomorrow.','They arrived yesterday.','They are arriving now.','They have arrived.'],
+['A group of words with a subject and a verb is a…','clause','phrase','prefix','syllable'],
+['Choose the correct preposition: She is good ___ mathematics.','at','on','in front','by'],
+['The word "unhappy" has the prefix…','un','happy','py','unh']],
+'General Knowledge':[
+['Which is the largest planet in our solar system?','Jupiter','Saturn','Earth','Neptune'],
+['What is the capital of Tamil Nadu?','Chennai','Madurai','Coimbatore','Trichy'],
+['Which river is called the Ganga of the South?','Kaveri','Vaigai','Godavari','Krishna'],
+['How many continents are there?','7','5','6','8'],
+['Which is the national animal of India?','Tiger','Lion','Elephant','Leopard'],
+['Who wrote the national anthem of India?','Rabindranath Tagore','Bankim Chandra Chatterjee','Subramania Bharati','Muhammad Iqbal'],
+['Which is the longest river in India?','Ganga','Yamuna','Godavari','Brahmaputra'],
+['Which gas do plants take in for photosynthesis?','Carbon dioxide','Oxygen','Nitrogen','Hydrogen'],
+['The highest mountain peak in the world is…','Mount Everest','K2','Kanchenjunga','Annapurna'],
+['Which is the smallest state of India by area?','Goa','Sikkim','Tripura','Kerala'],
+['Which ocean is the largest?','Pacific Ocean','Atlantic Ocean','Indian Ocean','Arctic Ocean'],
+['National Science Day in India is celebrated on…','28 February','2 October','15 August','5 September'],
+['Which is the national bird of India?','Peacock','Parrot','Sparrow','Eagle'],
+['Who is known as the Missile Man of India?','A. P. J. Abdul Kalam','C. V. Raman','Vikram Sarabhai','Homi Bhabha'],
+['The currency of Japan is…','Yen','Won','Yuan','Dollar'],
+['Which planet is known as the Red Planet?','Mars','Venus','Mercury','Saturn'],
+['Which Indian state has the longest coastline?','Gujarat','Tamil Nadu','Kerala','Maharashtra'],
+['The Tamil Nadu State Flower is…','Glory lily (Kanthal)','Lotus','Rose','Jasmine'],
+['Who was the first Indian to win a Nobel Prize in Physics?','C. V. Raman','S. Chandrasekhar','Homi Bhabha','Satyendra Nath Bose'],
+['Which instrument measures atmospheric pressure?','Barometer','Thermometer','Hygrometer','Anemometer']],
+'Everyday Science':[
+['Which gas makes up most of the air we breathe?','Nitrogen','Oxygen','Carbon dioxide','Argon'],
+['Sound cannot travel through…','a vacuum','water','steel','air'],
+['Which part of the eye controls the amount of light entering?','Iris','Retina','Cornea','Lens'],
+['The unit of electric current is…','ampere','volt','ohm','watt'],
+['Which colour of light bends the most in a prism?','Violet','Red','Green','Yellow'],
+['What do we call a material that does not allow electricity to pass?','Insulator','Conductor','Semiconductor','Superconductor'],
+['Which force pulls objects towards the earth?','Gravity','Friction','Magnetism','Tension'],
+['Why does a stick look bent in water?','Refraction of light','Reflection of light','Dispersion','Diffraction'],
+['A rainbow is formed by…','dispersion of sunlight in raindrops','reflection from clouds','scattering by dust','polarisation of light'],
+['Which device converts AC to DC?','Rectifier','Transformer','Generator','Motor'],
+['What is the SI unit of force?','newton','joule','pascal','watt'],
+['Why is the sky blue?','Scattering of sunlight','Reflection from the sea','Absorption by ozone','Dispersion in clouds'],
+['Which metal is liquid at room temperature?','Mercury','Sodium','Iron','Aluminium'],
+['An echo is caused by…','reflection of sound','refraction of sound','absorption of sound','diffraction of sound'],
+['The speed of light in vacuum is about…','3 × 10⁸ m/s','3 × 10⁶ m/s','3 × 10⁵ m/s','3 × 10¹⁰ m/s'],
+['A fuse in a circuit is used to…','protect it from too much current','increase voltage','store charge','measure current'],
+['Which lens is used to correct short sight?','Concave lens','Convex lens','Cylindrical lens','Plane glass'],
+['Heat travels through a vacuum by…','radiation','conduction','convection','evaporation'],
+['The device used to measure temperature is…','thermometer','barometer','ammeter','speedometer'],
+['A magnet attracts…','iron','copper','wood','plastic']]
+};
+/* true or false: [statement, true?] */
+var GT=[
+['The Sun is a star.',1],['Sound travels faster in air than in water.',0],['The Great Wall of China was built in a single year.',0],['A triangle has three sides.',1],['The Thirukkural has 1,330 couplets.',1],['Light travels faster than sound.',1],['A noun names a person, place or thing.',1],['The earth is flat.',0],['Water boils at 100 °C at sea level.',1],['India has 28 states and 8 union territories.',1],['Mount Everest is in the Alps.',0],['The Indian National Congress was founded in 1885.',1],['An adjective describes a verb.',0],['Bats are birds.',0],['Mercury is the planet closest to the Sun.',1],['A synonym is a word with the opposite meaning.',0],['The Chola dynasty ruled over parts of Tamil Nadu.',1],['Electric current is measured in volts.',0],['Plants make food by photosynthesis.',1],['The capital of India is Mumbai.',0],['A verb is a doing word.',1],['The moon makes its own light.',0],['The Ganga flows into the Bay of Bengal.',1],['A leap year has 366 days.',1],['The Pacific is the smallest ocean.',0],['Silk is obtained from silkworms.',1],['"Quickly" is an adjective.',0],['Mohandas Karamchand Gandhi was born in Porbandar.',1],['The human body has 206 bones in an adult.',1],['Diamond is made of carbon.',1]];
+/* word scramble: [word, hint] */
+var GS=[
+['PLANET','A body that orbits a star'],['SCIENCE','Study of nature through experiments'],['ELECTRIC','Related to charge and current'],['LIBRARY','A place full of books'],['GRAMMAR','Rules of a language'],['MONSOON','Rainy season wind in India'],['HISTORY','Study of the past'],['TEACHER','She helps you learn'],['KNOWLEDGE','What you gain by learning'],['TRIANGLE','Shape with three sides'],['MAGNET','Attracts iron'],['VOLCANO','Mountain that erupts'],['FREEDOM','Independence'],['ADJECTIVE','Describes a noun'],['SENTENCE','Group of words with complete meaning'],['COMPASS','Shows direction'],['TEMPLE','A place of worship'],['RAINBOW','Colours in the sky after rain'],['PHYSICS','Subject about matter and energy'],['CHEMISTRY','Subject about substances and reactions'],['ORCHARD','A garden of fruit trees'],['HARVEST','Gathering of crops'],['JOURNEY','A long trip'],['MONUMENT','Building made in memory of someone'],['CAPITAL','Main city of a country or state'],['VOCABULARY','Words you know'],['ELEPHANT','Largest land animal'],['MOUNTAIN','Very high hill'],['FESTIVAL','Time of celebration'],['LANTERN','A lamp with a case'],['PUNCTUATION','Commas and full stops'],['EXPLORER','One who travels to discover']];
+/* odd one out: [four items, index of odd one, reason] */
+var GO=[
+[['Tiger','Lion','Leopard','Peacock'],3,'Peacock is a bird; the others are big cats.'],
+[['Noun','Verb','Adjective','Triangle'],3,'Triangle is a shape; the others are parts of speech.'],
+[['Chennai','Madurai','Mumbai','Coimbatore'],2,'Mumbai is not in Tamil Nadu.'],
+[['Ashoka','Akbar','Rajaraja','Newton'],3,'Newton was a scientist; the others were rulers.'],
+[['Copper','Iron','Wood','Silver'],2,'Wood is not a metal.'],
+[['Red','Green','Circle','Blue'],2,'Circle is a shape; the others are colours.'],
+[['Ganga','Kaveri','Vaigai','Himalaya'],3,'Himalaya is a mountain range; the others are rivers.'],
+[['Run','Jump','Swim','Table'],3,'Table is a noun; the others are actions.'],
+[['Mercury','Venus','Moon','Mars'],2,'Moon is a satellite; the others are planets.'],
+[['Kural','Silappathikaram','Manimekalai','Mahabharata'],3,'Mahabharata is a Sanskrit epic; the others are Tamil classics.'],
+[['Ampere','Volt','Ohm','Metre'],3,'Metre is a unit of length; the others are electrical units.'],
+[['Happy','Joyful','Cheerful','Sad'],3,'Sad has the opposite meaning.'],
+[['Pen','Pencil','Marker','Eraser'],3,'Eraser removes marks; the others write.'],
+[['Violin','Veena','Flute','Sitar'],2,'Flute is a wind instrument; the others are string instruments.'],
+[['Rose','Jasmine','Lotus','Mango'],3,'Mango is a fruit; the others are flowers.'],
+[['Sparrow','Crow','Eagle','Bat'],3,'Bat is a mammal; the others are birds.'],
+[['Summer','Winter','Monsoon','Sunday'],3,'Sunday is a day; the others are seasons.'],
+[['Convex','Concave','Plane','Triangle'],3,'Triangle is not a type of mirror surface; the others are.'],
+[['Past','Present','Future','Noun'],3,'Noun is a part of speech; the others are tenses.'],
+[['Sitar','Tabla','Mridangam','Dholak'],0,'Sitar is a string instrument; the others are drums.']];
+/* ---------- Games for each lesson (Exam practice > Games) ---------- */
+/* note: no less-than sign anywhere in this file; write comparisons with the larger number first */
+(function(){
+var css=document.createElement('style');
+css.textContent='.gm{--gc:#7a2230;--ga:#b8862b}button.gbtn{border:1px solid rgba(122,34,48,.35);background:#fffdf8;color:#2b1d14;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}button.gbtn:hover{background:#f6ecdc}button.gbtn.on{background:#7a2230;color:#fff}button.gbtn[disabled]{opacity:.55;cursor:default}'+
+'.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}.gcard{border:1px solid rgba(122,34,48,.3);border-radius:12px;padding:12px;background:#fffdf8;cursor:pointer;text-align:left;font:inherit;color:#2b1d14}.gcard b{display:block;margin-bottom:4px;color:#7a2230}.gcard span{font-size:13px;opacity:.85}.gcard:hover{background:#f6ecdc}'+
+'.cwg{display:grid;gap:2px;justify-content:center;margin:10px auto}.cwc{position:relative;width:var(--cs);height:var(--cs)}.cwc input{width:100%;height:100%;box-sizing:border-box;text-align:center;text-transform:uppercase;font:700 calc(var(--cs) * .55) inherit;border:1px solid #6b5a4a;border-radius:3px;background:#fff;color:#2b1d14;padding:0}.cwc input.act{background:#fdf0c8}.cwc input.cur{background:#f7d774}.cwc input.bad{background:#f6b8b8}.cwc input.ok{background:#cfe9c9}.cwc i{position:absolute;left:2px;top:0;font:700 calc(var(--cs) * .28) inherit;font-style:normal;color:#7a2230;pointer-events:none}'+
+'.cwl{columns:2 220px;gap:18px;margin-top:6px}.cwl p{margin:3px 0;cursor:pointer;font-size:14px;break-inside:avoid}.cwl p:hover{background:#f6ecdc}'+
+'.wsg{display:grid;gap:1px;justify-content:center;margin:10px auto;user-select:none}.wsc{width:var(--cs);height:var(--cs);display:flex;align-items:center;justify-content:center;font:700 calc(var(--cs) * .5) inherit;border-radius:4px;background:#fffdf8;border:1px solid rgba(0,0,0,.12);cursor:pointer;color:#2b1d14}.wsc.sel{background:#f7d774}.wsc.fd{background:#cfe9c9}'+
+'.mpl{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mpl button{min-height:44px}.mpl button.done{background:#cfe9c9;border-color:#5a9a52}.mpl button.pick{background:#f7d774}.mpl button.bad{background:#f6b8b8}'+
+'.mem{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.mem button{min-height:64px;font-size:13px;line-height:1.2;padding:4px}.mem button.hid{background:#7a2230;color:#7a2230}.mem button.done{background:#cfe9c9}'+
+'.kb{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px}.kb button{width:34px;height:40px;padding:0}.gword{font:700 26px/1.2 monospace;letter-spacing:6px;text-align:center;margin:10px 0;color:#7a2230}.gok{color:#2f6b2a;font-weight:700}.gno{color:#a02020;font-weight:700}.gscore{font-size:18px;font-weight:700;color:#7a2230;margin:8px 0}.gbar{height:6px;border-radius:3px;background:rgba(0,0,0,.12);overflow:hidden;margin:6px 0}.gbar i{display:block;height:100%;background:#b8862b}';
+document.head.append(css);
+
+var GT_TIMER=0;
+function gmStop(){if(GT_TIMER){clearInterval(GT_TIMER);GT_TIMER=0}}
+window.gmStop=gmStop;
+function lc(s){return String(s).toLowerCase()}
+function gmDay(){var d=new Date();return Math.floor(new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()/86400000)}
+function shuf(a,seed){var r=ppRng(seed),b=a.slice();for(var i=b.length-1;i!==0;i--){var j=Math.floor(r()*(i+1)),t=b[i];b[i]=b[j];b[j]=t}return b}
+function terms(u){
+  return (GLOSS[u]||[]).map(function(s){var k=s.indexOf('|');return {w:s.slice(0,k).toUpperCase(),c:s.slice(k+1)}}).filter(function(t){return /^[A-Z]+$/.test(t.w)&&t.w.length>=4&&12>=t.w.length});
+}
+function box(host,title){host.replaceChildren();var p=el('div','panel gm');if(title)p.append(el('h3',null,title));host.append(p);return p}
+function msg(p,txt,good){var m=el('p',good?'gok':'gno',txt);p.append(m);return m}
+
+/* ===== Crossword ===== */
+function cwLayout(words,seed){
+  var best=null;
+  for(var at=0;40>at;at++){
+    var order=shuf(words,seed*97+at).sort(function(a,b){return b.w.length-a.w.length}),cells={},dirs={},placed=[];
+    function fits(w,x,y,d){
+      var dx=d==='a'?1:0,dy=d==='d'?1:0,n=w.length,inter=0;
+      if(cells[(x-dx)+','+(y-dy)]||cells[(x+dx*n)+','+(y+dy*n)])return -1;
+      for(var i=0;n>i;i++){
+        var cx=x+dx*i,cy=y+dy*i,k=cx+','+cy,ex=cells[k];
+        if(ex){if(ex!==w.charAt(i)||dirs[k].indexOf(d)!==-1)return -1;inter++}
+        else{if(cells[(cx+dy)+','+(cy+dx)]||cells[(cx-dy)+','+(cy-dx)])return -1}
+      }
+      return inter;
+    }
+    function put(w,x,y,d){
+      var dx=d==='a'?1:0,dy=d==='d'?1:0;
+      for(var i=0;w.w.length>i;i++){var k=(x+dx*i)+','+(y+dy*i);cells[k]=w.w.charAt(i);dirs[k]=(dirs[k]||'')+d}
+      placed.push({w:w.w,c:w.c,x:x,y:y,d:d});
+    }
+    put(order[0],0,0,'a');
+    var left=order.slice(1),prog=true;
+    while(prog&&left.length){
+      prog=false;
+      for(var oi=0;left.length>oi;oi++){
+        var w=left[oi],cand=[];
+        placed.forEach(function(p){
+          for(var i=0;w.w.length>i;i++)for(var j=0;p.w.length>j;j++){
+            if(w.w.charAt(i)!==p.w.charAt(j))continue;
+            var d=p.d==='a'?'d':'a',x=p.d==='a'?p.x+j:p.x-i,y=p.d==='a'?p.y-i:p.y+j;
+            var f=fits(w.w,x,y,d);if(f>0)cand.push([x,y,d,f]);
+          }
+        });
+        if(cand.length){
+          cand.sort(function(a,b){return b[3]-a[3]});
+          var c=cand[0];put(w,c[0],c[1],c[2]);left.splice(oi,1);prog=true;break;
+        }
+      }
+    }
+    if(!best||placed.length>best.placed.length)best={placed:placed,cells:cells};
+    if(placed.length===words.length)break;
+  }
+  return best;
+}
+function cwBuild(unit,idx){
+  var T=terms(unit);if(T.length===0)return null;
+  var sh=shuf(T,unit*131),per=Math.max(7,Math.floor(sh.length/3)),grp=[];
+  for(var i=0;per>i;i++)grp.push(sh[(idx*per+i)%sh.length]);
+  var uniq=[];grp.forEach(function(t){if(!uniq.some(function(u){return u.w===t.w}))uniq.push(t)});
+  var L=cwLayout(uniq,unit*7+idx+1);if(!L)return null;
+  var minx=0,miny=0,maxx=0,maxy=0;
+  L.placed.forEach(function(p){var dx=p.d==='a'?1:0,dy=p.d==='d'?1:0;minx=Math.min(minx,p.x);miny=Math.min(miny,p.y);maxx=Math.max(maxx,p.x+dx*(p.w.length-1));maxy=Math.max(maxy,p.y+dy*(p.w.length-1))});
+  L.placed.forEach(function(p){p.x-=minx;p.y-=miny});
+  L.W=maxx-minx+1;L.H=maxy-miny+1;
+  L.placed.sort(function(a,b){return (a.y-b.y)||(a.x-b.x)});
+  var num={},n=0;
+  L.placed.forEach(function(p){var k=p.x+','+p.y;if(!num[k])num[k]=++n;p.n=num[k]});
+  return L;
+}
+function cwGame(host,unit,idx){
+  var P=box(host,X('Crossword ','குறுக்கெழுத்து ')+(idx+1)),L=cwBuild(unit,idx);
+  if(!L){P.append(el('p','muted','No words available.'));return}
+  P.append(el('p','muted',X('Tap a square and type. Tap the same square again to switch between across and down. Answers are English terms, as in the question papers.','ஒரு கட்டத்தைத் தொட்டு எழுதுக. குறுக்கு/நெடுக்கு மாற்ற அதே கட்டத்தை மீண்டும் தொடுக. விடைகள் வினாத்தாளில் உள்ளதுபோல ஆங்கிலச் சொற்கள்.')));
+  var cs=Math.max(22,Math.min(34,Math.floor((Math.min(window.innerWidth,720)-70)/L.W)));
+  var g=el('div','cwg');g.style.setProperty('--cs',cs+'px');g.style.gridTemplateColumns='repeat('+L.W+','+cs+'px)';
+  var cell={},words=L.placed,dir='a',curK='';
+  var ans={};words.forEach(function(w){var dx=w.d==='a'?1:0,dy=w.d==='d'?1:0;for(var i=0;w.w.length>i;i++)ans[(w.x+dx*i)+','+(w.y+dy*i)]=w.w.charAt(i)});
+  var nums={};words.forEach(function(w){nums[w.x+','+w.y]=w.n});
+  for(var y=0;L.H>y;y++)for(var x=0;L.W>x;x++){
+    var k=x+','+y,d=el('div','cwc');
+    if(ans[k]){
+      var inp=document.createElement('input');inp.maxLength=2;inp.setAttribute('autocomplete','off');inp.setAttribute('autocapitalize','characters');inp.setAttribute('aria-label','Crossword square '+(x+1)+','+(y+1));
+      d.append(inp);if(nums[k])d.append(el('i',null,String(nums[k])));cell[k]=inp;
+      (function(k,inp){
+        inp.addEventListener('focus',function(){inp.select();setCur(k,false)});
+        inp.addEventListener('click',function(){setCur(k,curK===k)});
+        inp.addEventListener('input',function(){var v=inp.value.toUpperCase().replace(/[^A-Z]/g,'').slice(-1);inp.value=v;inp.classList.remove('bad','ok');if(v)step(k,1);done()});
+        inp.addEventListener('keydown',function(e){
+          if(e.key==='Backspace'&&!inp.value){step(k,-1);e.preventDefault()}
+          else if(e.key==='ArrowRight'){dir='a';step2(k,1,0)}else if(e.key==='ArrowLeft'){dir='a';step2(k,-1,0)}
+          else if(e.key==='ArrowDown'){dir='d';step2(k,0,1)}else if(e.key==='ArrowUp'){dir='d';step2(k,0,-1)}
+        });
+      })(k,inp);
+    }
+    g.append(d);
+  }
+  function wordOf(k,dr){
+    var xy=k.split(',').map(Number);
+    for(var i=0;words.length>i;i++){var w=words[i];if(w.d!==dr)continue;var dx=w.d==='a'?1:0,dy=w.d==='d'?1:0;
+      for(var j=0;w.w.length>j;j++)if(w.x+dx*j===xy[0]&&w.y+dy*j===xy[1])return w}
+    return null;
+  }
+  function setCur(k,toggle){
+    if(toggle){var o=dir==='a'?'d':'a';if(wordOf(k,o))dir=o}
+    else if(!wordOf(k,dir))dir=dir==='a'?'d':'a';
+    curK=k;
+    Object.keys(cell).forEach(function(q){cell[q].classList.remove('act','cur')});
+    var w=wordOf(k,dir);
+    if(w){var dx=w.d==='a'?1:0,dy=w.d==='d'?1:0;for(var i=0;w.w.length>i;i++)cell[(w.x+dx*i)+','+(w.y+dy*i)].classList.add('act')}
+    cell[k].classList.add('cur');
+  }
+  function step2(k,dx,dy){var xy=k.split(',').map(Number),nk=(xy[0]+dx)+','+(xy[1]+dy);if(cell[nk]){cell[nk].focus()}}
+  function step(k,s){var w=wordOf(k,dir);if(!w)return;var xy=k.split(',').map(Number),dx=w.d==='a'?1:0,dy=w.d==='d'?1:0,i=(xy[0]-w.x)*dx+(xy[1]-w.y)*dy+s;
+    if(i>=0&&w.w.length>i){var nk=(w.x+dx*i)+','+(w.y+dy*i);cell[nk].focus()}}
+  P.append(g);
+  var st=el('p','muted','');P.append(st);
+  function done(){
+    var right=0,tot=0;Object.keys(ans).forEach(function(k){tot++;if(cell[k].value===ans[k])right++});
+    st.textContent=right+' / '+tot+' '+X('squares correct','கட்டங்கள் சரி');
+    if(right===tot){st.className='gok';st.textContent=X('Solved! Well done.','முடித்துவிட்டீர்கள்! பாராட்டுகள்.')}else st.className='muted';
+  }
+  var bar=el('div','row');
+  bar.append(button(X('Check','சரிபார்'),'gbtn',function(){Object.keys(ans).forEach(function(k){var v=cell[k].value;cell[k].classList.remove('bad','ok');if(v)cell[k].classList.add(v===ans[k]?'ok':'bad')})}),
+    button(X('Hint: reveal one letter','குறிப்பு: ஒரு எழுத்தைக் காட்டு'),'gbtn',function(){var k=curK&&ans[curK]&&cell[curK].value!==ans[curK]?curK:Object.keys(ans).filter(function(q){return cell[q].value!==ans[q]})[0];if(k){cell[k].value=ans[k];cell[k].classList.add('ok');done()}}),
+    button(X('Show answers','விடைகளைக் காட்டு'),'gbtn',function(){Object.keys(ans).forEach(function(k){cell[k].value=ans[k]});done()}),
+    button(X('Clear','அழி'),'gbtn',function(){Object.keys(ans).forEach(function(k){cell[k].value='';cell[k].classList.remove('bad','ok')});done()}));
+  P.append(bar);
+  [['a',X('Across','குறுக்கு')],['d',X('Down','நெடுக்கு')]].forEach(function(r){
+    P.append(el('h4',null,r[1]));var c=el('div','cwl');
+    words.filter(function(w){return w.d===r[0]}).forEach(function(w){
+      var p=el('p',null,w.n+'. '+w.c+' ('+w.w.length+')');
+      p.addEventListener('click',function(){dir=w.d;var k=w.x+','+w.y;cell[k].focus();setCur(k,false)});c.append(p);
+    });
+    P.append(c);
+  });
+  done();
+}
+
+/* ===== Word search ===== */
+function wsGame(host,unit){
+  var P=box(host,X('Word search','சொல் தேடல்')),T=shuf(terms(unit).filter(function(t){return 10>=t.w.length}),unit*17+gmDay()).slice(0,8),N=12,g=[],r=ppRng(unit*313+gmDay());
+  P.append(el('p','muted',X('Find the terms. Read the clue, then tap the first and last letter of the word. Words run across, down or diagonally.','சொற்களைக் கண்டுபிடிக்கவும். குறிப்பைப் படித்து, சொல்லின் முதல், கடைசி எழுத்தைத் தொடுக. சொற்கள் குறுக்கு, நெடுக்கு அல்லது மூலைவிட்டமாக இருக்கும்.')));
+  for(var i=0;N>i;i++){g.push([]);for(var j=0;N>j;j++)g[i].push('')}
+  var dirs=[[1,0],[0,1],[1,1],[1,-1]],pos=[];
+  T.forEach(function(t){
+    for(var tr=0;300>tr;tr++){
+      var d=dirs[Math.floor(r()*4)],x=Math.floor(r()*N),y=Math.floor(r()*N),ex=x+d[0]*(t.w.length-1),ey=y+d[1]*(t.w.length-1);
+      if(0>ex||ex>=N||0>ey||ey>=N)continue;
+      var ok=true;for(var i=0;t.w.length>i;i++){var c=g[y+d[1]*i][x+d[0]*i];if(c&&c!==t.w.charAt(i)){ok=false;break}}
+      if(!ok)continue;
+      for(var i=0;t.w.length>i;i++)g[y+d[1]*i][x+d[0]*i]=t.w.charAt(i);
+      pos.push({w:t.w,x:x,y:y,ex:ex,ey:ey,found:false});return;
+    }
+  });
+  var AB='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for(var i=0;N>i;i++)for(var j=0;N>j;j++)if(!g[i][j])g[i][j]=AB.charAt(Math.floor(r()*26));
+  var cs=Math.max(22,Math.min(34,Math.floor((Math.min(window.innerWidth,720)-70)/N))),G=el('div','wsg'),cells={},first=null;
+  G.style.setProperty('--cs',cs+'px');G.style.gridTemplateColumns='repeat('+N+','+cs+'px)';
+  var list=el('div','cwl');
+  function lst(){list.replaceChildren();T.forEach(function(t){var p=pos.filter(function(q){return q.w===t.w})[0];if(!p)return;list.append(el('p',null,(p.found?'✓ '+t.w+' – ':'')+t.c+' ('+t.w.length+')'))})}
+  for(var y=0;N>y;y++)for(var x=0;N>x;x++){
+    var c=el('div','wsc',g[y][x]);cells[x+','+y]=c;
+    (function(x,y,c){c.addEventListener('click',function(){
+      if(!first){first=[x,y];c.classList.add('sel');return}
+      var f=first;first=null;Object.keys(cells).forEach(function(k){cells[k].classList.remove('sel')});
+      pos.forEach(function(p){
+        if(p.found)return;
+        if((p.x===f[0]&&p.y===f[1]&&p.ex===x&&p.ey===y)||(p.ex===f[0]&&p.ey===f[1]&&p.x===x&&p.y===y)){
+          p.found=true;var dx=Math.sign(p.ex-p.x),dy=Math.sign(p.ey-p.y);
+          for(var i=0;p.w.length>i;i++)cells[(p.x+dx*i)+','+(p.y+dy*i)].classList.add('fd');
+        }
+      });
+      lst();var left=pos.filter(function(p){return !p.found}).length;
+      sc.textContent=left===0?X('All words found. Well done!','எல்லாச் சொற்களும் கிடைத்தன. பாராட்டுகள்!'):(pos.length-left)+' / '+pos.length+' '+X('found','கண்டுபிடிக்கப்பட்டவை');
+    })})(x,y,c);
+    G.append(c);
+  }
+  P.append(G);var sc=el('p','gscore','0 / '+pos.length);P.append(sc,list);lst();
+  P.append(button(X('Show answers','விடைகளைக் காட்டு'),'gbtn',function(){pos.forEach(function(p){p.found=true;var dx=Math.sign(p.ex-p.x),dy=Math.sign(p.ey-p.y);for(var i=0;p.w.length>i;i++)cells[(p.x+dx*i)+','+(p.y+dy*i)].classList.add('fd')});lst()}));
+}
+
+/* ===== Match the pairs ===== */
+function mpGame(host,unit){
+  var P=box(host,X('Match the pairs','பொருத்துக')),pr=PAIRS[unit]||[],L=shuf(pr.map(function(p,i){return [p[0],i]}),unit+gmDay()),R=shuf(pr.map(function(p,i){return [p[1],i]}),unit*3+gmDay()),sel=null,ok=0,tries=0;
+  P.append(el('p','muted',X('Tap an item on the left, then its unit or formula on the right.','இடப்பக்கப் பொருளைத் தொட்டு, வலப்பக்கத்தில் அதன் அலகு அல்லது வாய்பாட்டைத் தொடுக.')));
+  var gr=el('div','mpl'),btn={};
+  var sc=el('p','gscore','');
+  function upd(){sc.textContent=ok+' / '+pr.length+'  ·  '+X('tries','முயற்சிகள்')+' '+tries+(ok===pr.length?'  ·  '+X('All matched!','அனைத்தும் பொருந்தின!'):'')}
+  for(var i=0;L.length>i;i++){
+    [['L',L[i]],['R',R[i]]].forEach(function(q){
+      var b=el('button','gbtn',q[1][0]);btn[q[0]+q[1][1]]=b;
+      b.addEventListener('click',function(){
+        if(b.classList.contains('done'))return;
+        if(q[0]==='L'){Object.keys(btn).forEach(function(k){if(k.charAt(0)==='L')btn[k].classList.remove('pick')});sel=q[1][1];b.classList.add('pick');return}
+        if(sel===null)return;
+        tries++;
+        if(sel===q[1][1]){btn['L'+sel].classList.remove('pick');btn['L'+sel].classList.add('done');b.classList.add('done');ok++;sel=null}
+        else{b.classList.add('bad');setTimeout(function(){b.classList.remove('bad')},500)}
+        upd();
+      });
+      gr.append(b);
+    });
+  }
+  P.append(gr,sc);upd();
+}
+
+/* ===== Memory match ===== */
+function memGame(host,unit){
+  var P=box(host,X('Memory match','நினைவாற்றல் பொருத்தம்')),pr=shuf(PAIRS[unit]||[],unit*5+gmDay()).slice(0,6),cards=[];
+  pr.forEach(function(p,i){cards.push({t:p[0],k:i});cards.push({t:p[1],k:i})});
+  cards=shuf(cards,unit*9+gmDay()+1);
+  P.append(el('p','muted',X('Flip two cards. Match each quantity with its unit or formula.','இரு அட்டைகளைத் திருப்புக. ஒவ்வொரு அளவையும் அதன் அலகு அல்லது வாய்பாட்டுடன் பொருத்துக.')));
+  var gr=el('div','mem'),open=[],ok=0,moves=0,lock=false,sc=el('p','gscore','');
+  function upd(){sc.textContent=X('Moves ','நகர்வுகள் ')+moves+'  ·  '+ok+' / '+pr.length+(ok===pr.length?'  ·  '+X('Well done!','பாராட்டுகள்!'):'')}
+  cards.forEach(function(c){
+    var b=el('button','gbtn hid',c.t);c.b=b;
+    b.addEventListener('click',function(){
+      if(lock||!b.classList.contains('hid')||b.classList.contains('done'))return;
+      b.classList.remove('hid');open.push(c);
+      if(open.length===2){
+        moves++;lock=true;
+        if(open[0].k===open[1].k){open.forEach(function(o){o.b.classList.add('done')});ok++;open=[];lock=false;upd()}
+        else setTimeout(function(){open.forEach(function(o){o.b.classList.add('hid')});open=[];lock=false},1100);
+        upd();
+      }
+    });
+    gr.append(b);
+  });
+  P.append(gr,sc);upd();
+}
+
+/* ===== Guess the term (hangman) ===== */
+function hmGame(host,unit){
+  var P=box(host,X('Guess the term','சொல்லை ஊகிக்க')),T=shuf(terms(unit).filter(function(t){return t.w.length>=5&&11>=t.w.length}),unit*29+gmDay()).slice(0,5),i=0,score=0;
+  function round(){
+    P.replaceChildren(el('h3',null,X('Guess the term','சொல்லை ஊகிக்க')));
+    if(i===T.length){P.append(el('p','gscore',X('You got ','நீங்கள் பெற்றது ')+score+' / '+T.length),button(X('Play again','மீண்டும் விளையாடு'),'gbtn',function(){i=0;score=0;round()}));return}
+    var t=T[i],got={},lives=6;
+    P.append(el('p','muted',X('Word ','சொல் ')+(i+1)+' / '+T.length+'  ·  '+X('Clue: ','குறிப்பு: ')+t.c));
+    var wd=el('div','gword'),lv=el('p','muted',''),kb=el('div','kb'),res=el('div');
+    function paint(){
+      wd.textContent=t.w.split('').map(function(c){return got[c]?c:'_'}).join(' ');
+      lv.textContent=X('Chances left: ','மீதமுள்ள வாய்ப்புகள்: ')+lives;
+      var won=t.w.split('').every(function(c){return got[c]});
+      if(won||lives===0){
+        kb.querySelectorAll('button').forEach(function(b){b.disabled=true});
+        if(won)score++;
+        res.replaceChildren(el('p',won?'gok':'gno',won?X('Correct!','சரி!'):X('The answer was ','விடை ')+t.w),button(X('Next','அடுத்தது'),'gbtn on',function(){i++;round()}));
+      }
+    }
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(L){
+      var b=el('button','gbtn',L);
+      b.addEventListener('click',function(){b.disabled=true;if(t.w.indexOf(L)!==-1)got[L]=1;else lives--;paint()});
+      kb.append(b);
+    });
+    P.append(wd,lv,kb,res);paint();
+  }
+  round();
+}
+
+/* ===== Scramble ===== */
+function scGame(host,unit){
+  var P=box(host,X('Unscramble the term','சொல்லை ஒழுங்குபடுத்துக')),T=shuf(terms(unit).filter(function(t){return t.w.length>=5&&10>=t.w.length}),unit*41+gmDay()).slice(0,6),score=0,asked=0;
+  P.append(el('p','muted',X('Rearrange the letters to make the term for the clue.','குறிப்புக்கு ஏற்ற சொல்லை உருவாக்க எழுத்துகளை மாற்றி அமைக்கவும்.')));
+  var sc=el('p','gscore','');
+  T.forEach(function(t,ix){
+    var w=t.w,s=shuf(w.split(''),unit*100+ix+gmDay()).join('');if(s===w)s=w.split('').reverse().join('');
+    var row=el('div','panel'),inp=document.createElement('input');inp.placeholder=X('Your answer','உங்கள் விடை');inp.style.cssText='text-transform:uppercase;margin:6px 0';
+    var out=el('span','');
+    row.append(el('div',null,t.c),el('div','gword',s.split('').join(' ')),inp,button(X('Check','சரிபார்'),'gbtn',function(){
+      if(row.dataset.done)return;
+      if(inp.value.trim().toUpperCase()===w){row.dataset.done='1';score++;out.className='gok';out.textContent=' ✓ '+X('Correct','சரி');upd()}else{out.className='gno';out.textContent=' '+X('Try again','மீண்டும் முயல்க')}
+    }),button(X('Show','காட்டு'),'gbtn',function(){row.dataset.done='1';inp.value=w;out.className='muted';out.textContent=' '}),out);
+    P.append(row);
+  });
+  function upd(){sc.textContent=score+' / '+T.length}
+  P.append(sc);upd();
+}
+
+/* ===== Speed quiz (from the objective questions of the lesson) ===== */
+function sqGame(host,unit){
+  var P=box(host,X('Speed quiz','விரைவு வினாடி வினா'));
+  var pool=(exData().o||[]).filter(function(q){return q.u===unit&&q.o&&q.o.length>1&&q.a>=0&&!q.fig&&!q.noans&&!/figure|diagram|graph|shown/i.test(String(q.q))});
+  if(pool.length===0){P.append(el('p','muted',X('No questions for this lesson yet.','இந்தப் பாடத்திற்கு வினாக்கள் இல்லை.')));return}
+  var qs=shuf(pool,gmDay()*11+unit).slice(0,10),i=0,score=0,streak=0,miss=[],left=20;
+  function show(){
+    gmStop();
+    P.replaceChildren(el('h3',null,X('Speed quiz','விரைவு வினாடி வினா')));
+    if(i===qs.length){
+      P.append(el('p','gscore',X('Score ','மதிப்பெண் ')+score+' / '+qs.length));
+      if(miss.length){P.append(el('h4',null,X('Review','மீள்பார்வை')));miss.forEach(function(m){P.append(el('p',null,m))})}
+      P.append(button(X('Play again','மீண்டும் விளையாடு'),'gbtn on',function(){i=0;score=0;streak=0;miss=[];qs=shuf(pool,Math.floor(Math.random()*1e6)).slice(0,10);show()}));
+      return;
+    }
+    var q=qs[i],v=ppOpts(q,1);left=20;
+    P.append(el('p','muted',X('Question ','வினா ')+(i+1)+' / '+qs.length+(streak>1?'  ·  🔥 '+streak:'')));
+    var bar=el('div','gbar'),fill=el('i');fill.style.width='100%';bar.append(fill);P.append(bar);
+    P.append(el('p',null,exFq(q)));
+    var done=false;
+    function end(){gmStop();done=true;P.querySelectorAll('button.opt2').forEach(function(b){b.disabled=true})}
+    v.o.forEach(function(o,j){
+      var b=el('button','gbtn opt2','('+'abcde'.charAt(j)+') '+o);b.style.cssText='display:block;width:100%;text-align:left;margin:6px 0';
+      b.addEventListener('click',function(){
+        if(done)return;end();
+        if(j===v.a){score++;streak++;b.classList.add('on')}else{streak=0;miss.push((i+1)+'. '+exFq(q)+' → ('+'abcde'.charAt(v.a)+') '+v.o[v.a]);b.style.background='#f6b8b8'}
+        P.append(button(X('Next','அடுத்தது'),'gbtn on',function(){i++;show()}));
+      });P.append(b);
+    });
+    GT_TIMER=setInterval(function(){
+      left--;fill.style.width=(left*5)+'%';
+      if(left===0&&!done){end();streak=0;miss.push((i+1)+'. '+exFq(q)+' → ('+'abcde'.charAt(v.a)+') '+v.o[v.a]);P.append(el('p','gno',X('Time is up.','நேரம் முடிந்தது.')),button(X('Next','அடுத்தது'),'gbtn on',function(){i++;show()}))}
+    },1000);
+  }
+  show();
+}
+
+var LIST=[
+  ['cw0',function(l){return X('Crossword 1','குறுக்கெழுத்து 1')},'Terms from the lesson',function(h,u){cwGame(h,u,0)}],
+  ['cw1',function(){return X('Crossword 2','குறுக்கெழுத்து 2')},'A different set of terms',function(h,u){cwGame(h,u,1)}],
+  ['cw2',function(){return X('Crossword 3','குறுக்கெழுத்து 3')},'A third set of terms',function(h,u){cwGame(h,u,2)}],
+  ['ws',function(){return X('Word search','சொல் தேடல்')},'Hunt for hidden terms',wsGame],
+  ['mp',function(){return X('Match the pairs','பொருத்துக')},'Quantity with unit or formula',mpGame],
+  ['mem',function(){return X('Memory match','நினைவாற்றல் பொருத்தம்')},'Flip cards and find pairs',memGame],
+  ['hm',function(){return X('Guess the term','சொல்லை ஊகிக்க')},'Hangman with clues',hmGame],
+  ['sc',function(){return X('Unscramble','எழுத்துகளை அடுக்கு')},'Rebuild jumbled terms',scGame],
+  ['sq',function(){return X('Speed quiz','விரைவு வினாடி வினா')},'10 timed objective questions',sqGame]
+];
+window.gmList=LIST;
+exs.gm={unit:1,game:null};
+window.renderGames=function(keep){
+  exs.cb=null;gmStop();
+  var H=$('#exTop'),y=window.pageYOffset;H.replaceChildren();
+  var P=el('div','panel gm');P.append(el('h3',null,X('Crosswords and games','குறுக்கெழுத்து மற்றும் விளையாட்டுகள்')));
+  P.append(el('p','muted',X('Choose a lesson and a game. Every lesson has three crosswords and more.','ஒரு பாடத்தையும் விளையாட்டையும் தேர்ந்தெடுக்கவும். ஒவ்வொரு பாடத்திலும் மூன்று குறுக்கெழுத்துகளும் மேலும் பல விளையாட்டுகளும் உள்ளன.')));
+  var c=el('div','chips');
+  BOOK.units.forEach(function(u){var b=el('button','chip',String(u.no));b.type='button';b.setAttribute('aria-pressed',+u.no===exs.gm.unit?'true':'false');b.title=u.title;b.addEventListener('click',function(){exs.gm.unit=+u.no;exs.gm.game=null;renderGames(true)});c.append(b)});
+  P.append(c,el('p','muted',exUnitLabel(exs.gm.unit)));
+  H.append(P);
+  if(exs.gm.game===null){
+    var gc=el('div','gcards gm');
+    LIST.forEach(function(g){var b=el('button','gcard');b.type='button';b.append(el('b',null,g[1]()),el('span',null,g[2]));b.addEventListener('click',function(){exs.gm.game=g[0];renderGames()});gc.append(b)});
+    H.append(gc);
+  }else{
+    var gd=LIST.filter(function(g){return g[0]===exs.gm.game})[0];
+    var bk=button(X('Back to games','விளையாட்டுகளுக்குத் திரும்பு'),'gbtn',function(){gmStop();exs.gm.game=null;renderGames()});bk.style.margin='8px 0';
+    var host=el('div');H.append(bk,host);gd[3](host,exs.gm.unit);
+  }
+  if(keep)window.scrollTo(0,y);
+};
+})();
+/* ---------- Spark: Games (a game shown automatically each day) and Timepass games ---------- */
+/* note: no less-than sign anywhere in this file; write comparisons with the larger number first */
+(function(){
+var gsty=document.createElement('style');
+gsty.textContent='.tpc{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px}.tpc button{border:1px solid rgba(122,34,48,.3);border-radius:12px;padding:12px;background:#fffdf8;color:#2b1d14;font:inherit;text-align:left;cursor:pointer}.tpc button b{display:block;color:#7a2230;margin-bottom:3px}.tpc button span{font-size:13px;opacity:.85}'+
+'.rv{display:grid;grid-template-columns:1fr 70px 1fr;gap:8px;align-items:stretch;margin:10px 0}.rvb{border-radius:10px;padding:8px;min-height:110px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;background:#e6f2d9}.rvb.water{background:#cfe3f5}.rvw{background:linear-gradient(#bcd9f2,#8fc0e8);border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative}.rvboat{font-size:28px}.rvi{font-size:26px;border:2px solid transparent;border-radius:10px;background:#fffdf8;padding:4px 8px;cursor:pointer}.rvi.on{border-color:#7a2230;background:#f7d774}'+
+'.hn{display:flex;justify-content:space-around;align-items:flex-end;height:170px;margin:10px 0}.hnp{flex:1;display:flex;flex-direction:column-reverse;align-items:center;gap:2px;cursor:pointer;border-bottom:6px solid #6b5a4a;margin:0 4px;position:relative;padding-bottom:2px}.hnp.sel{background:rgba(247,215,116,.45)}.hnd{height:18px;border-radius:9px;background:#7a2230}'+
+'.sl{display:grid;grid-template-columns:repeat(3,76px);gap:6px;justify-content:center;margin:10px auto}.sl button{height:76px;font:700 26px inherit;border-radius:10px;border:1px solid rgba(122,34,48,.4);background:#f7e7c4;color:#2b1d14;cursor:pointer}.sl button.e{visibility:hidden}'+
+'.lo{display:grid;grid-template-columns:repeat(5,54px);gap:6px;justify-content:center;margin:10px auto}.lo button{height:54px;border-radius:10px;border:1px solid rgba(0,0,0,.25);background:#3a3a3a;cursor:pointer}.lo button.on{background:#f7d774}';
+document.head.append(gsty);
+var host=$('#spGames'),tph=$('#spTime'),mode=$('#spMode');
+if(!host||!tph||!mode)return;
+var main=$('#spMain');
+function gday(off){var d=new Date();return Math.floor(new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()/86400000)+(off||0)}
+function sh(a,seed){var r=ppRng(seed),b=a.slice();for(var i=b.length-1;i!==0;i--){var j=Math.floor(r()*(i+1)),t=b[i];b[i]=b[j];b[j]=t}return b}
+function sbox(h,title){h.replaceChildren();var p=el('div','panel gm');if(title)p.append(el('h3',null,title));h.append(p);return p}
+function setMode(k){
+  if(window.gmStop)gmStop();
+  $$('button',mode).forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===k?'true':'false')});
+  main.hidden=k!=='spark';host.hidden=k!=='games';tph.hidden=k!=='time';
+  if(k==='games')dailyGame();
+  if(k==='time')tpMenu();
+}
+$$('button',mode).forEach(function(b){b.addEventListener('click',function(){setMode(b.dataset.k)})});
+
+/* ===== Daily game: shown automatically, no choice needed ===== */
+var KINDS=[['q','History'],['q','Grammar'],['q','General Knowledge'],['tf'],['q','Everyday Science'],['sc'],['oo']];
+var offs=0,played=0;
+function dailyGame(){
+  var n=gday(offs),k=KINDS[((n%KINDS.length)+KINDS.length)%KINDS.length],P=sbox(host,X('Today\'s game','இன்றைய விளையாட்டு'));
+  var cap={History:['History quiz','வரலாற்று வினாடி வினா'],Grammar:['English grammar quiz','ஆங்கில இலக்கண வினாடி வினா'],'General Knowledge':['General knowledge quiz','பொது அறிவு வினாடி வினா'],'Everyday Science':['Everyday science quiz','அன்றாட அறிவியல் வினாடி வினா']};
+  var title=k[0]==='q'?X(cap[k[1]][0],cap[k[1]][1]):k[0]==='tf'?X('True or false','சரியா தவறா'):k[0]==='sc'?X('Word scramble','சொல் அடுக்கு'):X('Odd one out','பொருந்தாததைக் கண்டுபிடி');
+  P.append(el('p','muted',title+'  ·  '+X('A new game appears every day. Tap the button below to play another.','ஒவ்வொரு நாளும் புதிய விளையாட்டு வரும். இன்னொன்றை விளையாட கீழே உள்ள பொத்தானைத் தொடுக.')));
+  var body=el('div');P.append(body);
+  var nx=button(X('Play another game','இன்னொரு விளையாட்டு'),'gbtn',function(){offs++;dailyGame()});nx.style.marginTop='10px';P.append(nx);
+  var seed=n*31+offs*7;
+  if(k[0]==='q')quiz(body,sh(GQ[k[1]],seed).slice(0,5));
+  else if(k[0]==='tf')tfGame(body,sh(GT,seed).slice(0,8));
+  else if(k[0]==='sc')scr(body,sh(GS,seed).slice(0,5));
+  else oddGame(body,sh(GO,seed).slice(0,5));
+}
+function quiz(b,qs){
+  var i=0,score=0;
+  (function show(){
+    b.replaceChildren();
+    if(i===qs.length){b.append(el('p','gscore',X('Your score: ','உங்கள் மதிப்பெண்: ')+score+' / '+qs.length),el('p','muted',score===qs.length?X('Perfect! 🌟','அருமை! 🌟'):score>=3?X('Well done!','பாராட்டுகள்!'):X('Keep going; try another game.','தொடருங்கள்; இன்னொரு விளையாட்டை முயலுங்கள்.')));return}
+    var q=qs[i];b.append(el('p','muted',X('Question ','வினா ')+(i+1)+' / '+qs.length),el('p',null,q[0]));
+    var opts=sh(q.slice(1),i*13+gday()).map(function(o){return [o,o===q[1]]}),done=false;
+    opts.forEach(function(o){
+      var bt=el('button','gbtn',o[0]);bt.style.cssText='display:block;width:100%;text-align:left;margin:6px 0';
+      bt.addEventListener('click',function(){
+        if(done)return;done=true;
+        if(o[1]){score++;bt.classList.add('on')}else{bt.style.background='#f6b8b8';b.querySelectorAll('button').forEach(function(x){if(x.textContent===q[1])x.classList.add('on')})}
+        b.append(button(X('Next','அடுத்தது'),'gbtn on',function(){i++;show()}));
+      });b.append(bt);
+    });
+  })();
+}
+function tfGame(b,items){
+  var i=0,score=0;
+  (function show(){
+    b.replaceChildren();
+    if(i===items.length){b.append(el('p','gscore',X('Your score: ','உங்கள் மதிப்பெண்: ')+score+' / '+items.length));return}
+    var q=items[i];b.append(el('p','muted',X('Statement ','கூற்று ')+(i+1)+' / '+items.length),el('p',null,q[0]));
+    var done=false,row=el('div','row');
+    [[X('True','சரி'),1],[X('False','தவறு'),0]].forEach(function(o){
+      var bt=el('button','gbtn',o[0]);
+      bt.addEventListener('click',function(){
+        if(done)return;done=true;var ok=o[1]===q[1];if(ok)score++;
+        b.append(el('p',ok?'gok':'gno',ok?X('Correct','சரி'):X('Not correct. The statement is ','தவறு. கூற்று ')+(q[1]?X('true.','சரி.'):X('false.','தவறு.'))),button(X('Next','அடுத்தது'),'gbtn on',function(){i++;show()}));
+      });row.append(bt);
+    });b.append(row);
+  })();
+}
+function scr(b,items){
+  var score=0,sc=el('p','gscore','');
+  function upd(){sc.textContent=score+' / '+items.length}
+  items.forEach(function(it,ix){
+    var w=it[0],s=sh(w.split(''),ix*17+gday()+offs).join('');if(s===w)s=w.split('').reverse().join('');
+    var row=el('div','panel'),inp=document.createElement('input');inp.placeholder=X('Your answer','உங்கள் விடை');inp.style.cssText='text-transform:uppercase;margin:6px 0';
+    var out=el('span','');
+    row.append(el('div','muted',it[1]),el('div','gword',s.split('').join(' ')),inp,button(X('Check','சரிபார்'),'gbtn',function(){
+      if(row.dataset.d)return;
+      if(inp.value.trim().toUpperCase()===w){row.dataset.d='1';score++;out.className='gok';out.textContent=' ✓';upd()}else{out.className='gno';out.textContent=' '+X('Try again','மீண்டும் முயல்க')}
+    }),button(X('Show','காட்டு'),'gbtn',function(){row.dataset.d='1';inp.value=w}),out);
+    b.append(row);
+  });
+  b.append(sc);upd();
+}
+function oddGame(b,items){
+  var i=0,score=0;
+  (function show(){
+    b.replaceChildren();
+    if(i===items.length){b.append(el('p','gscore',X('Your score: ','உங்கள் மதிப்பெண்: ')+score+' / '+items.length));return}
+    var q=items[i];b.append(el('p','muted',X('Question ','வினா ')+(i+1)+' / '+items.length),el('p',null,X('Which one does not belong?','எது மற்றவற்றுடன் பொருந்தவில்லை?')));
+    var done=false;
+    q[0].forEach(function(o,j){
+      var bt=el('button','gbtn',o);bt.style.cssText='margin:4px 6px 4px 0';
+      bt.addEventListener('click',function(){
+        if(done)return;done=true;var ok=j===q[1];if(ok){score++;bt.classList.add('on')}else bt.style.background='#f6b8b8';
+        b.append(el('p',ok?'gok':'gno',(ok?X('Correct. ','சரி. '):X('Not quite. ','சரியில்லை. '))+q[2]),button(X('Next','அடுத்தது'),'gbtn on',function(){i++;show()}));
+      });b.append(bt);
+    });
+  })();
+}
+
+/* ===== Timepass games ===== */
+var TP=[
+  ['river',['River crossing','ஆறு கடத்தல்'],['Farmer, wolf, goat and cabbage','விவசாயி, ஓநாய், ஆடு, முட்டைக்கோஸ்']],
+  ['bridge',['Bridge and torch','பாலமும் தீப்பந்தமும்'],['Four people, one torch, 17 minutes','நால்வர், ஒரு தீப்பந்தம், 17 நிமிடம்']],
+  ['mem',['Memory flip','நினைவாற்றல் அட்டைகள்'],['Find the matching pictures','பொருந்தும் படங்களைக் கண்டுபிடி']],
+  ['hanoi',['Tower of Hanoi','ஹனோய் கோபுரம்'],['Move the disks to the last peg','வட்டுகளை கடைசிக் கம்பிக்கு நகர்த்து']],
+  ['slide',['Slide puzzle','நகர்த்தும் புதிர்'],['Put the numbers in order','எண்களை வரிசைப்படுத்து']],
+  ['lights',['Lights out','விளக்குகள் அணை'],['Switch off every light','எல்லா விளக்குகளையும் அணை']]
+];
+function tpMenu(){
+  if(window.gmStop)gmStop();
+  var P=sbox(tph,X('Timepass games','பொழுதுபோக்கு விளையாட்டுகள்'));
+  P.append(el('p','muted',X('Relax and play. Nothing here is graded.','ஓய்வாக விளையாடுங்கள். இங்கு மதிப்பெண் இல்லை.')));
+  var g=el('div','tpc');
+  TP.forEach(function(t){var b=el('button');b.type='button';b.append(el('b',null,X(t[1][0],t[1][1])),el('span',null,X(t[2][0],t[2][1])));b.addEventListener('click',function(){tpOpen(t[0])});g.append(b)});
+  P.append(g);
+}
+function tpOpen(k){
+  var P=sbox(tph,X(TP.filter(function(t){return t[0]===k})[0][1][0],TP.filter(function(t){return t[0]===k})[0][1][1])),back=button(X('Back to games','விளையாட்டுகளுக்குத் திரும்பு'),'gbtn',tpMenu);back.style.marginBottom='8px';
+  P.append(back);var b=el('div');P.append(b);
+  ({river:river,bridge:bridge,mem:memo,hanoi:hanoi,slide:slide,lights:lights})[k](b);
+}
+/* river crossing */
+function river(b){
+  var items=[['🌾','cabbage','முட்டைக்கோஸ்'],['🐐','goat','ஆடு'],['🐺','wolf','ஓநாய்']],L=items.map(function(x,i){return i}),R=[],boat='L',cargo=-1,moves=0;
+  b.append(el('p','muted',X('Take everything across the river. The boat carries the farmer and one item. Never leave the wolf with the goat, or the goat with the cabbage, when the farmer is on the other bank.','எல்லாவற்றையும் ஆற்றைக் கடத்துக. படகில் விவசாயியும் ஒரு பொருளும் மட்டுமே செல்லலாம். விவசாயி மறுகரையில் இருக்கும்போது ஓநாயை ஆட்டுடனோ ஆட்டை முட்டைக்கோஸுடனோ விடக்கூடாது.')));
+  var area=el('div'),info=el('p','gscore','');b.append(area,info,button(X('Restart','மீண்டும் தொடங்கு'),'gbtn',function(){L=items.map(function(x,i){return i});R=[];boat='L';cargo=-1;moves=0;draw('')}));
+  function bad(side){var s=side.slice();return (s.indexOf(2)!==-1&&s.indexOf(1)!==-1)||(s.indexOf(1)!==-1&&s.indexOf(0)!==-1)}
+  function draw(note){
+    area.replaceChildren();var g=el('div','rv'),l=el('div','rvb'),r=el('div','rvb'),w=el('div','rvw');
+    function chip(i,from){var c=el('button','rvi',items[i][0]);c.title=X(items[i][1],items[i][2]);c.addEventListener('click',function(){if(boat!==from)return;if(cargo===i)cargo=-1;else if(cargo===-1||true)cargo=i;draw('')});if(cargo===i)c.classList.add('on');return c}
+    L.forEach(function(i){l.append(chip(i,'L'))});R.forEach(function(i){r.append(chip(i,'R'))});
+    w.append(el('div','rvboat',(boat==='L'?'⬅ ':'')+'🚣'+(boat==='R'?' ➡':'')));
+    g.append(l,w,r);area.append(g);
+    var go=button(X('Row across','படகைச் செலுத்து'),'gbtn on',function(){
+      var from=boat==='L'?L:R,to=boat==='L'?R:L;
+      if(cargo!==-1){from.splice(from.indexOf(cargo),1);to.push(cargo)}
+      boat=boat==='L'?'R':'L';cargo=-1;moves++;
+      var left=boat==='L'?R:L; /* bank the farmer just left */
+      if(bad(left)){draw(X('Oh no! Something was eaten. Restart and try again.','ஐயோ! ஒன்று தின்னப்பட்டது. மீண்டும் தொடங்கிப் பாருங்கள்.'));lock();return}
+      if(R.length===3){draw(X('You did it in ','முடித்துவிட்டீர்கள்: ')+moves+X(' crossings. The best is 7.',' பயணங்கள். சிறந்தது 7.'));lock();return}
+      draw('');
+    });
+    area.append(go);
+    info.textContent=X('Crossings: ','பயணங்கள்: ')+moves+(note?'  ·  '+note:'');
+    function lock(){go.disabled=true;area.querySelectorAll('.rvi').forEach(function(x){x.disabled=true})}
+  }
+  draw('');
+}
+/* bridge and torch */
+function bridge(b){
+  var P=[['👦','Ravi',1],['👧','Meena',2],['👨','Father',5],['👵','Grandma',10]],side=[0,0,0,0],torch=0,time=0,sel=[];
+  b.append(el('p','muted',X('Four people must cross a bridge at night with one torch. At most two can cross at once and they walk at the slower person\'s pace. Someone must bring the torch back. Can you get everyone across in 17 minutes?','நால்வர் இரவில் ஒரே தீப்பந்தத்துடன் பாலத்தைக் கடக்க வேண்டும். ஒரே நேரத்தில் இருவர் வரை செல்லலாம்; மெதுவாக நடப்பவரின் வேகத்தில் செல்வர். தீப்பந்தத்தை யாராவது திருப்பிக் கொண்டுவர வேண்டும். 17 நிமிடத்தில் எல்லோரையும் கடத்த முடியுமா?')));
+  var area=el('div');b.append(area,button(X('Restart','மீண்டும் தொடங்கு'),'gbtn',function(){side=[0,0,0,0];torch=0;time=0;sel=[];draw()}));
+  function draw(){
+    area.replaceChildren();var g=el('div','rv'),l=el('div','rvb'),r=el('div','rvb'),w=el('div','rvw');
+    P.forEach(function(p,i){
+      var c=el('button','rvi',p[0]+' '+p[2]);c.title=p[1]+' – '+p[2]+' min';if(sel.indexOf(i)!==-1)c.classList.add('on');
+      c.addEventListener('click',function(){if(side[i]!==torch)return;var k=sel.indexOf(i);if(k!==-1)sel.splice(k,1);else if(2>sel.length)sel.push(i);draw()});
+      (side[i]===0?l:r).append(c);
+    });
+    w.append(el('div','rvboat',(torch===0?'🔦 ⬅':'➡ 🔦')));g.append(l,w,r);area.append(g);
+    var go=button(X('Cross with the torch','தீப்பந்தத்துடன் கடக்க'),'gbtn on',function(){
+      if(sel.length===0)return;
+      var t=Math.max.apply(null,sel.map(function(i){return P[i][2]}));time+=t;sel.forEach(function(i){side[i]=torch===0?1:0});torch=torch===0?1:0;sel=[];draw();
+    });
+    area.append(go,el('p','gscore',X('Time used: ','எடுத்த நேரம்: ')+time+' / 17 '+X('minutes','நிமிடம்')));
+    if(side.every(function(s){return s===1})){go.disabled=true;area.append(el('p',time>17?'gno':'gok',time>17?X('Everyone crossed, but it took too long. Try again!','எல்லோரும் கடந்தனர், ஆனால் நேரம் அதிகம். மீண்டும் முயலுங்கள்!'):X('Brilliant! You solved it.','அருமை! புதிரைத் தீர்த்துவிட்டீர்கள்.')))}
+    else if(time>17)area.append(el('p','gno',X('More than 17 minutes already. Restart and try another plan.','ஏற்கனவே 17 நிமிடத்துக்கு மேல். மீண்டும் தொடங்கி வேறு திட்டம் முயலுங்கள்.')));
+  }
+  draw();
+}
+/* memory flip with pictures */
+function memo(b){
+  var level=1;
+  function start(){
+    b.replaceChildren();
+    var E=['🐘','🦚','🌺','🥭','🪔','🚂','🌙','⭐','🐅','🦜','🍃','🎈'],n=level===1?6:level===2?8:12,pick=sh(E,gday()+level*3).slice(0,n),cards=sh(pick.concat(pick),Math.floor(Math.random()*1e6)),open=[],ok=0,moves=0,lock=false,sc=el('p','gscore','');
+    var lv=el('div','row');[1,2,3].forEach(function(l){var x=button(X('Level ','நிலை ')+l,'gbtn'+(l===level?' on':''),function(){level=l;start()});lv.append(x)});b.append(lv);
+    var gr=el('div','mem');gr.style.gridTemplateColumns='repeat('+(n===12?6:4)+',1fr)';
+    function upd(){sc.textContent=X('Moves ','நகர்வுகள் ')+moves+'  ·  '+ok+' / '+n+(ok===n?'  ·  '+X('Well done!','பாராட்டுகள்!'):'')}
+    cards.forEach(function(e){
+      var c=el('button','gbtn hid',e);c.style.fontSize='26px';
+      c.addEventListener('click',function(){
+        if(lock||!c.classList.contains('hid'))return;c.classList.remove('hid');open.push([c,e]);
+        if(open.length===2){moves++;lock=true;
+          if(open[0][1]===open[1][1]){open.forEach(function(o){o[0].classList.add('done')});ok++;open=[];lock=false}
+          else setTimeout(function(){open.forEach(function(o){o[0].classList.add('hid')});open=[];lock=false},900);
+          upd()}
+      });gr.append(c);
+    });
+    b.append(gr,sc);upd();
+  }
+  start();
+}
+/* tower of hanoi */
+function hanoi(b){
+  var N=3,pegs,sel=-1,moves=0;
+  function reset(){pegs=[[],[],[]];for(var i=N;i>0;i--)pegs[0].push(i);sel=-1;moves=0;draw('')}
+  function draw(note){
+    b.replaceChildren();
+    var lv=el('div','row');[3,4,5].forEach(function(n){lv.append(button(n+' '+X('disks','வட்டுகள்'),'gbtn'+(n===N?' on':''),function(){N=n;reset()}))});b.append(lv);
+    b.append(el('p','muted',X('Move all disks to the right peg. Only one disk at a time, and never a bigger disk on a smaller one. Tap a peg to pick up its top disk, then tap where to put it.','எல்லா வட்டுகளையும் வலப்பக்கக் கம்பிக்கு நகர்த்துக. ஒரு நேரத்தில் ஒரு வட்டு; பெரிய வட்டை சிறியதன் மேல் வைக்கக் கூடாது. ஒரு கம்பியைத் தொட்டு மேல் வட்டை எடுத்து, வைக்க வேண்டிய கம்பியைத் தொடுக.')));
+    var g=el('div','hn');
+    pegs.forEach(function(p,pi){
+      var d=el('div','hnp'+(sel===pi?' sel':''));
+      p.forEach(function(s){var x=el('div','hnd');x.style.width=(24+s*14)+'px';d.append(x)});
+      d.addEventListener('click',function(){
+        if(sel===-1){if(p.length)sel=pi;draw('');return}
+        if(sel===pi){sel=-1;draw('');return}
+        var s=pegs[sel][pegs[sel].length-1],top=p[p.length-1];
+        if(top!==undefined&&s>top){sel=-1;draw(X('A bigger disk cannot go on a smaller one.','பெரிய வட்டை சிறியதன் மேல் வைக்க முடியாது.'));return}
+        pegs[sel].pop();p.push(s);sel=-1;moves++;draw('');
+      });g.append(d);
+    });
+    b.append(g,el('p','gscore',X('Moves: ','நகர்வுகள்: ')+moves+'  ·  '+X('best possible ','சிறந்தது ')+(Math.pow(2,N)-1)+(note?'  ·  '+note:'')));
+    if(pegs[2].length===N)b.append(el('p','gok',X('Solved!','முடித்துவிட்டீர்கள்!')));
+    b.append(button(X('Restart','மீண்டும் தொடங்கு'),'gbtn',reset));
+  }
+  reset();
+}
+/* sliding number puzzle */
+function slide(b){
+  var t,e;
+  function shuffle(){
+    t=[1,2,3,4,5,6,7,8,0];e=8;var r=ppRng(Date.now()),last=-1;
+    for(var k=0;200>k;k++){var nb=[],x=e%3,y=Math.floor(e/3);if(x>0)nb.push(e-1);if(2>x)nb.push(e+1);if(y>0)nb.push(e-3);if(2>y)nb.push(e+3);nb=nb.filter(function(n){return n!==last});var m=nb[Math.floor(r()*nb.length)];t[e]=t[m];t[m]=0;last=e;e=m}
+  }
+  var moves=0;
+  function draw(){
+    b.replaceChildren(el('p','muted',X('Slide the tiles into order, 1 to 8, with the blank at the end.','எண்களை 1 முதல் 8 வரை வரிசைப்படுத்தி, காலிக் கட்டம் கடைசியில் வரும்படி நகர்த்துக.')));
+    var g=el('div','sl');
+    t.forEach(function(v,i){
+      var c=el('button',v?'':'e',v?String(v):'');
+      c.addEventListener('click',function(){
+        var x=i%3,y=Math.floor(i/3),ex=e%3,ey=Math.floor(e/3);
+        if(Math.abs(x-ex)+Math.abs(y-ey)===1){t[e]=t[i];t[i]=0;e=i;moves++;draw()}
+      });g.append(c);
+    });
+    b.append(g,el('p','gscore',X('Moves: ','நகர்வுகள்: ')+moves));
+    if(t.slice(0,8).every(function(v,i){return v===i+1}))b.append(el('p','gok',X('Solved!','முடித்துவிட்டீர்கள்!')));
+    b.append(button(X('New puzzle','புதிய புதிர்'),'gbtn',function(){moves=0;shuffle();draw()}));
+  }
+  shuffle();draw();
+}
+/* lights out */
+function lights(b){
+  var g,moves=0;
+  function toggle(i){var x=i%5,y=Math.floor(i/5);[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){var a=x+d[0],c=y+d[1];if(a>=0&&5>a&&c>=0&&5>c)g[c*5+a]=!g[c*5+a]})}
+  function fresh(){g=[];for(var i=0;25>i;i++)g.push(false);var r=ppRng(Date.now());for(var k=0;8>k;k++)toggle(Math.floor(r()*25));if(g.every(function(v){return !v}))toggle(12);moves=0}
+  function draw(){
+    b.replaceChildren(el('p','muted',X('Tap a light to flip it and its four neighbours. Switch them all off.','ஒரு விளக்கைத் தொட்டால் அதுவும் அதன் நான்கு அண்டை விளக்குகளும் மாறும். எல்லாவற்றையும் அணைக்கவும்.')));
+    var p=el('div','lo');
+    g.forEach(function(on,i){var c=el('button',on?'on':'');c.setAttribute('aria-label','light '+(i+1));c.addEventListener('click',function(){toggle(i);moves++;draw()});p.append(c)});
+    b.append(p,el('p','gscore',X('Moves: ','நகர்வுகள்: ')+moves));
+    if(g.every(function(v){return !v}))b.append(el('p','gok',X('All lights are off. Well done!','எல்லா விளக்குகளும் அணைந்தன. பாராட்டுகள்!')));
+    b.append(button(X('New puzzle','புதிய புதிர்'),'gbtn',function(){fresh();draw()}));
+  }
+  fresh();draw();
+}
+})();
 
 /* ---------- profile menu + log out (online/login version only) ---------- */
 (function(){
