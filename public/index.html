@@ -419,7 +419,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
 
 <section class="tab" id="tab-teach" hidden>
   <div><div class="lab">For your classes</div><h2>Slides and teaching resources</h2></div>
-  <div class="seg" id="mainSeg"><button data-v="book" aria-pressed="true">Book slides</button><button data-v="bres" aria-pressed="false">Book resources</button><button data-v="custom" aria-pressed="false">Other topic</button><button data-v="exam" aria-pressed="false">Exam practice</button><button data-v="weekly" aria-pressed="false">Weekly plan</button><button data-v="optics" aria-pressed="false">Visual Learning</button><button data-v="prac" aria-pressed="false">Practicals</button></div>
+  <div class="seg" id="mainSeg"><button data-v="book" aria-pressed="true">Book slides</button><button data-v="bres" aria-pressed="false">Book resources</button><button data-v="custom" aria-pressed="false">Other topic</button><button data-v="exam" aria-pressed="false">Exam practice</button><button data-v="weekly" aria-pressed="false">Weekly plan</button><button data-v="optics" aria-pressed="false">Visual Learning</button><button data-v="prac" aria-pressed="false">Practicals</button><button data-v="vr" aria-pressed="false">Virtual Reality (VR)</button></div>
 
   <div class="panel" id="bookPick">
     <div class="grid2">
@@ -439,6 +439,7 @@ h2{line-height:1.35}.sbw .streak{max-width:none;overflow:visible}
   <div id="teach-vl" class="tab" style="padding-top:0" hidden><div id="teach-optics" style="padding-top:0" hidden></div></div>
 
   <div id="teach-prac" class="tab" style="padding-top:0" hidden></div>
+  <div id="teach-vr" class="tab" style="padding-top:0" hidden></div>
 
   <div id="teach-weekly" class="tab" style="padding-top:0" hidden>
     <div class="panel"><h3>Weekly lesson plan</h3>
@@ -723,6 +724,1029 @@ function buildDeck(P,D){
 var KT={font:font,findSec:findSec,makeDeck:makeDeck,buildDeck:buildDeck};
 if(typeof module!=='undefined'&&module.exports)module.exports=KT;else root.KT=KT;
 })(typeof window!=='undefined'?window:this);
+</script>
+<script>/* sbVR engine: small self-contained WebGL2 renderer for classroom VR.
+   Modes: std (orbit), 360 (gyro/touch look), vr (WebXR or Cardboard split-screen with per-eye cameras + lens correction).
+   No external libraries. Units: metres. */
+(function(){
+'use strict';
+var PI=Math.PI,D2R=PI/180;
+/* ---------- math (column-major) ---------- */
+function mid(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])}
+function mmul(a,b){var o=new Float32Array(16);for(var c=0;c<4;c++)for(var r=0;r<4;r++){var s=0;for(var k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s}return o}
+function mtr(x,y,z){var m=mid();m[12]=x;m[13]=y;m[14]=z;return m}
+function msc(x,y,z){var m=mid();m[0]=x;m[5]=y;m[10]=z;return m}
+function mrx(a){var c=Math.cos(a),s=Math.sin(a),m=mid();m[5]=c;m[6]=s;m[9]=-s;m[10]=c;return m}
+function mry(a){var c=Math.cos(a),s=Math.sin(a),m=mid();m[0]=c;m[2]=-s;m[8]=s;m[10]=c;return m}
+function mrz(a){var c=Math.cos(a),s=Math.sin(a),m=mid();m[0]=c;m[1]=s;m[4]=-s;m[5]=c;return m}
+function mq(q){var x=q[0],y=q[1],z=q[2],w=q[3],m=mid();
+  m[0]=1-2*(y*y+z*z);m[1]=2*(x*y+z*w);m[2]=2*(x*z-y*w);
+  m[4]=2*(x*y-z*w);m[5]=1-2*(x*x+z*z);m[6]=2*(y*z+x*w);
+  m[8]=2*(x*z+y*w);m[9]=2*(y*z-x*w);m[10]=1-2*(x*x+y*y);return m}
+function minv(m){var a=m,o=new Float32Array(16);
+  var a00=a[0],a01=a[1],a02=a[2],a03=a[3],a10=a[4],a11=a[5],a12=a[6],a13=a[7],a20=a[8],a21=a[9],a22=a[10],a23=a[11],a30=a[12],a31=a[13],a32=a[14],a33=a[15];
+  var b00=a00*a11-a01*a10,b01=a00*a12-a02*a10,b02=a00*a13-a03*a10,b03=a01*a12-a02*a11,b04=a01*a13-a03*a11,b05=a02*a13-a03*a12,b06=a20*a31-a21*a30,b07=a20*a32-a22*a30,b08=a20*a33-a23*a30,b09=a21*a32-a22*a31,b10=a21*a33-a23*a31,b11=a22*a33-a23*a32;
+  var d=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;if(!d)return mid();d=1/d;
+  o[0]=(a11*b11-a12*b10+a13*b09)*d;o[1]=(a02*b10-a01*b11-a03*b09)*d;o[2]=(a31*b05-a32*b04+a33*b03)*d;o[3]=(a22*b04-a21*b05-a23*b03)*d;
+  o[4]=(a12*b08-a10*b11-a13*b07)*d;o[5]=(a00*b11-a02*b08+a03*b07)*d;o[6]=(a32*b02-a30*b05-a33*b01)*d;o[7]=(a20*b05-a22*b02+a23*b01)*d;
+  o[8]=(a10*b10-a11*b08+a13*b06)*d;o[9]=(a01*b08-a00*b10-a03*b06)*d;o[10]=(a30*b04-a31*b02+a33*b00)*d;o[11]=(a21*b02-a20*b04-a23*b00)*d;
+  o[12]=(a11*b07-a10*b09-a12*b06)*d;o[13]=(a00*b09-a01*b07+a02*b06)*d;o[14]=(a31*b01-a30*b03-a32*b00)*d;o[15]=(a20*b03-a21*b01+a22*b00)*d;return o}
+function mpersp(l,r,b,t,n,f){var o=new Float32Array(16);o[0]=2/(r-l);o[5]=2/(t-b);o[8]=(r+l)/(r-l);o[9]=(t+b)/(t-b);o[10]=-(f+n)/(f-n);o[11]=-1;o[14]=-2*f*n/(f-n);return o}
+function mxv(m,v){return[m[0]*v[0]+m[4]*v[1]+m[8]*v[2]+m[12],m[1]*v[0]+m[5]*v[1]+m[9]*v[2]+m[13],m[2]*v[0]+m[6]*v[1]+m[10]*v[2]+m[14]]}
+function qmul(a,b){return[a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]]}
+function qax(x,y,z,a){var s=Math.sin(a/2);return[x*s,y*s,z*s,Math.cos(a/2)]}
+function qrot(q,v){var m=mq(q);return[m[0]*v[0]+m[4]*v[1]+m[8]*v[2],m[1]*v[0]+m[5]*v[1]+m[9]*v[2],m[2]*v[0]+m[6]*v[1]+m[10]*v[2]]}
+function vsub(a,b){return[a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
+function vadd(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]]}
+function vmul(a,s){return[a[0]*s,a[1]*s,a[2]*s]}
+function vdot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
+function vcross(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}
+function vlen(a){return Math.sqrt(vdot(a,a))}
+function vnorm(a){var l=vlen(a)||1;return[a[0]/l,a[1]/l,a[2]/l]}
+function clamp(x,a,b){return x<a?a:x>b?b:x}
+function smooth(a,b,x){var t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)}
+/* orientation of an object whose +y axis is dir (returns rotation matrix) */
+function mdir(dir){var y=vnorm(dir),ax=Math.abs(y[1])>0.99?[1,0,0]:[0,1,0],x=vnorm(vcross(ax,y)),z=vcross(x,y);
+  var m=mid();m[0]=x[0];m[1]=x[1];m[2]=x[2];m[4]=y[0];m[5]=y[1];m[6]=y[2];m[8]=z[0];m[9]=z[1];m[10]=z[2];return m}
+/* cylinder-like segment from a to b with radius r (unit cylinder along y, radius 1, height 1, centred) */
+function mseg(a,b,r){var d=vsub(b,a),L=vlen(d)||1e-6,m=mdir(d),mid_=vmul(vadd(a,b),.5);
+  var o=new Float32Array(m);for(var i=0;i<3;i++){o[i]*=r;o[8+i]*=r;o[4+i]*=L}o[12]=mid_[0];o[13]=mid_[1];o[14]=mid_[2];return o}
+
+/* ---------- mesh builder: pos,normal,colour,material(metal,shine,emissive) ---------- */
+function Mesh(){this.v=[];this.i=[]}
+Mesh.prototype._n=function(M){/* normal matrix 3x3 (inverse transpose) */
+  var a=M[0],b=M[4],c=M[8],d=M[1],e=M[5],f=M[9],g=M[2],h=M[6],i=M[10];
+  var A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g,Dd=-(b*i-c*h),E=a*i-c*g,F=-(a*h-b*g),G=b*f-c*e,H=-(a*f-c*d),I=a*e-b*d;
+  return[A,B,C,Dd,E,F,G,H,I]};
+Mesh.prototype.push=function(M,P,N,col,mat){var base=this.v.length/12,nm=this._n(M);
+  for(var k=0;k<P.length;k+=3){var p=mxv(M,[P[k],P[k+1],P[k+2]]);
+    var nx=N[k],ny=N[k+1],nz=N[k+2];var n=[nm[0]*nx+nm[3]*ny+nm[6]*nz,nm[1]*nx+nm[4]*ny+nm[7]*nz,nm[2]*nx+nm[5]*ny+nm[8]*nz];n=vnorm(n);
+    this.v.push(p[0],p[1],p[2],n[0],n[1],n[2],col[0],col[1],col[2],mat[0],mat[1],mat[2])}
+  return base};
+Mesh.prototype.tri=function(a,b,c){this.i.push(a,b,c)};
+Mesh.prototype.sphere=function(M,col,mat,seg){seg=seg||12;var P=[],idx=[],n=seg,m=seg*2;
+  for(var y=0;y<=n;y++){var th=PI*y/n;for(var x=0;x<=m;x++){var ph=2*PI*x/m;P.push(Math.sin(th)*Math.cos(ph),Math.cos(th),Math.sin(th)*Math.sin(ph))}}
+  var b=this.push(M,P,P,col,mat);
+  for(y=0;y<n;y++)for(x=0;x<m;x++){var a=b+y*(m+1)+x,c=a+m+1;this.tri(a,c,a+1);this.tri(a+1,c,c+1)}};
+/* cylinder along y from -0.5..0.5, radius 1 at bottom, rt*1 at top */
+Mesh.prototype.cyl=function(M,col,mat,seg,rt,caps,inside){seg=seg||16;rt=rt==null?1:rt;var P=[],N=[],s=(1-rt);
+  for(var k=0;k<=seg;k++){var a=2*PI*k/seg,c=Math.cos(a),sn=Math.sin(a);
+    P.push(c,-.5,sn,c*rt,.5,sn*rt);var nn=vnorm([c,s,sn]);if(inside)nn=vmul(nn,-1);N.push(nn[0],nn[1],nn[2],nn[0],nn[1],nn[2])}
+  var b=this.push(M,P,N,col,mat);
+  for(k=0;k<seg;k++){var a0=b+k*2;if(inside){this.tri(a0,a0+1,a0+2);this.tri(a0+1,a0+3,a0+2)}else{this.tri(a0,a0+2,a0+1);this.tri(a0+1,a0+2,a0+3)}}
+  if(caps!==false&&!inside){for(var e=0;e<2;e++){var y=e?.5:-.5,r=e?rt:1,Pc=[0,y,0],Nc=[0,e?1:-1,0];
+    for(k=0;k<=seg;k++){var a=2*PI*k/seg;Pc.push(Math.cos(a)*r,y,Math.sin(a)*r);Nc.push(0,e?1:-1,0)}
+    var bc=this.push(M,Pc,Nc,col,mat);for(k=0;k<seg;k++){if(e)this.tri(bc,bc+k+2,bc+k+1);else this.tri(bc,bc+k+1,bc+k+2)}}}};
+Mesh.prototype.box=function(M,col,mat){var F=[[0,0,1,1,0,0,0,1,0],[0,0,-1,-1,0,0,0,1,0],[1,0,0,0,0,-1,0,1,0],[-1,0,0,0,0,1,0,1,0],[0,1,0,1,0,0,0,0,-1],[0,-1,0,1,0,0,0,0,1]];
+  for(var f=0;f<6;f++){var n=[F[f][0],F[f][1],F[f][2]],u=[F[f][3],F[f][4],F[f][5]],v=[F[f][6],F[f][7],F[f][8]],P=[],N=[];
+    [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(function(q){P.push(.5*(n[0]+q[0]*u[0]+q[1]*v[0]),.5*(n[1]+q[0]*u[1]+q[1]*v[1]),.5*(n[2]+q[0]*u[2]+q[1]*v[2]));N.push(n[0],n[1],n[2])});
+    var b=this.push(M,P,N,col,mat);this.tri(b,b+1,b+2);this.tri(b,b+2,b+3)}};
+Mesh.prototype.torus=function(M,R,r,col,mat,sa,sb){sa=sa||24;sb=sb||10;var P=[],N=[];
+  for(var i=0;i<=sa;i++){var u=2*PI*i/sa;for(var j=0;j<=sb;j++){var v=2*PI*j/sb;
+    P.push((R+r*Math.cos(v))*Math.cos(u),r*Math.sin(v),(R+r*Math.cos(v))*Math.sin(u));N.push(Math.cos(v)*Math.cos(u),Math.sin(v),Math.cos(v)*Math.sin(u))}}
+  var b=this.push(M,P,N,col,mat);
+  for(i=0;i<sa;i++)for(j=0;j<sb;j++){var a=b+i*(sb+1)+j,c=a+sb+1;this.tri(a,a+1,c);this.tri(a+1,c+1,c)}};
+/* tube along polyline */
+Mesh.prototype.tube=function(pts,r,col,mat,seg,M){seg=seg||6;M=M||mid();var P=[],N=[],prevN=null;
+  for(var i=0;i<pts.length;i++){var t=i<pts.length-1?vsub(pts[i+1],pts[i]):vsub(pts[i],pts[i-1]);t=vnorm(t);
+    var ref=Math.abs(t[1])>.9?[1,0,0]:[0,1,0],nn=vnorm(vcross(ref,t)),bb=vcross(t,nn);
+    for(var k=0;k<=seg;k++){var a=2*PI*k/seg,c=Math.cos(a),s=Math.sin(a),n=[nn[0]*c+bb[0]*s,nn[1]*c+bb[1]*s,nn[2]*c+bb[2]*s];
+      P.push(pts[i][0]+n[0]*r,pts[i][1]+n[1]*r,pts[i][2]+n[2]*r);N.push(n[0],n[1],n[2])}}
+  var b=this.push(M,P,N,col,mat);
+  for(i=0;i<pts.length-1;i++)for(k=0;k<seg;k++){var a0=b+i*(seg+1)+k,a1=a0+seg+1;this.tri(a0,a1,a0+1);this.tri(a0+1,a1,a1+1)}};
+/* convex polygon extrusion in xz, y0..y1; poly = [[x,z],...] counter-clockwise seen from +y; openTop skips top cap */
+Mesh.prototype.extrude=function(poly,y0,y1,col,mat,M,openTop,openBottom){M=M||mid();var n=poly.length,cx=0,cz=0;
+  poly.forEach(function(p){cx+=p[0];cz+=p[1]});cx/=n;cz/=n;
+  for(var i=0;i<n;i++){var a=poly[i],b=poly[(i+1)%n],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.sqrt(dx*dx+dz*dz)||1,nx=dz/L,nz=-dx/L;
+    var P=[a[0],y0,a[1],b[0],y0,b[1],b[0],y1,b[1],a[0],y1,a[1]],N=[nx,0,nz,nx,0,nz,nx,0,nz,nx,0,nz];
+    var bs=this.push(M,P,N,col,mat);this.tri(bs,bs+1,bs+2);this.tri(bs,bs+2,bs+3)}
+  [[y1,1,!openTop],[y0,-1,!openBottom]].forEach(function(c){if(!c[2])return;var P=[cx,c[0],cz],N=[0,c[1],0];
+    poly.forEach(function(p){P.push(p[0],c[0],p[1]);N.push(0,c[1],0)});var bs=this.push(M,P,N,col,mat);
+    for(var k=0;k<n;k++){if(c[1]>0)this.tri(bs,bs+1+k,bs+1+(k+1)%n);else this.tri(bs,bs+1+(k+1)%n,bs+1+k)}},this)};
+Mesh.prototype.cone=function(M,col,mat,seg){this.cyl(M,col,mat,seg||10,0,true)};
+Mesh.prototype.arrow=function(a,b,r,col,mat,seg){/* shaft + head */var d=vsub(b,a),L=vlen(d),hl=Math.min(L*.35,r*5),hb=vadd(a,vmul(vnorm(d),L-hl));
+  this.cyl(mseg(a,hb,r),col,mat,seg||8,1,false);this.cyl(mseg(hb,b,r*2.3),col,mat,seg||8,0,true)};
+
+/* ---------- shaders ---------- */
+var VS_MAIN='#version 300 es\nprecision highp float;layout(location=0)in vec3 aP;layout(location=1)in vec3 aN;layout(location=2)in vec3 aC;layout(location=3)in vec3 aM;layout(location=4)in vec4 i0;layout(location=5)in vec4 i1;layout(location=6)in vec4 i2;layout(location=7)in vec4 i3;layout(location=8)in vec4 iT;uniform mat4 uVP;out vec3 vN,vW,vC,vM;out float vA;void main(){mat4 m=mat4(i0,i1,i2,i3);vec4 w=m*vec4(aP,1.);vW=w.xyz;vN=mat3(m)*aN;vC=aC*iT.rgb;vM=aM;vA=iT.a;gl_Position=uVP*w;}';
+var FS_MAIN='#version 300 es\nprecision mediump float;in vec3 vN,vW,vC,vM;in float vA;uniform vec3 uEye,uL1,uL2,uFogC;uniform float uFog,uAlpha;out vec4 o;'+
+ 'vec3 env(vec3 r){float h=r.y*.5+.5;vec3 c=mix(vec3(.30,.32,.35),vec3(.86,.9,.97),smoothstep(.15,.85,h));c+=vec3(1.,.97,.9)*pow(max(dot(r,uL1),0.),24.)*1.6;c+=vec3(.8,.9,1.)*pow(max(dot(r,uL2),0.),12.)*.5;c*=1.-.5*smoothstep(.0,-.6,r.y);return c;}'+
+ 'void main(){vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 V=normalize(uEye-vW);float d1=max(dot(N,uL1),0.),d2=max(dot(N,uL2),0.);vec3 amb=mix(vec3(.34,.33,.33),vec3(.66,.70,.78),N.y*.5+.5);'+
+ 'float ao=mix(.72,1.,smoothstep(.0,.55,vW.y));vec3 base=vC*(amb*ao+d1*vec3(.95,.92,.86)*.85+d2*vec3(.5,.58,.7)*.35);'+
+ 'vec3 H=normalize(uL1+V);float sp=pow(max(dot(N,H),0.),vM.y)*(.15+vM.x*.9);vec3 R=reflect(-V,N);float fr=pow(1.-max(dot(N,V),0.),3.);'+
+ 'vec3 metal=vC*env(R)*(.55+.45*fr)+sp*vec3(1.,.95,.88);vec3 col=mix(base+sp*vec3(1.,.95,.9)*.4,metal,vM.x);col+=vC*vM.z*1.4;'+
+ 'float dist=length(uEye-vW);float f=1.-exp(-uFog*dist*uFog*dist);col=mix(col,uFogC,clamp(f,0.,1.));o=vec4(col,vA*uAlpha);}';
+var VS_TEX='#version 300 es\nprecision highp float;layout(location=0)in vec2 aP;layout(location=1)in vec2 aU;uniform mat4 uVP,uM;uniform vec2 uRep;out vec2 vU;out vec3 vW;void main(){vec4 w=uM*vec4(aP,0.,1.);vW=w.xyz;vU=aU*uRep;gl_Position=uVP*w;}';
+var FS_TEX='#version 300 es\nprecision mediump float;in vec2 vU;in vec3 vW;uniform sampler2D uT;uniform vec4 uTint;uniform vec3 uEye,uFogC;uniform float uFog,uMode,uProg,uLit;out vec4 o;'+
+ 'void main(){if(uMode>.5){vec2 p=vU-.5;float r=length(p)*2.;float a=atan(p.x,-p.y);float ring=smoothstep(.92,.88,r)*smoothstep(.62,.66,r);float prog=step((a/6.2832+.5),uProg)*ring;float dot_=smoothstep(.16,.12,r);float base=ring*.45;vec3 c=mix(vec3(1.),vec3(.2,1.,.45),step(.001,uProg));o=vec4(mix(vec3(1.),vec3(.2,.95,.4),prog)*(1.),max(max(base,prog),dot_*.9)*uTint.a);return;}'+
+ 'vec4 t=texture(uT,vU);vec3 c=t.rgb*uTint.rgb;float dist=length(uEye-vW);float f=1.-exp(-uFog*dist*uFog*dist);c=mix(c,uFogC,clamp(f,0.,1.)*uLit);o=vec4(c,t.a*uTint.a);}';
+var VS_FS='#version 300 es\nprecision highp float;out vec2 vU;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vU=p;gl_Position=vec4(p*2.-1.,0.,1.);}';
+var FS_DIST='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;uniform vec2 uLens,uHalfMM,uTexU;uniform vec4 uTan;uniform float uDist,uK1,uK2;out vec4 o;void main(){vec2 p=(vU-uLens)*uHalfMM/uDist;float r2=dot(p,p);vec2 q=p*(1.+uK1*r2+uK2*r2*r2);vec2 t=(q-uTan.xz)/(uTan.yw-uTan.xz);if(t.x<0.||t.x>1.||t.y<0.||t.y>1.){o=vec4(0.,0.,0.,1.);return;}o=vec4(texture(uT,vec2(mix(uTexU.x,uTexU.y,t.x),t.y)).rgb,1.);}';
+var FS_BLIT='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;out vec4 o;void main(){o=vec4(texture(uT,vU).rgb,1.);}';
+var VS_SKY=VS_FS;
+var FS_SKY='#version 300 es\nprecision highp float;in vec2 vU;uniform mat4 uIV;uniform vec4 uTan;out vec4 o;void main(){vec2 t=mix(uTan.xz,uTan.yw,vU);vec3 d=normalize((uIV*vec4(t,-1.,0.)).xyz);o=vec4(mix(vec3(.05,.06,.08),vec3(.22,.25,.3),smoothstep(-.3,.9,d.y)),1.);}';
+
+function compile(gl,vs,fs){function sh(t,s){var h=gl.createShader(t);gl.shaderSource(h,s);gl.compileShader(h);if(!gl.getShaderParameter(h,gl.COMPILE_STATUS))throw new Error('shader: '+gl.getShaderInfoLog(h));return h}
+  var p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error('link: '+gl.getProgramInfoLog(p));
+  var u={},n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(var i=0;i<n;i++){var inf=gl.getActiveUniform(p,i);u[inf.name]=gl.getUniformLocation(p,inf.name)}
+  return{p:p,u:u}}
+
+/* ---------- viewer profiles for Cardboard-class glasses ---------- */
+var PROFILES={
+  cb2:{name:{en:'Cardboard v2 type (default)',ta:'கார்ட்போர்டு v2 வகை (இயல்பு)'},ild:64,dist:42,k1:.34,k2:.55},
+  box:{name:{en:'Generic plastic VR box',ta:'பொது பிளாஸ்டிக் VR பெட்டி'},ild:62,dist:45,k1:.22,k2:.24},
+  flat:{name:{en:'No lens correction (test)',ta:'லென்ஸ் திருத்தம் இல்லை (சோதனை)'},ild:64,dist:42,k1:0,k2:0}
+};
+
+/* ---------- capability detection ---------- */
+function detect(cb){
+  var r={webgl2:false,xr:false,gyro:false,gyroPermission:false,touch:('ontouchstart' in window)||navigator.maxTouchPoints>0,mobile:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent||'')||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform||'')),
+    fullscreen:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),speech:!!window.speechSynthesis,
+    mem:navigator.deviceMemory||0,cores:navigator.hardwareConcurrency||0,gamepad:!!navigator.getGamepads,sensorApi:!!window.RelativeOrientationSensor,wake:!!(navigator.wakeLock),audio:!!(window.AudioContext||window.webkitAudioContext)};
+  try{var c=document.createElement('canvas');var g=c.getContext('webgl2');r.webgl2=!!g;if(g){var e=g.getExtension('WEBGL_lose_context');if(e)e.loseContext()}}catch(e){}
+  r.gyroPermission=!!(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function');
+  var pend=2;function done(){if(--pend===0){r.tier=(r.mem&&r.mem<=2)||(r.cores&&r.cores<=4)?'low':(r.mem>=6&&r.cores>=8?'high':'mid');
+      r.mode=r.xr?'vr':(r.gyro||r.gyroPermission)&&r.mobile?'360':'std';cb(r)}}
+  if(navigator.xr&&navigator.xr.isSessionSupported){navigator.xr.isSessionSupported('immersive-vr').then(function(s){r.xr=!!s;done()},function(){done()})}else done();
+  if(window.DeviceOrientationEvent){var got=false,h=function(e){if(e.alpha!=null||e.beta!=null||e.gamma!=null)got=true};window.addEventListener('deviceorientation',h);
+    setTimeout(function(){window.removeEventListener('deviceorientation',h);r.gyro=got;done()},700)}else done();
+  return r}
+
+/* ---------- speech ---------- */
+var Speech={
+  voices:[],init:function(){if(!window.speechSynthesis)return;var f=function(){Speech.voices=speechSynthesis.getVoices()||[]};f();try{speechSynthesis.addEventListener('voiceschanged',f)}catch(e){}},
+  voice:function(lang){var p=lang==='ta'?'ta':'en',v=Speech.voices.filter(function(x){return(x.lang||'').toLowerCase().indexOf(p)===0});
+    if(lang==='en'){var ind=v.filter(function(x){return/IN/i.test(x.lang)});if(ind.length)return ind[0]}return v[0]||null},
+  has:function(lang){return!!Speech.voice(lang)},
+  say:function(text,lang,rate,onEnd){if(!window.speechSynthesis){if(onEnd)setTimeout(onEnd,Math.max(2500,text.length*60));return false}
+    try{speechSynthesis.cancel()}catch(e){}
+    var v=Speech.voice(lang);if(!v){if(onEnd)setTimeout(onEnd,Math.max(2500,text.length*65));return false}
+    var u=new SpeechSynthesisUtterance(text);u.voice=v;u.lang=v.lang;u.rate=rate||.95;var fin=false;u.onend=u.onerror=function(){if(!fin){fin=true;if(onEnd)onEnd()}};
+    Speech._u=u;speechSynthesis.speak(u);return true},
+  stop:function(){try{speechSynthesis.cancel()}catch(e){}},pause:function(){try{speechSynthesis.pause()}catch(e){}},resume:function(){try{speechSynthesis.resume()}catch(e){}}
+};
+
+/* ---------- the engine ---------- */
+function Engine(host,opts){
+  opts=opts||{};var E=this;E.host=host;E.opts=opts;
+  var cv=document.createElement('canvas');cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none';cv.tabIndex=0;host.appendChild(cv);E.cv=cv;
+  var gl=cv.getContext('webgl2',{antialias:false,alpha:false,xrCompatible:true,powerPreference:'high-performance',preserveDrawingBuffer:!!opts.preserve});
+  if(!gl)throw new Error('WebGL2 is not available');E.gl=gl;
+  E.pMain=compile(gl,VS_MAIN,FS_MAIN);E.pTex=compile(gl,VS_TEX,FS_TEX);E.pDist=compile(gl,VS_FS,FS_DIST);E.pBlit=compile(gl,VS_FS,FS_BLIT);E.pSky=compile(gl,VS_SKY,FS_SKY);
+  /* quad geometry for textured items */
+  var qv=new Float32Array([-.5,-.5,0,0,.5,-.5,1,0,.5,.5,1,1,-.5,.5,0,1]);E.qvao=gl.createVertexArray();gl.bindVertexArray(E.qvao);
+  var qb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qb);gl.bufferData(gl.ARRAY_BUFFER,qv,gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,16,0);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,2,gl.FLOAT,false,16,8);
+  var qi=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,qi);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array([0,1,2,0,2,3]),gl.STATIC_DRAW);gl.bindVertexArray(null);
+  E.emptyVao=gl.createVertexArray();
+  E.insts=[];E.quads=[];E.hot=[];E.lights={l1:vnorm([.35,.85,.45]),l2:vnorm([-.6,.35,-.3])};
+  E.fog={c:[.07,.08,.1],d:.045};
+  /* state */
+  E.mode='std';E.vrKind=null;E.profile='cb2';E.ipd=63;E.phoneInch=6.1;E.lensK=1;E.dwell=1.5;E.eyeH=1.2;E.speed=1;E.audioOn=true;
+  E.renderScale=opts.scale||1;E.maxScale=E.renderScale;E.quality=2;E.aa=true;
+  E.head={q:[0,0,0,1],sensor:false,haveSensor:false};E.rig={pos:[0,1.2,3],yaw:0,pitch:0,tYaw:0,tPitch:0};E.orbit={target:[0,1,0],dist:4,yaw:0,pitch:.25,min:1,max:12};
+  E.panel={page:'main',alpha:0,yaw:0,dirty:true,btns:[]};E.sub={text:'',tag:'',t:0};E.gaze={id:null,t:0,cool:0,hit:null,dist:3,progress:0};
+  E.fade=0;E.fadeT=0;E.time=0;E.dtAvg=.016;E.frames=0;E.paused=false;E.lang='en';E.pointer={x:0,y:0,has:false};
+  E.mod=null;E.cbs={};E.tex={};E.fps=0;
+  E._bindInput();E.resize();
+  E._loop=E._loop.bind(E);
+  window.addEventListener('resize',function(){E.resize()});
+}
+Engine.prototype.on=function(n,f){this.cbs[n]=f};Engine.prototype.emit=function(n,a){if(this.cbs[n])this.cbs[n](a)};
+Engine.prototype.resize=function(){var cv=this.cv,dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(2,Math.floor(this.host.clientWidth*dpr)),h=Math.max(2,Math.floor(this.host.clientHeight*dpr));
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}if(this._fbo)this._fbo.w=-1};
+/* geometry/inst */
+Engine.prototype.geom=function(mesh){var gl=this.gl,v=new Float32Array(mesh.v),i=new Uint32Array(mesh.i),g={count:i.length};
+  g.vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,g.vb);gl.bufferData(gl.ARRAY_BUFFER,v,gl.STATIC_DRAW);g.ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g.ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,i,gl.STATIC_DRAW);g.tris=i.length/3;return g};
+Engine.prototype.inst=function(g,max,o){var gl=this.gl,I={g:g,max:max||1,n:0,data:new Float32Array((max||1)*20),vis:true,blend:false,alpha:1};if(o)for(var k in o)I[k]=o[k];
+  I.vao=gl.createVertexArray();gl.bindVertexArray(I.vao);gl.bindBuffer(gl.ARRAY_BUFFER,g.vb);
+  for(var a=0;a<4;a++){gl.enableVertexAttribArray(a);}
+  gl.vertexAttribPointer(0,3,gl.FLOAT,false,48,0);gl.vertexAttribPointer(1,3,gl.FLOAT,false,48,12);gl.vertexAttribPointer(2,3,gl.FLOAT,false,48,24);gl.vertexAttribPointer(3,3,gl.FLOAT,false,48,36);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g.ib);
+  I.buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,I.buf);gl.bufferData(gl.ARRAY_BUFFER,I.data.byteLength,gl.DYNAMIC_DRAW);
+  for(a=0;a<5;a++){gl.enableVertexAttribArray(4+a);gl.vertexAttribPointer(4+a,4,gl.FLOAT,false,80,a*16);gl.vertexAttribDivisor(4+a,1)}
+  gl.bindVertexArray(null);I.dirty=true;I.eng=this;
+  I.setOne=function(M,tint){I.data.set(M||mid(),0);I.data.set(tint||[1,1,1,1],16);I.n=1;I.dirty=true;return I};
+  I.put=function(k,M,tint){var o=k*20;I.data.set(M,o);var t=tint||[1,1,1,1];I.data[o+16]=t[0];I.data[o+17]=t[1];I.data[o+18]=t[2];I.data[o+19]=t[3];};
+  this.insts.push(I);return I};
+Engine.prototype.staticMesh=function(mesh,o){return this.inst(this.geom(mesh),1,o).setOne()};
+Engine.prototype.drop=function(I){var k=this.insts.indexOf(I);if(k>=0)this.insts.splice(k,1);var gl=this.gl;gl.deleteBuffer(I.buf);gl.deleteVertexArray(I.vao)};
+/* textures */
+Engine.prototype.texFromCanvas=function(c,repeat){var gl=this.gl,t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,repeat?gl.REPEAT:gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,repeat?gl.REPEAT:gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.generateMipmap(gl.TEXTURE_2D);
+  var an=gl.getExtension('EXT_texture_filter_anisotropic');if(an)gl.texParameterf(gl.TEXTURE_2D,an.TEXTURE_MAX_ANISOTROPY_EXT,4);return t};
+Engine.prototype.updTex=function(t,c){var gl=this.gl;gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.generateMipmap(gl.TEXTURE_2D)};
+/* wrapped text -> canvas */
+var FONT="'Noto Sans Tamil','Nirmala UI','Latha',system-ui,'Segoe UI',Roboto,sans-serif";
+function wrap(ctx,text,maxW){var out=[];String(text).split('\n').forEach(function(par){var words=par.split(' '),line='';words.forEach(function(w){var t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=w}else line=t});out.push(line)});return out}
+Engine.prototype.textCanvas=function(text,o){o=o||{};var px=o.px||36,W=o.W||768,pad=o.pad==null?18:o.pad,c=document.createElement('canvas'),x=c.getContext('2d');x.font=(o.bold?'700 ':'500 ')+px+'px '+FONT;
+  var lines=wrap(x,text,W-pad*2),H=Math.round(lines.length*px*1.28+pad*2);c.width=W;c.height=H;x=c.getContext('2d');x.font=(o.bold?'700 ':'500 ')+px+'px '+FONT;x.textBaseline='top';
+  if(o.bg){x.fillStyle=o.bg;var r=o.r==null?18:o.r;x.beginPath();x.moveTo(r,0);x.arcTo(W,0,W,H,r);x.arcTo(W,H,0,H,r);x.arcTo(0,H,0,0,r);x.arcTo(0,0,W,0,r);x.closePath();x.fill()}
+  x.fillStyle=o.color||'#fff';x.textAlign=o.center?'center':'left';lines.forEach(function(l,i){x.fillText(l,o.center?W/2:pad,pad+i*px*1.28)});return c};
+/* textured quad item */
+Engine.prototype.addQuad=function(q){q.vis=q.vis!==false;q.tint=q.tint||[1,1,1,1];q.rep=q.rep||[1,1];q.lit=q.lit==null?0:q.lit;this.quads.push(q);return q};
+Engine.prototype.label=function(text,o){o=o||{};var E=this,c=E.textCanvas(text,o),q=E.addQuad({tex:E.texFromCanvas(c),billboard:o.billboard!==false,pos:o.pos||[0,0,0],w:o.w||1,h:0,order:o.order||5,blend:true,depthTest:o.depthTest!==false});
+  q.h=q.w*c.height/c.width;q.text=text;q.o=o;q.set=function(t){if(t===q.text)return;q.text=t;var c2=E.textCanvas(t,o);E.updTex(q.tex,c2);q.h=q.w*c2.height/c2.width};return q};
+Engine.prototype.clearScene=function(){var E=this;E.insts.slice().forEach(function(i){E.drop(i)});E.quads.forEach(function(q){if(q.tex&&!q.keep)E.gl.deleteTexture(q.tex)});E.quads=[];E.hot=[];E.panelQ=null;E.subQ=null;E.fadeQ=null;E.reticle=null};
+
+/* ---------- input ---------- */
+Engine.prototype._bindInput=function(){var E=this,cv=E.cv,down=null,moved=0;
+  function pt(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
+  cv.addEventListener('pointerdown',function(e){cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);down={x:e.clientX,y:e.clientY,id:e.pointerId};moved=0;E.pointer=Object.assign(pt(e),{has:true})});
+  cv.addEventListener('pointermove',function(e){var p=pt(e);E.pointer={x:p.x,y:p.y,has:true};if(!down)return;var dx=e.clientX-down.x,dy=e.clientY-down.y;down.x=e.clientX;down.y=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);
+    var k=.0055;if(E.mode==='std'){E.orbit.yaw-=dx*k;E.orbit.pitch=clamp(E.orbit.pitch+dy*k,-.2,1.45)}else if(E.head.haveSensor){E.rig.yaw-=dx*k*.8}else{E.rig.tYaw-=dx*k*.8;E.rig.tPitch=clamp(E.rig.tPitch+dy*k*.8,-1.4,1.4)}});
+  function up(e){if(!down)return;var was=moved<8;down=null;if(was){if(E.mode==='vr'&&E.vrKind==='cardboard'){E.activateGaze()}else if(E.mode==='360'){E.activateGaze(true)}else E.pickPointer()}}
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',function(){down=null});
+  cv.addEventListener('wheel',function(e){if(E.mode==='std'){e.preventDefault();E.orbit.dist=clamp(E.orbit.dist*(1+Math.sign(e.deltaY)*.08),E.orbit.min,E.orbit.max)}},{passive:false});
+  /* pinch zoom (touch, std mode) */
+  var pts={};cv.addEventListener('touchstart',function(e){if(e.touches.length===2){pts.d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)}},{passive:true});
+  cv.addEventListener('touchmove',function(e){if(e.touches.length===2&&pts.d&&E.mode==='std'){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);E.orbit.dist=clamp(E.orbit.dist*pts.d/d,E.orbit.min,E.orbit.max);pts.d=d}},{passive:true});
+  document.addEventListener('keydown',function(e){if(!E.active)return;var k=e.key;
+    if(k===' '||k==='Enter'&&E.mode==='vr'){E.emit('key','play');e.preventDefault()}else if(k==='ArrowRight'||k==='PageDown'){E.emit('key','next');e.preventDefault()}else if(k==='ArrowLeft'||k==='PageUp'){E.emit('key','prev');e.preventDefault()}
+    else if(k==='r'||k==='R'){E.recentre()}else if(k==='Escape'){E.emit('key','exit')}else if(k==='b'||k==='B'){E.emit('key','menu')}});
+  /* orientation sensors */
+  E._ori=function(ev){if(ev.alpha==null&&ev.beta==null)return;if(E.sensorKind==='sensor')return;E.sensorKind='orientation';E.head.haveSensor=true;
+    var a=(ev.alpha||0)*D2R,b=(ev.beta||0)*D2R,g=(ev.gamma||0)*D2R;
+    var qy=qax(0,1,0,a),qx=qax(1,0,0,b),qz=qax(0,0,1,-g);var q=qmul(qmul(qy,qx),qz);q=qmul(q,[-Math.SQRT1_2,0,0,Math.SQRT1_2]);
+    var so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;q=qmul(q,qax(0,0,1,-so*D2R));E.head.sq=q;E.head.t=performance.now()};
+};
+Engine.prototype.startSensors=function(){var E=this,p=Promise.resolve('granted');
+  if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function'){p=DeviceOrientationEvent.requestPermission().catch(function(){return'denied'})}
+  return p.then(function(st){if(st!=='granted')return false;
+    var started=false;
+    if(window.RelativeOrientationSensor){try{var s=new RelativeOrientationSensor({frequency:60,referenceFrame:'screen'});
+      s.addEventListener('reading',function(){var d=s.quaternion;if(!d)return;E.sensorKind='sensor';E.head.haveSensor=true;E.head.sq=qmul([-Math.SQRT1_2,0,0,Math.SQRT1_2],[d[0],d[1],d[2],d[3]]);E.head.t=performance.now()});
+      s.addEventListener('error',function(){E.sensorKind=null;window.addEventListener('deviceorientation',E._ori)});s.start();E._sensor=s;started=true}catch(e){}}
+    window.addEventListener('deviceorientation',E._ori);E._sensorOn=true;return true})};
+Engine.prototype.stopSensors=function(){window.removeEventListener('deviceorientation',this._ori);if(this._sensor){try{this._sensor.stop()}catch(e){}this._sensor=null}this._sensorOn=false;this.sensorKind=null;this.head.haveSensor=false};
+
+/* ---------- head pose / cameras ---------- */
+Engine.prototype.headQuat=function(){var E=this,r=E.rig,qs=E.head.haveSensor&&E.head.sq?E.head.sq:qmul(qax(0,1,0,0),qax(1,0,0,r.tPitch));
+  if(E.head.haveSensor){return qmul(qax(0,1,0,r.yaw+r.tYaw+(E.yawBias||0)),qs)}
+  return qmul(qax(0,1,0,r.yaw+r.tYaw),qax(1,0,0,r.tPitch))};
+Engine.prototype.forward=function(q){return qrot(q,[0,0,-1])};
+Engine.prototype.recentre=function(){var E=this;if(E.xrSession&&E.xrYaw!=null){E.xrRecentre=true;return}
+  if(E.head.haveSensor&&E.head.sq){var f=qrot(E.head.sq,[0,0,-1]);var psi=Math.atan2(-f[0],-f[2]);E.rig.yaw=-psi+E.rig.baseYaw||0;E.rig.tYaw=0}else{E.rig.tYaw=0;E.rig.yaw=E.rig.baseYaw||0;E.rig.tPitch=0}};
+Engine.prototype.setStation=function(st,instant){var E=this;E.rig.pos=st.pos.slice();var l=st.look||[0,st.pos[1],st.pos[2]-1],d=vsub(l,st.pos);E.rig.baseYaw=Math.atan2(-d[0],-d[2]);
+  if(st.orbit){E.orbit.target=st.orbit.target.slice();E.orbit.dist=st.orbit.dist;E.orbit.min=st.orbit.min||1;E.orbit.max=st.orbit.max||14;if(st.orbit.yaw!=null)E.orbit.yaw=st.orbit.yaw;if(st.orbit.pitch!=null)E.orbit.pitch=st.orbit.pitch}
+  E.rig.tPitch=0;E.rig.tYaw=0;E.recentre()};
+/* blink teleport: fade out, apply, fade in */
+Engine.prototype.teleport=function(st,cb){var E=this;if(E.mode==='std'){E.setStation(st);if(cb)cb();return}
+  E.tp={st:st,cb:cb,phase:0,t:0}};
+
+/* ---------- audio ---------- */
+Engine.prototype.audioInit=function(){var E=this;if(E.ac||!(window.AudioContext||window.webkitAudioContext))return;try{E.ac=new(window.AudioContext||window.webkitAudioContext)();E.tones={}}catch(e){}};
+Engine.prototype.tone=function(id,pos,freq,gain){var E=this;if(!E.ac)return;var t=E.tones[id];if(!t){var o=E.ac.createOscillator(),g=E.ac.createGain(),p=E.ac.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=1.5;o.type='sine';o.connect(g);g.connect(p);p.connect(E.ac.destination);g.gain.value=0;o.start();t={o:o,g:g,p:p};E.tones[id]=t}
+  var now=E.ac.currentTime;t.o.frequency.setTargetAtTime(freq,now,.05);t.g.gain.setTargetAtTime(E.audioOn?gain:0,now,.08);
+  if(t.p.positionX){t.p.positionX.value=pos[0];t.p.positionY.value=pos[1];t.p.positionZ.value=pos[2]}else t.p.setPosition(pos[0],pos[1],pos[2])};
+Engine.prototype.audioListener=function(pos,q){var E=this;if(!E.ac)return;var L=E.ac.listener,f=qrot(q,[0,0,-1]),u=qrot(q,[0,1,0]);
+  if(L.positionX){L.positionX.value=pos[0];L.positionY.value=pos[1];L.positionZ.value=pos[2];L.forwardX.value=f[0];L.forwardY.value=f[1];L.forwardZ.value=f[2];L.upX.value=u[0];L.upY.value=u[1];L.upZ.value=u[2]}else{L.setPosition(pos[0],pos[1],pos[2]);L.setOrientation(f[0],f[1],f[2],u[0],u[1],u[2])}};
+Engine.prototype.audioStop=function(){var E=this;if(!E.ac)return;for(var k in E.tones){try{E.tones[k].o.stop()}catch(e){}}E.tones={};try{E.ac.close()}catch(e){}E.ac=null};
+
+/* ---------- picking ---------- */
+function rayQuad(o,d,M){var iM=minv(M),lo=mxv(iM,o),ld=[iM[0]*d[0]+iM[4]*d[1]+iM[8]*d[2],iM[1]*d[0]+iM[5]*d[1]+iM[9]*d[2],iM[2]*d[0]+iM[6]*d[1]+iM[10]*d[2]];
+  if(Math.abs(ld[2])<1e-6)return null;var t=-lo[2]/ld[2];if(t<=0)return null;var x=lo[0]+ld[0]*t,y=lo[1]+ld[1]*t;if(Math.abs(x)>.5||Math.abs(y)>.5)return null;return{t:t,u:x+.5,v:y+.5}}
+function raySphere(o,d,c,r){var oc=vsub(o,c),b=vdot(oc,d),cc=vdot(oc,oc)-r*r,h=b*b-cc;if(h<0)return null;var t=-b-Math.sqrt(h);if(t<0)t=-b+Math.sqrt(h);return t>0?{t:t}:null}
+Engine.prototype.cast=function(o,d){var E=this,best=null;
+  E.hot.forEach(function(h){if(h.vis===false)return;var r=raySphere(o,d,h.pos,h.r||.12);if(r&&(!best||r.t<best.t))best={t:r.t,h:h,id:h.id}});
+  var pq=E.panelQ;if(pq&&pq.vis&&E.panel.alpha>.45){var M=E.quadModel(pq,null),r=rayQuad(o,d,M);if(r&&(!best||r.t<best.t+.05)){var b=E.panelHit(r.u,r.v);best={t:r.t,id:b?'ui:'+b.id:'ui:none',ui:b,u:r.u,v:r.v,panel:true}}}
+  if(E.exitQ&&E.exitQ.vis){var M2=E.quadModel(E.exitQ,null),r2=rayQuad(o,d,M2);if(r2&&(!best||r2.t<best.t)){best={t:r2.t,id:'exit',exit:true}}}
+  return best};
+Engine.prototype.panelHit=function(u,v){var b=this.panel.btns,x=u*1024,y=(1-v)*this.panel.H;for(var i=0;i<b.length;i++){var q=b[i];if(x>=q.x&&x<=q.x+q.w&&y>=q.y&&y<=q.y+q.h)return q}return null};
+Engine.prototype.pointerRay=function(){var E=this;if(!E.cam||!E.pointer.has)return null;var p=E.pointer,ndc=[p.x*2-1,1-p.y*2],iv=minv(E.cam.vp);
+  function un(m,v){var x=m[0]*v[0]+m[4]*v[1]+m[8]*v[2]+m[12]*v[3],y=m[1]*v[0]+m[5]*v[1]+m[9]*v[2]+m[13]*v[3],z=m[2]*v[0]+m[6]*v[1]+m[10]*v[2]+m[14]*v[3],w=m[3]*v[0]+m[7]*v[1]+m[11]*v[2]+m[15]*v[3];return[x/w,y/w,z/w]}
+  var n=un(iv,[ndc[0],ndc[1],-1,1]),f=un(iv,[ndc[0],ndc[1],1,1]);return{o:E.cam.eye,d:vnorm(vsub(f,n))}};
+Engine.prototype.pickPointer=function(){var E=this,r=E.pointerRay();if(!r)return;var hit=E.cast(r.o,r.d);if(hit&&hit.h)E.emit('hotspot',hit.h)};
+Engine.prototype.activateGaze=function(fromTap){var E=this,h=E.gaze.hit;if(!h)return;E._activate(h)};
+Engine.prototype._activate=function(h){var E=this;if(h.exit){E.emit('key','exit');return}if(h.ui){E.emit('ui',h.ui);return}if(h.h)E.emit('hotspot',h.h)};
+
+/* ---------- panel (world-space gaze UI) ---------- */
+Engine.prototype.setPanel=function(page,btns,title){var E=this;E.panel.page=page;E.panel.title=title||'';E.panel.btns=btns||[];E.panel.dirty=true};
+Engine.prototype.drawPanel=function(){var E=this,P=E.panel;if(!E.panelQ||!P.dirty&&!P.hoverDirty)return;
+  var W=1024,H=P.H=Math.max(300,P.btns.reduce(function(m,b){return Math.max(m,b.y+b.h+30)},300));
+  if(!P.cv){P.cv=document.createElement('canvas')}if(P.cv.width!==W||P.cv.height!==H){P.cv.width=W;P.cv.height=H}
+  var x=P.cv.getContext('2d');x.clearRect(0,0,W,H);x.fillStyle='rgba(12,18,28,.86)';x.beginPath();var r=34;x.moveTo(r,0);x.arcTo(W,0,W,H,r);x.arcTo(W,H,0,H,r);x.arcTo(0,H,0,0,r);x.arcTo(0,0,W,0,r);x.closePath();x.fill();
+  x.strokeStyle='rgba(120,180,255,.5)';x.lineWidth=4;x.stroke();
+  P.btns.forEach(function(b){var hov=E.gaze.id==='ui:'+b.id,pr=hov?E.gaze.progress:0;
+    x.fillStyle=b.kind==='label'?'rgba(0,0,0,0)':(b.on?'rgba(30,120,90,.95)':b.kind==='danger'?'rgba(150,40,40,.95)':hov?'rgba(50,90,160,.98)':'rgba(34,48,72,.95)');
+    if(b.kind!=='label'){x.beginPath();var rr=22;x.moveTo(b.x+rr,b.y);x.arcTo(b.x+b.w,b.y,b.x+b.w,b.y+b.h,rr);x.arcTo(b.x+b.w,b.y+b.h,b.x,b.y+b.h,rr);x.arcTo(b.x,b.y+b.h,b.x,b.y,rr);x.arcTo(b.x,b.y,b.x+b.w,b.y,rr);x.closePath();x.fill();
+      if(hov){x.fillStyle='rgba(120,230,160,.55)';x.fillRect(b.x,b.y+b.h-12,b.w*pr,12)}x.strokeStyle='rgba(160,200,255,.35)';x.lineWidth=2;x.stroke()}
+    x.fillStyle=b.disabled?'#7a8596':'#fff';x.font=(b.kind==='label'?'500 ':'700 ')+(b.px||34)+'px '+FONT;x.textBaseline='middle';x.textAlign=b.align||'center';
+    var tx=b.align==='left'?b.x+16:b.x+b.w/2,lines=wrap(x,b.text,b.w-24),lh=(b.px||34)*1.2,y0=b.y+b.h/2-(lines.length-1)*lh/2;lines.forEach(function(l,i){x.fillText(l,tx,y0+i*lh)})});
+  P.q=null;E.updTex(E.panelQ.tex,P.cv);E.panelQ.h=E.panelQ.w*H/W;P.dirty=false;P.hoverDirty=false};
+
+/* ---------- start / stop ---------- */
+Engine.prototype.start=function(mod,o){var E=this;o=o||{};E.stop(true);E.mod=mod;E.active=true;E.clearScene();E.time=0;E.fade=0;E.tp=null;
+  /* generic HUD quads */
+  var pc=document.createElement('canvas');pc.width=1024;pc.height=600;E.panelQ=E.addQuad({tex:E.texFromCanvas(pc),keep:false,pos:[0,0,0],w:1.5,h:.88,order:9,blend:true,depthTest:false,isPanel:true});E.panelQ.vis=false;
+  var sc=document.createElement('canvas');sc.width=8;sc.height=8;E.subQ=E.label(' ',{w:1.3,px:34,W:900,bg:'rgba(8,12,20,.78)',billboard:false,order:10,depthTest:false});E.subQ.vis=false;E.subQ.headLocked=true;
+  var ec=E.textCanvas('EXIT',{px:60,W:420,center:true,bg:'rgba(170,40,40,.92)',r:210,pad:40});E.exitQ=E.addQuad({tex:E.texFromCanvas(ec),keep:false,pos:[0,0,0],w:.55,h:.55*ec.height/ec.width,flat:true,order:2,blend:true,vis:false});E.exitQ.text='EXIT';
+  var fc=document.createElement('canvas');fc.width=2;fc.height=2;var fx=fc.getContext('2d');fx.fillStyle='#000';fx.fillRect(0,0,2,2);E.fadeQ=E.addQuad({tex:E.texFromCanvas(fc),pos:[0,0,0],w:3,h:3,order:20,blend:true,depthTest:false,headLocked:true,vis:false,isFade:true});E.fadeQ.dist=.3;
+  var rc=document.createElement('canvas');rc.width=2;rc.height=2;E.reticle=E.addQuad({tex:E.texFromCanvas(rc),pos:[0,0,0],w:.1,h:.1,order:15,blend:true,depthTest:false,mode:1,vis:false,isRet:true});
+  mod.init(E,o);E.lastT=performance.now();
+  if(!E.running){E.running=true;E.raf=requestAnimationFrame(E._loop)}};
+Engine.prototype.stop=function(keep){var E=this;if(E.xrSession){try{E.xrSession.end()}catch(e){}}E.active=false;if(E.mod&&E.mod.dispose)try{E.mod.dispose(E)}catch(e){}E.mod=null;Speech.stop();E.audioStop();
+  if(!keep){E.running=false;cancelAnimationFrame(E.raf);E.clearScene();E.stopSensors();E._releaseWake()}};
+Engine.prototype._releaseWake=function(){if(this._wake){try{this._wake.release()}catch(e){}this._wake=null}};
+
+/* ---------- mode control ---------- */
+Engine.prototype.setMode=function(mode,kind){var E=this;E.mode=mode;E.vrKind=kind||null;E.gaze.id=null;E.gaze.t=0;E.panel.alpha=0;E.panel.dirty=true;E.emit('mode',mode);
+  if(mode==='std'){E.stopSensors()}
+  if(mode==='vr'||mode==='360'){E.recentre()}};
+Engine.prototype.enterCardboard=function(){var E=this;
+  var tasks=[E.startSensors()];
+  if(navigator.wakeLock&&navigator.wakeLock.request)tasks.push(navigator.wakeLock.request('screen').then(function(w){E._wake=w}).catch(function(){}));
+  var fs=E.host.requestFullscreen||E.host.webkitRequestFullscreen,p=fs?Promise.resolve(fs.call(E.host)).catch(function(){}):Promise.resolve();
+  tasks.push(p.then(function(){if(screen.orientation&&screen.orientation.lock)return screen.orientation.lock('landscape').catch(function(){})}));
+  E.audioInit();
+  return Promise.all(tasks).then(function(r){E.setMode('vr','cardboard');E.resize();return r[0]})};
+Engine.prototype.enter360=function(){var E=this;return E.startSensors().then(function(ok){E.audioInit();E.setMode('360');return ok})};
+Engine.prototype.enterXR=function(){var E=this;if(!navigator.xr)return Promise.reject(new Error('WebXR not available'));
+  E.audioInit();return navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}).then(function(s){
+    E.xrSession=s;var gl=E.gl;return gl.makeXRCompatible().then(function(){
+      s.updateRenderState({baseLayer:new XRWebGLLayer(s,gl,{antialias:true,alpha:false})});return s.requestReferenceSpace('local')}).then(function(ref){
+      E.xrRef=ref;E.xrYaw=0;E.setMode('vr','xr');
+      s.addEventListener('select',function(ev){var h=E._xrHit;if(h)E._activate(h)});
+      s.addEventListener('end',function(){E.xrSession=null;E.xrRef=null;E.xrYaw=null;E.setMode('360');E.raf=requestAnimationFrame(E._loop)});
+      cancelAnimationFrame(E.raf);s.requestAnimationFrame(function f(t,fr){E._xrFrame(t,fr);if(E.xrSession)E.xrSession.requestAnimationFrame(f)});return true})})};
+Engine.prototype.exitVR=function(){var E=this;if(E.xrSession){try{E.xrSession.end()}catch(e){}}
+  if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(function(){});if(screen.orientation&&screen.orientation.unlock)try{screen.orientation.unlock()}catch(e){}
+  E._releaseWake();E.setMode('360')};
+
+/* ---------- frame ---------- */
+Engine.prototype._loop=function(){var E=this;if(!E.running)return;E.raf=requestAnimationFrame(E._loop);E.frame()};
+Engine.prototype.frame=function(ov){var E=this,now=performance.now(),dt=Math.min(.1,(now-(E.lastT||now))/1000);E.lastT=now;if(!E.mod)return;E.emit('tick',dt);
+  E.dtAvg+= (dt-E.dtAvg)*.05;E.frames++;E.time+=dt;E.fps=1/E.dtAvg;
+  E._adapt(dt);
+  var pdt=E.paused?0:dt;
+  /* teleport blink */
+  var tp=E.tp;if(tp){tp.t+=dt;if(tp.phase===0){E.fade=clamp(tp.t/.22,0,1);if(tp.t>=.22){E.setStation(tp.st);if(tp.cb)tp.cb();tp.phase=1;tp.t=0}}else{E.fade=1-clamp(tp.t/.3,0,1);if(tp.t>=.3){E.fade=0;E.tp=null}}}
+  E.mod.update(pdt,E,dt);
+  /* head and cameras */
+  var hq=ov?ov.q:E.headQuat(),pos=ov?ov.pos:E.rig.pos;
+  if(!ov&&E.mode==='std'){var o=E.orbit;pos=[o.target[0]+o.dist*Math.sin(o.yaw)*Math.cos(o.pitch),o.target[1]+o.dist*Math.sin(o.pitch),o.target[2]+o.dist*Math.cos(o.yaw)*Math.cos(o.pitch)];
+    var f=vnorm(vsub(o.target,pos));E._headFwd=f}else E._headFwd=qrot(hq,[0,0,-1]);
+  E.headPos=pos;E.headQ=hq;
+  E.audioListener(pos,E.mode==='std'?qmul(qax(0,1,0,E.orbit.yaw),qax(1,0,0,-E.orbit.pitch)):hq);
+  E._updateGaze(dt,pos,E._headFwd,hq,ov&&ov.ray);
+  E._applyHud(dt,pos,hq);
+  if(!ov)E._render(pos,hq);
+  E.cam=E._lastCam;
+  E.hoverHot=null;if(E.mode==='std'){var pr=E.pointerRay();if(pr){var hh=E.cast(pr.o,pr.d);if(hh&&hh.h)E.hoverHot=hh.h}}
+  if(E.mode!=='vr')E.panel.alpha=0};
+Engine.prototype._adapt=function(dt){var E=this;if(E.frames%45!==0)return;var tgt=E.mode==='vr'?1/50:1/40,a=E.dtAvg;
+  if(a>tgt*1.25&&E.renderScale>.5){E.renderScale=Math.max(.5,E.renderScale-.1);if(E._fbo)E._fbo.w=-1;if(E.quality>0)E.quality--;E.emit('quality',{scale:E.renderScale,q:E.quality});if(E.mod&&E.mod.setQuality)E.mod.setQuality(E.quality)}
+  else if(a<tgt*.62&&E.frames>600&&E.renderScale<E.maxScale){E.renderScale=Math.min(E.maxScale,E.renderScale+.05);if(E._fbo)E._fbo.w=-1}};
+Engine.prototype._updateGaze=function(dt,pos,fwd,hq,ray){var E=this,G=E.gaze,useGaze=(E.mode==='vr'||E.mode==='360');
+  if(E.reticle)E.reticle.vis=false;
+  if(!useGaze){G.hit=null;G.id=null;G.t=0;return}
+  var hit=ray?E.cast(ray.o,ray.d):E.cast(pos,fwd);G.hit=hit;var id=hit?hit.id:null;
+  if(id!==G.id){G.id=id;G.t=0;G.progress=0;E.panel.hoverDirty=true}
+  G.cool=Math.max(0,G.cool-dt);
+  if(hit&&id!=='ui:none'&&G.cool<=0){var needs=hit.exit?E.dwell*1.4:E.dwell;G.t+=dt;G.progress=clamp(G.t/needs,0,1);E.panel.hoverDirty=true;
+    if(G.t>=needs){var rep=hit.ui&&hit.ui.repeat;G.t=0;G.progress=0;G.cool=rep?.45:.8;E._activate(hit)}}
+  else if(!hit||id==='ui:none'){G.t=0;G.progress=0}
+  G.dist=hit?clamp(hit.t,.8,8):3;
+  E._ret={pos:vadd(pos,vmul(fwd,G.dist)),prog:G.progress,on:!!(hit&&id!=='ui:none')}};
+Engine.prototype._applyHud=function(dt,pos,hq){var E=this,vr=E.mode==='vr';var Pn=E.panel;
+  /* panel placement: low in the view, follows heading lazily; visible when looking down */
+  if(E.panelQ){var f=qrot(hq,[0,0,-1]),yaw=Math.atan2(-f[0],-f[2]),pitch=Math.asin(clamp(f[1],-1,1));
+    if(!Pn.init){Pn.yaw=yaw;Pn.init=true}var dy=Math.atan2(Math.sin(yaw-Pn.yaw),Math.cos(yaw-Pn.yaw));if(Math.abs(dy)>1.3)Pn.yaw+=dy*Math.min(1,dt*1.6);
+    var want=vr&&!E.exitHidden?smooth(-.18,-.42,pitch):0;Pn.alpha+=(want-Pn.alpha)*Math.min(1,dt*8);
+    E.panelQ.vis=vr&&Pn.alpha>.02;E.panelQ.tint=[1,1,1,Pn.alpha];
+    var dist=1.35,cy=pos[1]-.62;E.panelQ.pos=[pos[0]-Math.sin(Pn.yaw)*dist,cy,pos[2]-Math.cos(Pn.yaw)*dist];E.panelQ.yaw=Pn.yaw;E.panelQ.tilt=-.62;
+    /* exit disc on the floor below the viewer (look straight down) */
+    E.exitQ.vis=vr;E.exitQ.pos=[pos[0]-Math.sin(Pn.yaw)*.12,Math.max(.02,pos[1]-1.15),pos[2]-Math.cos(Pn.yaw)*.12];E.exitQ.yaw=Pn.yaw;E.exitQ.tint=[1,1,1,smooth(-.6,-1.0,pitch)*.0+1];
+    E.drawPanel()}
+  /* subtitle: head-locked at ~1.5 m, slightly below centre */
+  if(E.subQ){var s=E.sub;E.subQ.vis=vr&&!!s.text&&(s.t>0||s.hold);if(s.t>0&&!s.hold)s.t-=dt;if(E.subQ.text!==(s.text||' '))E.subQ.set(s.text||' ');E.subQ.pos=[0,-.40-E.subQ.h/2,-1.5];E.subQ.w=1.1}
+  if(E.reticle&&E._ret&&(vr||E.mode==='360')){var r=E._ret;E.reticle.vis=true;E.reticle.pos=r.pos;var s2=r.on?.05:.036;E.reticle.w=E.reticle.h=Math.max(.05,Math.hypot(r.pos[0]-pos[0],r.pos[1]-pos[1],r.pos[2]-pos[2]))*.052*(r.on?1.3:1);E.reticle.prog=r.prog;E.reticle.tint=[1,1,1,r.on?1:.75]}
+  if(E.fadeQ){E.fadeQ.vis=E.fade>.01;E.fadeQ.tint=[1,1,1,E.fade]}};
+
+/* ---------- rendering ---------- */
+Engine.prototype._ensureFbo=function(w,h){var E=this,gl=E.gl;if(E._fbo&&E._fbo.w===w&&E._fbo.h===h)return E._fbo;
+  if(E._fbo){gl.deleteFramebuffer(E._fbo.msFb);gl.deleteFramebuffer(E._fbo.rsFb);gl.deleteTexture(E._fbo.tex);gl.deleteRenderbuffer(E._fbo.cr);gl.deleteRenderbuffer(E._fbo.dr)}
+  var f={w:w,h:h};f.tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,f.tex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  f.rsFb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f.rsFb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,f.tex,0);
+  var samples=E.aa&&E.quality>0?Math.min(4,gl.getParameter(gl.MAX_SAMPLES)):0;f.samples=samples;
+  f.cr=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,f.cr);if(samples)gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,gl.RGBA8,w,h);else gl.renderbufferStorage(gl.RENDERBUFFER,gl.RGBA8,w,h);
+  f.dr=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,f.dr);if(samples)gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,gl.DEPTH_COMPONENT24,w,h);else gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);
+  f.msFb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f.msFb);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.RENDERBUFFER,f.cr);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,f.dr);
+  E._fbo=f;return f};
+Engine.prototype.profileData=function(){var E=this,p=PROFILES[E.profile]||PROFILES.cb2;return{ild:E.ild2||p.ild,dist:p.dist,k1:p.k1*E.lensK,k2:p.k2*E.lensK}};
+/* per-eye geometry for Cardboard fallback: returns {cx,cy,tan:[l,r,b,t],halfMM:[w,h]} for eye 0/1 */
+Engine.prototype.eyeGeom=function(e,Wpx,Hpx){var E=this,pr=E.profileData(),a=Wpx/Hpx,Wmm=E.phoneInch*25.4*a/Math.sqrt(1+a*a),Hmm=Wmm/a,hw=Wmm/2;
+  var cx=e===0?1-pr.ild/Wmm:pr.ild/Wmm,cy=.5;
+  var xs=[-cx*hw,(1-cx)*hw],ys=[-Hmm/2,Hmm/2],l=1e9,r=-1e9,b=1e9,t=-1e9;
+  for(var i=0;i<=16;i++){for(var j=0;j<=16;j++){var x=xs[0]+(xs[1]-xs[0])*i/16,y=ys[0]+(ys[1]-ys[0])*j/16;if(i>0&&i<16&&j>0&&j<16)continue;
+    var px=x/pr.dist,py=y/pr.dist,r2=px*px+py*py,f=1+pr.k1*r2+pr.k2*r2*r2,qx=px*f,qy=py*f;l=Math.min(l,qx);r=Math.max(r,qx);b=Math.min(b,qy);t=Math.max(t,qy)}}
+  /* clamp very wide frustums for performance/quality */
+  var lim=2.2;l=Math.max(l,-lim);r=Math.min(r,lim);b=Math.max(b,-lim);t=Math.min(t,lim);
+  return{cx:cx,cy:cy,tan:[l,r,b,t],halfMM:[hw,Hmm],dist:pr.dist,k1:pr.k1,k2:pr.k2,Wmm:Wmm,Hmm:Hmm}};
+Engine.prototype._render=function(pos,hq){var E=this,gl=E.gl,W=E.cv.width,H=E.cv.height;
+  var sc=E.renderScale,fw=Math.max(16,Math.floor(W*sc)),fh=Math.max(16,Math.floor(H*sc)),f=E._ensureFbo(fw,fh);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,f.msFb);gl.disable(gl.SCISSOR_TEST);gl.clearColor(.05,.06,.08,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  var views=[];
+  if(E.mode==='vr'&&E.vrKind==='cardboard'){var hw=Math.floor(fw/2);
+    for(var e=0;e<2;e++){var g=E.eyeGeom(e,W,H),off=(e===0?-1:1)*E.ipd/2000,right=qrot(hq,[1,0,0]),eye=vadd(pos,vmul(right,off));
+      var cam=vmul(1,1);var cm=mmul(mtr(eye[0],eye[1],eye[2]),mq(hq));var view=minv(cm);var proj=mpersp(g.tan[0],g.tan[1],g.tan[2],g.tan[3],.05,120);
+      views.push({vp:[e*hw,0,hw,fh],view:view,proj:proj,eye:eye,cm:cm,g:g,tan:g.tan})}}
+  else{var asp=W/H,tf=Math.tan((E.mode==='std'?62:E.mode==='360'?75:60)*D2R/2),tn=[-tf*asp,tf*asp,-tf,tf];
+    var cm2;if(E.mode==='std'){var t=E.orbit.target,fw2=vnorm(vsub(t,pos)),yaw=Math.atan2(-fw2[0],-fw2[2]),pit=Math.asin(fw2[1]);cm2=mmul(mtr(pos[0],pos[1],pos[2]),mmul(mry(yaw),mrx(pit)))}else cm2=mmul(mtr(pos[0],pos[1],pos[2]),mq(hq));
+    views.push({vp:[0,0,fw,fh],view:minv(cm2),proj:mpersp(tn[0],tn[1],tn[2],tn[3],.05,120),eye:pos,cm:cm2,tan:tn})}
+  E._views=views;  views.forEach(function(v){E._drawEye(v)});
+  E._lastCam={vp:mmul(views[0].proj,views[0].view),eye:views[0].eye};
+  /* resolve and present */
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER,f.msFb);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,f.rsFb);gl.blitFramebuffer(0,0,fw,fh,0,0,fw,fh,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.disable(gl.DEPTH_TEST);gl.disable(gl.BLEND);gl.bindVertexArray(E.emptyVao);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,f.tex);
+  if(E.mode==='vr'&&E.vrKind==='cardboard'){var hwp=Math.floor(W/2);gl.useProgram(E.pDist.p);var U=E.pDist.u;gl.uniform1i(U.uT,0);
+    for(var e2=0;e2<2;e2++){var g2=views[e2].g;gl.viewport(e2*hwp,0,hwp,H);gl.uniform2f(U.uLens,g2.cx,g2.cy);gl.uniform2f(U.uHalfMM,g2.halfMM[0],g2.halfMM[1]);gl.uniform1f(U.uDist,g2.dist);gl.uniform1f(U.uK1,g2.k1);gl.uniform1f(U.uK2,g2.k2);
+      gl.uniform4f(U.uTan,g2.tan[0],g2.tan[1],g2.tan[2],g2.tan[3]);gl.uniform2f(U.uTexU,views[e2].vp[0]/fw,(views[e2].vp[0]+views[e2].vp[2])/fw);gl.drawArrays(gl.TRIANGLES,0,3)}
+    /* thin divider between eyes */
+    gl.enable(gl.SCISSOR_TEST);gl.scissor(hwp-1,0,2,H);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);gl.disable(gl.SCISSOR_TEST)}
+  else{gl.viewport(0,0,W,H);gl.useProgram(E.pBlit.p);gl.uniform1i(E.pBlit.u.uT,0);gl.drawArrays(gl.TRIANGLES,0,3)}};
+Engine.prototype.quadModel=function(q,right_up,eye){var E=this,w=q.w,h=q.h;
+  if(q.headLocked){/* placed in head space: pos is offset relative to head (x right,y up,-z forward) */
+    var hm=mmul(mtr(E.headPos[0],E.headPos[1],E.headPos[2]),mq(E.headQ)),base=E.mode==='std'?null:hm;
+    if(q.isFade){return mmul(base||hm,mmul(mtr(0,0,-q.dist),msc(w*2,h*2,1)))}
+    return mmul(base||hm,mmul(mtr(q.pos[0],q.pos[1],q.pos[2]),msc(w,h,1)))}
+  if(q.billboard){var r=right_up?right_up.r:[1,0,0],u=right_up?right_up.u:[0,1,0],f=vcross(r,u);var m=mid();m[0]=r[0]*w;m[1]=r[1]*w;m[2]=r[2]*w;m[4]=u[0]*h;m[5]=u[1]*h;m[6]=u[2]*h;m[8]=f[0];m[9]=f[1];m[10]=f[2];m[12]=q.pos[0];m[13]=q.pos[1];m[14]=q.pos[2];return m}
+  if(q.flat){return mmul(mtr(q.pos[0],q.pos[1],q.pos[2]),mmul(mry(q.yaw||0),mmul(mrx(-PI/2),msc(w,h,1))))}
+  if(q.model){return q.model}
+  var M=mtr(q.pos[0],q.pos[1],q.pos[2]);M=mmul(M,mry(q.yaw||0));if(q.tilt)M=mmul(M,mrx(q.tilt));return mmul(M,msc(w,h,1))};
+Engine.prototype._drawEye=function(v){var E=this,gl=E.gl,vp=v.vp;gl.viewport(vp[0],vp[1],vp[2],vp[3]);gl.enable(gl.SCISSOR_TEST);gl.scissor(vp[0],vp[1],vp[2],vp[3]);gl.clearColor(.05,.06,.08,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.SCISSOR_TEST);
+  var VP=mmul(v.proj,v.view);E._drawScene(v,VP)};
+Engine.prototype._drawScene=function(v,VP){var E=this,gl=E.gl,eye=v.eye,L=E.lights;var pm_=v.proj;v={proj:v.proj,view:v.view,eye:v.eye,cm:v.cm,tan:[(pm_[8]-1)/pm_[0],(pm_[8]+1)/pm_[0],(pm_[9]-1)/pm_[5],(pm_[9]+1)/pm_[5]]};
+  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.depthMask(true);gl.disable(gl.BLEND);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);
+  /* sky */
+  gl.disable(gl.DEPTH_TEST);gl.useProgram(E.pSky.p);gl.uniformMatrix4fv(E.pSky.u.uIV,false,v.cm);gl.uniform4f(E.pSky.u.uTan,v.tan[0],v.tan[1],v.tan[2],v.tan[3]);gl.bindVertexArray(E.emptyVao);gl.drawArrays(gl.TRIANGLES,0,3);gl.enable(gl.DEPTH_TEST);
+  /* opaque lit meshes */
+  gl.useProgram(E.pMain.p);var U=E.pMain.u;gl.uniformMatrix4fv(U.uVP,false,VP);gl.uniform3f(U.uEye,eye[0],eye[1],eye[2]);gl.uniform3fv(U.uL1,L.l1);gl.uniform3fv(U.uL2,L.l2);gl.uniform3fv(U.uFogC,E.fog.c);gl.uniform1f(U.uFog,E.fog.d);gl.uniform1f(U.uAlpha,1);
+  gl.disable(gl.CULL_FACE);
+  var pass=function(blend){for(var i=0;i<E.insts.length;i++){var I=E.insts[i];if(!I.vis||!I.n||!!I.blend!==blend)continue;
+    if(I.dirty){gl.bindBuffer(gl.ARRAY_BUFFER,I.buf);gl.bufferSubData(gl.ARRAY_BUFFER,0,I.data,0,I.n*20);I.dirty=false}
+    if(blend)gl.uniform1f(U.uAlpha,I.alpha);gl.bindVertexArray(I.vao);gl.drawElementsInstanced(gl.TRIANGLES,I.g.count,gl.UNSIGNED_INT,0,I.n)}};
+  pass(false);
+  /* textured quads: opaque first then blended, sorted back to front by order then distance */
+  var T=E.pTex.u,qs=E.quads.filter(function(q){return q.vis&&q.tint[3]>.01}),ru={r:qrot(E.headQ&&E.mode!=='std'?E.headQ:[0,0,0,1],[1,0,0]),u:[0,1,0]};
+  if(E.mode==='std'){ru={r:[v.cm[0],v.cm[1],v.cm[2]],u:[v.cm[4],v.cm[5],v.cm[6]]}}else{var hq=E.headQ;ru={r:qrot(hq,[1,0,0]),u:qrot(hq,[0,1,0])}}
+  qs.forEach(function(q){var p=q.headLocked?E.headPos:q.pos;q._d=Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2])});
+  qs.sort(function(a,b){return(a.order||0)-(b.order||0)||b._d-a._d});
+  gl.useProgram(E.pTex.p);gl.uniformMatrix4fv(T.uVP,false,VP);gl.uniform3f(T.uEye,eye[0],eye[1],eye[2]);gl.uniform3fv(T.uFogC,E.fog.c);gl.uniform1f(T.uFog,E.fog.d);gl.uniform1i(T.uT,0);gl.bindVertexArray(E.qvao);gl.activeTexture(gl.TEXTURE0);
+  gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  var doBlendInst=false;
+  qs.forEach(function(q){if(q.order>=3&&!doBlendInst){/* transparent lit meshes before UI */doBlendInst=true;gl.useProgram(E.pMain.p);gl.depthMask(false);pass(true);gl.depthMask(true);gl.useProgram(E.pTex.p);gl.bindVertexArray(E.qvao)}
+    var M=E.quadModel(q,ru,eye);gl.uniformMatrix4fv(T.uM,false,M);gl.uniform2f(T.uRep,q.rep[0],q.rep[1]);gl.uniform4fv(T.uTint,q.tint);gl.uniform1f(T.uLit,q.lit);gl.uniform1f(T.uMode,q.mode||0);gl.uniform1f(T.uProg,q.prog||0);
+    gl.bindTexture(gl.TEXTURE_2D,q.tex);if(q.depthTest===false)gl.disable(gl.DEPTH_TEST);else gl.enable(gl.DEPTH_TEST);gl.depthMask(!q.blend&&q.depthTest!==false);
+    gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0)});
+  if(!doBlendInst){gl.useProgram(E.pMain.p);gl.depthMask(false);pass(true)}
+  gl.depthMask(true);gl.enable(gl.DEPTH_TEST);gl.disable(gl.BLEND)};
+
+/* ---------- WebXR frame ---------- */
+Engine.prototype._xrFrame=function(t,fr){var E=this,s=E.xrSession;if(!s||!E.mod)return;var gl=E.gl;var pose=fr.getViewerPose(E.xrRef);if(!pose)return;
+  var o=pose.transform.orientation,qh=[o.x,o.y,o.z,o.w],fw=qrot(qh,[0,0,-1]);
+  if(E.xrRecentre||E.xrYawInit==null){E.xrYawInit=1;E.xrYaw=-Math.atan2(-fw[0],-fw[2])+(E.rig.baseYaw||0);E.xrRecentre=false}
+  var rig=mmul(mtr(E.rig.pos[0],E.rig.pos[1],E.rig.pos[2]),mry(E.xrYaw)),rigInv=minv(rig),hp=pose.transform.position;
+  var hm=mmul(rig,mmul(mtr(hp.x,hp.y,hp.z),mq(qh))),wq=qmul(qax(0,1,0,E.xrYaw),qh),wpos=[hm[12],hm[13],hm[14]];
+  var ray=null;s.inputSources.forEach(function(src){if(!src.targetRaySpace)return;var p=fr.getPose(src.targetRaySpace,E.xrRef);if(!p)return;var tq=p.transform.orientation,tp=p.transform.position,
+    pm=mmul(rig,mmul(mtr(tp.x,tp.y,tp.z),mq([tq.x,tq.y,tq.z,tq.w])));var ro=[pm[12],pm[13],pm[14]],rd=vnorm([-pm[8],-pm[9],-pm[10]]);if(E.cast(ro,rd))ray={o:ro,d:rd}});
+  E.frame({pos:wpos,q:wq,ray:ray});E._xrHit=E.gaze.hit;
+  var layer=s.renderState.baseLayer;gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);gl.clearColor(.05,.06,.08,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  pose.views.forEach(function(view){var vp=layer.getViewport(view),vm=mmul(new Float32Array(view.transform.inverse.matrix),rigInv),pm=new Float32Array(view.projectionMatrix),ip=minv(vm);
+    E._drawEye({vp:[vp.x,vp.y,vp.width,vp.height],view:vm,proj:pm,eye:[ip[12],ip[13],ip[14]],cm:ip,tan:[-1,1,-1,1]})})};
+
+/* ---------- public API ---------- */
+window.SBVR={Engine:Engine,Mesh:Mesh,Speech:Speech,detect:detect,PROFILES:PROFILES,modules:[],
+  math:{mid:mid,mmul:mmul,mul:mmul,mtr:mtr,msc:msc,mrx:mrx,mry:mry,mrz:mrz,mq:mq,minv:minv,mseg:mseg,mdir:mdir,qmul:qmul,qax:qax,qrot:qrot,vsub:vsub,vadd:vadd,vmul:vmul,vdot:vdot,vcross:vcross,vlen:vlen,vnorm:vnorm,clamp:clamp,smooth:smooth,mxv:mxv,mpersp:mpersp},
+  register:function(m){this.modules.push(m)}};
+Speech.init();
+})();
+
+/* Physics for VR module 8: charged particle in B, E x B, cyclotron.
+   Pure functions, SI units. Constants as used in the textbook (e = 1.60e-19 C, m_p = 1.67e-27 kg, m_e = 9.11e-31 kg). */
+(function(root){
+'use strict';
+var E_=1.60e-19;
+var SPECIES={
+  p:{id:'p',m:1.67e-27,q:E_,en:'proton',ta:'புரோட்டான்',col:[1,.38,.2]},
+  d:{id:'d',m:3.34e-27,q:E_,en:'deuteron',ta:'டியூட்ரான்',col:[1,.72,.2]},
+  a:{id:'a',m:6.68e-27,q:2*E_,en:'alpha particle',ta:'ஆல்பா துகள்',col:[1,.9,.5]},
+  e:{id:'e',m:9.11e-31,q:-E_,en:'electron',ta:'எலக்ட்ரான்',col:[.3,.85,1]}
+};
+/* textbook relations (eq. 3.57, 3.58-3.61, 3.62, 3.64) */
+function radius(sp,vperp,B){return sp.m*vperp/(Math.abs(sp.q)*B)}
+function period(sp,B){return 2*Math.PI*sp.m/(Math.abs(sp.q)*B)}
+function freq(sp,B){return Math.abs(sp.q)*B/(2*Math.PI*sp.m)}
+function pitch(sp,vpar,B){return vpar*period(sp,B)}
+function ke(sp,v){return .5*sp.m*v*v}
+function kemax(sp,B,R){return sp.q*sp.q*B*B*R*R/(2*sp.m)}
+function speedFromV(sp,V){return Math.sqrt(2*Math.abs(sp.q)*V/sp.m)}
+/* RK4 for a = (q/m)(E + v x B) with B along +y, E along +x function of (t,x,y,z) */
+function accel(sp,B,Ex,vx,vy,vz){var k=sp.q/sp.m;/* v x B with B=(0,B,0): (-vz B, 0, vx B) */return[k*(Ex-vz*B),0,k*(vx*B)]}
+function rk4(sp,B,Efun,S,h){/* S = {t,x:[3],v:[3]} */
+  var q=sp.q/sp.m;
+  function f(t,x,v){var ex=Efun?Efun(t,x):0;return{dx:v,dv:[q*(ex-v[2]*B),0,q*(v[0]*B)]}}
+  function add(a,b,s){return[a[0]+b[0]*s,a[1]+b[1]*s,a[2]+b[2]*s]}
+  var k1=f(S.t,S.x,S.v),k2=f(S.t+h/2,add(S.x,k1.dx,h/2),add(S.v,k1.dv,h/2)),k3=f(S.t+h/2,add(S.x,k2.dx,h/2),add(S.v,k2.dv,h/2)),k4=f(S.t+h,add(S.x,k3.dx,h),add(S.v,k3.dv,h));
+  for(var i=0;i<3;i++){S.x[i]+=h/6*(k1.dx[i]+2*k2.dx[i]+2*k3.dx[i]+k4.dx[i]);S.v[i]+=h/6*(k1.dv[i]+2*k2.dv[i]+2*k3.dv[i]+k4.dv[i])}
+  S.t+=h;return S}
+/* Cyclotron: dees radius R, gap g, dee voltage amplitude V0, oscillator frequency fo, start phase phi */
+function cycNew(sp,B,V0,detunePct,o){o=o||{};var R=o.R||.41,g=o.g||.008,fc=freq(sp,B),fo=fc*(1+detunePct/100);
+  var C={sp:sp,B:B,V0:V0,R:R,g:g,fc:fc,fo:fo,T:period(sp,B),phi:0,S:{t:0,x:[0,0,0],v:[0,0,0]},n:0,exited:false,exit:null,lastSign:0,trail:[],path:0};
+  C.phi=bestPhase(C);return C}
+function cycEx(C){return function(t,x){return(Math.abs(x[0])<C.g/2&&Math.abs(x[2])<C.R)?C.V0/C.g*Math.cos(2*Math.PI*C.fo*t+C.phi):0}}
+function cycStep(C,h){if(C.exited)return;var S=C.S,px=S.x[0];rk4(C.sp,C.B,cycEx(C),S,h);
+  if((px<0)!==(S.x[0]<0)&&(px!==0))C.n++;
+  var r=Math.hypot(S.x[0],S.x[2]);
+  if(r>=C.R){/* leaves through the deflector: straight tangent flight (no field beyond the dees: simplification) */
+    var v=Math.hypot(S.v[0],S.v[2]);C.exited=true;C.exit={x:S.x.slice(),v:S.v.slice(),KE:ke(C.sp,v),speed:v,t:S.t}}}
+function bestPhase(C){var best=-1,bp=0,h=C.T/240;
+  for(var k=0;k<32;k++){var phi=-Math.PI+2*Math.PI*k/32,D={sp:C.sp,B:C.B,V0:C.V0,R:C.R,g:C.g,fo:C.fo,phi:phi},S={t:0,x:[0,0,0],v:[0,0,0]},E=cycEx(D);
+    var end=C.T*8,maxr=0;while(S.t<end){rk4(C.sp,C.B,E,S,h);var r=Math.hypot(S.x[0],S.x[2]);if(r>maxr)maxr=r;if(r>=C.R)break}
+    var K=ke(C.sp,Math.hypot(S.v[0],S.v[2]));if(K>best){best=K;bp=phi}}
+  return bp}
+/* helpers: unit formatting */
+function fmt(v,u,d){d=d==null?3:d;if(v===0||!isFinite(v))return'0 '+u;var a=Math.abs(v),P=[[1e9,'G'],[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
+  for(var i=0;i<P.length;i++){if(a>=P[i][0]*.9995){return String(+(v/P[i][0]).toPrecision(d))+' '+P[i][1]+u}}return v.toExponential(2)+' '+u}
+var api={SPECIES:SPECIES,E:E_,radius:radius,period:period,freq:freq,pitch:pitch,ke:ke,kemax:kemax,speedFromV:speedFromV,rk4:rk4,cycNew:cycNew,cycStep:cycStep,cycEx:cycEx,bestPhase:bestPhase,fmt:fmt};
+if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SBP8=api;
+})(typeof window!=='undefined'?window:this);
+
+/* VR module 8 (Unit 3, textbook pp. 170-176): charged particle in magnetic and electric fields, and the cyclotron. */
+(function(){
+var V=SBVR.math,P=SBP8,Mesh=SBVR.Mesh,PI=Math.PI;
+var ZA=[-4.2,0,-1.2],CC=[-4.2,1.75,-1.2],ZB=[3.4,0,-1.2],PY=1.11;
+function L(en,ta){return{en:en,ta:ta}}
+function ser(t){/* largest 1-2-5 value not above t */var e=Math.floor(Math.log10(t)),m=t/Math.pow(10,e),c=m>=5?5:m>=2?2:1;return c*Math.pow(10,e)}
+function serUp(t){var e=Math.floor(Math.log10(t)),m=t/Math.pow(10,e),c=m<=1?1:m<=2?2:m<=5?5:10;return c*Math.pow(10,e)}
+function fmtLen(m){return P.fmt(m,'m',2)}
+var M8={
+ id:'m8',unit:3,pages:'pp. 170–176',
+ title:L('Charged particle in magnetic and electric fields, and the cyclotron','காந்த, மின்புலங்களில் மின்துகள் மற்றும் சைக்ளோட்ரான்'),
+ sections:'3.10.2 – 3.10.4',
+ stations:[
+  {id:'lab',name:L('Laboratory overview','ஆய்வக மேலோட்டம்'),pos:[0.4,1.45,3.7],look:[0.2,1.3,-1.2],orbit:{target:[-0.4,1.3,-1.2],dist:5.6,min:2.5,max:5.8,yaw:0,pitch:.16},params:[]},
+  {id:'circ',name:L('Circular path in a magnetic field','காந்தப்புலத்தில் வட்டப்பாதை'),pos:[-4.2,1.5,1.8],look:CC,orbit:{target:CC,dist:3.6,min:1.8,max:5,yaw:.35,pitch:.22},params:['sp','B','v']},
+  {id:'helix',name:L('Helical path','சுருள் பாதை'),pos:[-4.2,1.5,1.8],look:CC,orbit:{target:CC,dist:3.6,min:1.8,max:5,yaw:.5,pitch:.2},params:['sp','B','vperp','vpar']},
+  {id:'exb',name:L('Crossed E and B: velocity selector','குறுக்கு E, B: திசைவேகத் தேர்வி'),pos:[-4.2,1.5,1.8],look:CC,orbit:{target:CC,dist:3.6,min:1.8,max:5,yaw:.55,pitch:.2},params:['sp','B','E','vsel']},
+  {id:'cyc',name:L('Cyclotron: side view','சைக்ளோட்ரான்: பக்கக் காட்சி'),pos:[3.4,1.55,1.5],look:[3.4,1.1,-1.2],orbit:{target:[3.4,1.1,-1.2],dist:2.9,min:1.2,max:4.5,yaw:.25,pitch:.42},params:['csp','cB','cV','cdet','cspd']},
+  {id:'cyctop',name:L('Cyclotron: view from above','சைக்ளோட்ரான்: மேலிருந்து காட்சி'),pos:[3.4,2.55,-1.0],look:[3.4,1.1,-1.2],orbit:{target:[3.4,1.1,-1.2],dist:2.4,min:1.0,max:3.5,yaw:.0,pitch:1.3},params:['csp','cB','cV','cdet','cspd']}
+ ],
+ params:[
+  {id:'sp',kind:'choice',choices:['p','d','a','e'],def:'p',label:L('Particle','துகள்')},
+  {id:'B',min:.005,max:.5,step:.005,def:.1,unit:'T',label:L('Magnetic field B','காந்தப்புலம் B'),fmt:function(v){return v.toFixed(3)+' T'}},
+  {id:'v',min:1e5,max:3e7,step:1e5,def:1e6,unit:'m/s',label:L('Speed v (perpendicular to B)','வேகம் v (B க்கு செங்குத்து)'),fmt:function(v){return(v/1e6).toFixed(1)+' ×10⁶ m/s'}},
+  {id:'vperp',min:1e4,max:1e6,step:1e4,def:2.0e5,unit:'m/s',label:L('Perpendicular speed v⊥','செங்குத்து வேகம் v⊥'),fmt:function(v){return(v/1e5).toFixed(2)+' ×10⁵ m/s'}},
+  {id:'vpar',min:0,max:1e6,step:1e4,def:1.95e5,unit:'m/s',label:L('Parallel speed v∥ (along B)','இணை வேகம் v∥ (B வழி)'),fmt:function(v){return(v/1e5).toFixed(2)+' ×10⁵ m/s'}},
+  {id:'E',min:1e5,max:1e7,step:1e5,def:6e6,unit:'N/C',label:L('Electric field E','மின்புலம் E'),fmt:function(v){return(v/1e6).toFixed(1)+' ×10⁶ N/C'}},
+  {id:'vsel',min:1e6,max:1.2e7,step:1e5,def:8.39e6,unit:'m/s',label:L('Particle speed v','துகளின் வேகம் v'),fmt:function(v){return(v/1e6).toFixed(2)+' ×10⁶ m/s'}},
+  {id:'csp',kind:'choice',choices:['p','d','a'],def:'p',label:L('Ion','அயனி')},
+  {id:'cB',min:.5,max:1.5,step:.1,def:1,unit:'T',label:L('Magnetic field B','காந்தப்புலம் B'),fmt:function(v){return v.toFixed(1)+' T'}},
+  {id:'cV',min:20e3,max:100e3,step:10e3,def:100e3,unit:'V',label:L('Dee voltage (peak)','டீ மின்னழுத்தம் (உச்சம்)'),fmt:function(v){return(v/1e3).toFixed(0)+' kV'}},
+  {id:'cdet',min:-5,max:5,step:.1,def:0,unit:'%',label:L('Oscillator detuning from resonance','அதிர்வு நிலையிலிருந்து அலைவி விலகல்'),fmt:function(v){return(v>0?'+':'')+v.toFixed(1)+' %'}},
+  {id:'cspd',min:.4,max:3,step:.2,def:1.2,unit:'s',label:L('Slow-motion: seconds per turn','மெதுவசைவு: ஒரு சுற்றுக்கு வினாடி'),fmt:function(v){return v.toFixed(1)+' s/turn'}}
+ ],
+ presets:{
+  ex321:{sp:'p',B:.5,vperp:2.00e5,vpar:1.95e5},
+  ex322:{sp:'e',B:.83,E:6.0e6,vsel:8.39e6}
+ },
+ legend:[
+  {k:'real',t:L('REAL physics: all paths are computed from the Lorentz force F = q(E + v × B) with the textbook constants; radius, period, pitch and energy come out of the simulation, not from drawn circles.','உண்மை இயற்பியல்: எல்லாப் பாதைகளும் லாரன்ஸ் விசை F = q(E + v × B) யிலிருந்து பாடநூல் மாறிலிகளுடன் கணக்கிடப்படுகின்றன; ஆரம், காலம், ஏற்றம், ஆற்றல் ஆகியவை உருவகப்படுத்தலில் இருந்தே வருகின்றன.')},
+  {k:'illus',t:L('ILLUSTRATIVE: the particle (glowing ball) is hugely enlarged; a proton is about 10⁻¹⁵ m across. Arrows show direction only, not length.','விளக்கத்திற்காக: துகள் (ஒளிரும் பந்து) மிகப் பெரிதாக்கப்பட்டுள்ளது; புரோட்டான் சுமார் 10⁻¹⁵ m அளவுடையது. அம்புகள் திசையை மட்டுமே காட்டுகின்றன.')},
+  {k:'illus',t:L('SCALE: in the demonstration chamber the picture is magnified by the factor shown (1 m on screen = the real length shown). Time is slowed by the factor shown. The apparatus on the right is drawn at real size (dee radius 0.41 m).','அளவு: செயல்விளக்க அறையில் காட்டப்படும் காரணியால் படம் பெரிதாக்கப்பட்டுள்ளது (திரையில் 1 m = காட்டப்படும் உண்மை நீளம்). நேரம் காட்டப்படும் காரணியால் மெதுவாக்கப்பட்டுள்ளது. வலப்புறக் கருவி உண்மை அளவில் (டீ ஆரம் 0.41 m) வரையப்பட்டுள்ளது.')},
+  {k:'illus',t:L('SIMPLIFIED: field is uniform and ends sharply; relativistic mass change is ignored (valid below about 0.1c, error under 1 %); in the cyclotron the beam leaves tangentially with no stray field.','எளிமைப்படுத்தல்: புலம் சீரானது, திடீரென முடிகிறது; சார்பியல் நிறை மாற்றம் புறக்கணிக்கப்படுகிறது (0.1c க்குள் செல்லும், பிழை 1 % க்குள்); சைக்ளோட்ரானில் கற்றை புறப்புலம் இன்றித் தொடுகோட்டில் வெளியேறுகிறது.')}
+ ],
+ hotspots:[
+  {id:'h_pole',st:['lab','cyc','cyctop'],pos:[ZB[0],0.99,ZB[2]+.5],name:L('Electromagnet pole','மின்காந்தத் துருவம்'),text:L('Electromagnet pole piece. Together with its twin above it makes the uniform magnetic field that points straight up through the dees, normal to their plane (textbook p.175).','மின்காந்தத் துருவ முனை. மேலேயுள்ள இணைத் துருவத்துடன் சேர்ந்து, டீகளின் தளத்திற்கு செங்குத்தாக நேராக மேல்நோக்கிச் செல்லும் சீரான காந்தப்புலத்தை உருவாக்குகிறது (பாடநூல் ப.175).')},
+  {id:'h_dee',st:['lab','cyc','cyctop'],pos:[ZB[0]+.33,PY+.07,ZB[2]+.25],name:L('Dee','டீ'),text:L('A dee: a hollow D-shaped metal box. Inside it there is no electric field, so the ion simply moves in a semicircle. The top lid is hidden here so you can see inside.','டீ: உள்ளீடற்ற D வடிவ உலோகப் பெட்டி. உள்ளே மின்புலம் இல்லை; எனவே அயனி அரைவட்டத்தில் மட்டுமே இயங்குகிறது. உள்ளே பார்க்கும்படி மேல் மூடி மறைக்கப்பட்டுள்ளது.')},
+  {id:'h_gap',st:['lab','cyc','cyctop'],pos:[ZB[0],PY+.1,ZB[2]-.2],name:L('Gap between the dees','டீகளுக்கிடையே இடைவெளி'),text:L('The narrow gap. The electric field exists only here, and it reverses every half turn so the ion is pushed forward each time it crosses (textbook p.175).','குறுகிய இடைவெளி. மின்புலம் இங்கு மட்டுமே உள்ளது; ஒவ்வொரு அரைச்சுற்றிலும் திசை மாறி, அயனி கடக்கும் ஒவ்வொரு முறையும் முன்னோக்கித் தள்ளுகிறது (பாடநூல் ப.175).')},
+  {id:'h_src',st:['lab','cyc','cyctop'],pos:[ZB[0],PY+.12,ZB[2]],name:L('Ion source S','அயனி மூலம் S'),text:L('Source S at the centre. It releases the ions, which begin almost at rest.','மையத்தில் மூலம் S. அயனிகளை விடுவிக்கிறது; அவை ஏறக்குறைய ஓய்விலிருந்து தொடங்குகின்றன.')},
+  {id:'h_rf',st:['lab','cyc'],pos:[ZB[0]+1.55,1.55,ZB[2]],name:L('High-frequency oscillator','உயர் அதிர்வெண் அலைவி'),text:L('The oscillator connected to the dees. For resonance its frequency must equal the ion’s circulation frequency f = qB / 2πm (equation 3.60 and p.175).','டீகளுடன் இணைந்த அலைவி. அதிர்வு நிகழ, அதன் அதிர்வெண் அயனியின் சுழற்சி அதிர்வெண் f = qB / 2πm க்குச் சமமாக இருக்க வேண்டும் (சமன்பாடு 3.60, ப.175).')},
+  {id:'h_tank',st:['lab','cyc'],pos:[ZB[0]-.6,1.15,ZB[2]+.35],name:L('Vacuum chamber','வெற்றிடக் கலன்'),text:L('The dees sit in an evacuated chamber, so ions do not collide with air molecules (textbook p.175). The pump is at the left.','டீகள் வெற்றிடக் கலனுள் உள்ளன; எனவே அயனிகள் காற்று மூலக்கூறுகளுடன் மோதுவதில்லை (பாடநூல் ப.175). பம்ப் இடப்புறம் உள்ளது.')},
+  {id:'h_tgt',st:['cyc','cyctop'],pos:[ZB[0]+.57,PY+.05,ZB[2]-.3],name:L('Deflector and target T','விலக்கித் தகடு மற்றும் இலக்கு T'),text:L('Near the edge a deflector plate takes the beam out to the target T (textbook p.175). Here the beam leaves along the tangent and strikes the target ring.','விளிம்பருகே விலக்கித் தகடு கற்றையை இலக்கு T க்கு வெளியே எடுக்கிறது (பாடநூல் ப.175). இங்கு கற்றை தொடுகோட்டில் வெளியேறி இலக்கு வளையத்தைத் தாக்குகிறது.')},
+  {id:'h_B',st:['circ','helix','exb'],pos:[CC[0]+.65,CC[1]+.55,CC[2]+.65],name:L('Magnetic field B','காந்தப்புலம் B'),text:L('The blue arrows are the uniform magnetic field, pointing up. The magnetic force is always perpendicular to the velocity, so it changes the direction of motion but never the speed.','நீல அம்புகள் மேல்நோக்கிய சீரான காந்தப்புலம். காந்த விசை எப்போதும் வேகத்திற்குச் செங்குத்து; எனவே இயக்கத் திசையை மாற்றும், வேகத்தை மாற்றாது.')},
+  {id:'h_part',st:['circ','helix','exb'],pos:null,name:L('The particle','துகள்'),text:L('The glowing ball is the particle (enlarged). Green arrow: velocity. Red arrow: force on it. See how the force always points to the centre of the circle.','ஒளிரும் பந்து துகள் (பெரிதாக்கப்பட்டது). பச்சை அம்பு: திசைவேகம். சிவப்பு அம்பு: அதன் மீதான விசை. விசை எப்போதும் வட்ட மையத்தை நோக்கியே இருப்பதைக் காணுங்கள்.')},
+  {id:'h_E',st:['exb'],pos:[CC[0]-.7,CC[1]+.5,CC[2]],name:L('Electric field E','மின்புலம் E'),text:L('The green arrows are the electric field. The electric force on the charge is along E (for a positive charge) or opposite to E (for an electron); the magnetic force must oppose it for the path to stay straight.','பச்சை அம்புகள் மின்புலம். மின்விசை மின்னூட்டத்தின் மீது E வழியே (நேர் மின்னூட்டம்) அல்லது E க்கு எதிராக (எலக்ட்ரான்) செயல்படும்; பாதை நேராக இருக்க காந்த விசை அதை எதிர்க்க வேண்டும்.')}
+ ],
+ objectives:[
+  L('Explain why the magnetic force does no work and only changes the direction of a moving charge.','காந்த விசை ஏன் வேலை செய்வதில்லை என்றும் இயங்கும் மின்னூட்டத்தின் திசையை மட்டுமே மாற்றுகிறது என்றும் விளக்குதல்.'),
+  L('Use r = mv/qB, T = 2πm/qB and f = qB/2πm, and see that T does not depend on speed.','r = mv/qB, T = 2πm/qB, f = qB/2πm ஐப் பயன்படுத்துதல்; T வேகத்தைச் சார்ந்ததல்ல என்பதைக் காணுதல்.'),
+  L('Describe the helical path when v has a component along B, and calculate its pitch.','v க்கு B வழிக் கூறு இருக்கும்போது சுருள் பாதையை விவரித்து அதன் ஏற்றத்தைக் கணக்கிடுதல்.'),
+  L('Show that only particles with v = E/B pass undeflected through crossed fields.','குறுக்குப் புலங்களில் v = E/B உள்ள துகள்கள் மட்டுமே விலகாமல் செல்லும் என்பதைக் காட்டுதல்.'),
+  L('Explain the working, the resonance condition and the limitations of the cyclotron, and use KE = q²B²r²/2m.','சைக்ளோட்ரானின் செயல்பாடு, அதிர்வு நிபந்தனை, வரம்புகளை விளக்கி KE = q²B²r²/2m ஐப் பயன்படுத்துதல்.')
+ ],
+ quiz:[
+  {q:L('A proton and an electron enter the same uniform magnetic field with the same speed, perpendicular to it. Which statement is correct?','ஒரு புரோட்டானும் எலக்ட்ரானும் ஒரே வேகத்தில், ஒரே சீரான காந்தப்புலத்திற்குச் செங்குத்தாக நுழைகின்றன. எது சரி?'),o:[L('Both move on circles; the proton’s circle is larger and they turn in opposite senses','இரண்டும் வட்டத்தில் இயங்கும்; புரோட்டான் வட்டம் பெரியது; எதிர்த் திசைகளில் திரும்பும்'),L('Both move on circles of the same radius','இரண்டும் சம ஆரமுள்ள வட்டங்களில் இயங்கும்'),L('The electron’s circle is larger','எலக்ட்ரான் வட்டம் பெரியது'),L('Both move in straight lines','இரண்டும் நேர்கோட்டில் இயங்கும்')],a:0,why:L('r = mv/qB, so the larger mass gives the larger radius; opposite charges turn in opposite senses.','r = mv/qB; நிறை அதிகம் எனில் ஆரம் அதிகம்; எதிர் மின்னூட்டங்கள் எதிர்த் திசையில் திரும்பும்.')},
+  {q:L('The speed of a proton in a cyclotron is doubled. The time for one circle in the dee becomes:','சைக்ளோட்ரானில் புரோட்டானின் வேகம் இருமடங்கானால், டீயில் ஒரு சுற்றுக்கான காலம்:'),o:[L('unchanged','மாறாது'),L('doubled','இருமடங்கு'),L('halved','பாதி'),L('four times','நான்கு மடங்கு')],a:0,why:L('T = 2πm/qB does not contain v. The radius doubles instead.','T = 2πm/qB இல் v இல்லை; அதற்குப் பதிலாக ஆரம் இருமடங்காகும்.')},
+  {q:L('For a proton in B = 1 T, the frequency of the cyclotron oscillator should be about:','B = 1 T இல் புரோட்டானுக்கான சைக்ளோட்ரான் அலைவியின் அதிர்வெண் ஏறத்தாழ:'),o:[L('15 MHz','15 MHz'),L('15 kHz','15 kHz'),L('1.5 GHz','1.5 GHz'),L('150 Hz','150 Hz')],a:0,why:L('f = qB/2πm = (1.6×10⁻¹⁹ × 1)/(2π × 1.67×10⁻²⁷) ≈ 1.5×10⁷ Hz (textbook Example 3.23).','f = qB/2πm ≈ 1.5×10⁷ Hz (பாடநூல் எடுத்துக்காட்டு 3.23).')},
+  {q:L('Electric field 6.0×10⁶ N/C and magnetic field 0.83 T are perpendicular. Which speed passes undeflected?','மின்புலம் 6.0×10⁶ N/C, காந்தப்புலம் 0.83 T செங்குத்தானவை. எந்த வேகம் விலகாமல் செல்லும்?'),o:[L('7.2×10⁶ m/s','7.2×10⁶ m/s'),L('5.0×10⁶ m/s','5.0×10⁶ m/s'),L('8.4×10⁶ m/s','8.4×10⁶ m/s'),L('Depends on the charge','மின்னூட்டத்தைப் பொறுத்தது')],a:0,why:L('v = E/B = 6.0×10⁶/0.83 = 7.23×10⁶ m/s, independent of mass and charge (Example 3.22).','v = E/B = 7.23×10⁶ m/s; நிறை, மின்னூட்டத்தைச் சாராதது (எடுத்துக்காட்டு 3.22).')},
+  {q:L('Why can an ordinary cyclotron not accelerate electrons to high energy?','சாதாரண சைக்ளோட்ரானால் எலக்ட்ரான்களை உயர் ஆற்றலுக்கு ஏன் முடுக்க இயலாது?'),o:[L('Electrons quickly reach speeds where their mass changes, so they fall out of resonance','எலக்ட்ரான்கள் விரைவில் நிறை மாறும் வேகங்களை அடைந்து அதிர்வு நிலையை இழக்கின்றன'),L('Electrons have no charge','எலக்ட்ரான்களுக்கு மின்னூட்டம் இல்லை'),L('Electrons are heavier than protons','எலக்ட்ரான்கள் புரோட்டானை விடக் கனமானவை'),L('The magnetic force does not act on electrons','காந்த விசை எலக்ட்ரான்கள் மீது செயல்படாது')],a:0,why:L('The textbook lists this as a limitation (p.175): the electron’s small mass makes it relativistic at modest energies.','பாடநூல் இதை வரம்பாகக் குறிப்பிடுகிறது (ப.175): எலக்ட்ரானின் சிறிய நிறையால் சிறிய ஆற்றலிலேயே சார்பியல் விளைவு தோன்றுகிறது.')},
+  {q:L('A particle moves with velocity components 2.0×10⁵ m/s perpendicular and 1.95×10⁵ m/s parallel to B = 0.5 T (a proton). The pitch of its helix is about:','ஒரு புரோட்டான் B = 0.5 T க்குச் செங்குத்தாக 2.0×10⁵ m/s, இணையாக 1.95×10⁵ m/s கூறுகளுடன் இயங்குகிறது. அதன் சுருளின் ஏற்றம் ஏறத்தாழ:'),o:[L('25.5 mm','25.5 mm'),L('4.2 mm','4.2 mm'),L('2.6 mm','2.6 mm'),L('255 mm','255 mm')],a:0,why:L('Pitch = v∥ T = 1.95×10⁵ × 1.31×10⁻⁷ = 25.5 mm (Example 3.21).','ஏற்றம் = v∥ T = 25.5 mm (எடுத்துக்காட்டு 3.21).')}
+ ]
+};
+/* ---------------- tour ---------------- */
+M8.tour=[
+ {st:'lab',tag:'mix',dur:9,set:null,reset:true,
+  t:L('Welcome to the laboratory. On your left is a demonstration chamber where we can watch a single charged particle. On your right is a cyclotron drawn at its real size. Look around. Glowing dots are hotspots; look at one to read about it.','ஆய்வகத்திற்கு வரவேற்கிறோம். இடப்புறம் ஒரு மின்துகளை நாம் கவனிக்கக்கூடிய செயல்விளக்க அறை உள்ளது. வலப்புறம் உண்மை அளவில் வரையப்பட்ட சைக்ளோட்ரான் உள்ளது. சுற்றிப் பாருங்கள். ஒளிரும் புள்ளிகள் தொடு இடங்கள்; ஒன்றைப் பார்த்தால் அதைப் பற்றிப் படிக்கலாம்.')},
+ {st:'circ',tag:'real',dur:13,set:{sp:'p',B:.1,v:1e6},reset:true,
+  t:L('A proton moves at one million metres per second into a magnetic field of 0.1 tesla pointing up. The magnetic force F = q v × B is always at right angles to the velocity, so the proton turns in a circle at constant speed. The magnetic force does no work.','ஒரு புரோட்டான் வினாடிக்கு பத்து இலட்சம் மீட்டர் வேகத்தில், மேல்நோக்கிய 0.1 டெஸ்லா காந்தப்புலத்தில் நுழைகிறது. காந்த விசை F = q v × B எப்போதும் திசைவேகத்திற்குச் செங்குத்து; எனவே புரோட்டான் மாறா வேகத்தில் வட்டத்தில் திரும்புகிறது. காந்த விசை வேலை செய்வதில்லை.')},
+ {st:'circ',tag:'real',dur:16,set:{sp:'p',B:.1,v:2e6},reset:true,
+  t:L('Now the speed is doubled. The radius r = m v / q B doubles, but the time for one circle, T = 2π m / q B, stays the same. Check the readout: the period has not changed. This is why the cyclotron works.','இப்போது வேகம் இருமடங்காகிறது. ஆரம் r = m v / q B இருமடங்காகிறது; ஆனால் ஒரு சுற்றுக்கான காலம் T = 2π m / q B மாறாமல் இருக்கிறது. அளவீட்டைப் பாருங்கள்: காலம் மாறவில்லை. இதனால்தான் சைக்ளோட்ரான் வேலை செய்கிறது.')},
+ {st:'circ',tag:'real',dur:14,set:{sp:'e',B:.005,v:1e7},reset:true,
+  t:L('Replace the proton with an electron. It turns the opposite way because its charge is negative, and for the same speed and field the circle is far smaller because the electron is about 1800 times lighter.','புரோட்டானுக்குப் பதிலாக எலக்ட்ரானை வையுங்கள். அதன் மின்னூட்டம் எதிர்மம் என்பதால் எதிர்த்திசையில் திரும்புகிறது; அதே வேகம், புலத்திற்கு எலக்ட்ரான் சுமார் 1800 மடங்கு இலேசானது என்பதால் வட்டம் மிகச் சிறியது.')},
+ {st:'helix',tag:'real',dur:16,set:'ex321',reset:true,
+  t:L('When the velocity has a part along the field as well, the particle moves in a helix. This is the textbook example 3.21: a proton in 0.5 tesla with 2.00 and 1.95 times ten to the five metres per second. The radius is 4.18 millimetres and the pitch is 25.5 millimetres; read them in the panel.','திசைவேகத்திற்கு புலத்தின் வழியே ஒரு கூறும் இருந்தால் துகள் சுருள் பாதையில் இயங்கும். இது பாடநூல் எடுத்துக்காட்டு 3.21: 0.5 டெஸ்லாவில் புரோட்டான், கூறுகள் 2.00 மற்றும் 1.95 × 10⁵ மீ/வி. ஆரம் 4.18 மில்லிமீட்டர், ஏற்றம் 25.5 மில்லிமீட்டர்; அளவீட்டுப் பலகையில் காணலாம்.')},
+ {st:'exb',tag:'real',dur:16,set:'ex322',reset:true,
+  t:L('Now add an electric field at right angles to the magnetic field. This is the velocity selector of textbook example 3.22, with E equal to 6 million newtons per coulomb and B equal to 0.83 tesla. An electron accelerated through 200 volts moves faster than E over B, so the magnetic force wins and it bends.','இப்போது காந்தப்புலத்திற்குச் செங்குத்தாக மின்புலத்தைச் சேர்ப்போம். இது பாடநூல் எடுத்துக்காட்டு 3.22 இன் திசைவேகத் தேர்வி; E = 60 இலட்சம் நியூட்டன்/கூலூம், B = 0.83 டெஸ்லா. 200 வோல்ட்டில் முடுக்கப்பட்ட எலக்ட்ரான் E/B ஐ விட வேகமாக இயங்குவதால் காந்த விசை வென்று அது வளைகிறது.')},
+ {st:'exb',tag:'real',dur:14,set:{vsel:7.23e6},reset:true,
+  t:L('Reduce the speed to E over B, which is 7.23 million metres per second. The two forces cancel and the electron goes straight. Only this speed passes, whatever the charge or mass. That is the condition v equals E over B, equation 3.62.','வேகத்தை E/B ஆகக், அதாவது 72.3 இலட்சம் மீ/வி ஆகக் குறையுங்கள். இரு விசைகளும் சமமாகி எலக்ட்ரான் நேராகச் செல்கிறது. மின்னூட்டம், நிறை எதுவானாலும் இந்த வேகம் மட்டுமே செல்லும். இதுவே v = E/B நிபந்தனை, சமன்பாடு 3.62.')},
+ {st:'lab',tag:'mix',dur:8,set:null,reset:true,
+  t:L('Now the cyclotron. Two D-shaped hollow metal dees sit in a vacuum between the poles of an electromagnet. The magnetic field is vertical. An oscillating voltage is applied across the narrow gap. Look at the hotspots to meet each part.','இப்போது சைக்ளோட்ரான். மின்காந்தத்தின் துருவங்களுக்கிடையே வெற்றிடத்தில் இரு D வடிவ உள்ளீடற்ற உலோக டீகள் உள்ளன. காந்தப்புலம் செங்குத்தானது. குறுகிய இடைவெளியின் குறுக்கே அலையும் மின்னழுத்தம் தரப்படுகிறது. ஒவ்வொரு பகுதியையும் அறிய தொடு இடங்களைப் பாருங்கள்.')},
+ {st:'cyc',tag:'real',dur:30,set:{csp:'p',cB:1,cV:100e3,cdet:0,cspd:1.2},reset:true,
+  t:L('Protons start at the centre. In the gap the electric field pushes them. Inside a dee they follow a semicircle. By the time they return to the gap, the oscillator has reversed the field, so they are pushed again. Every crossing adds energy, the speed rises, and the radius grows, so the path is a spiral. The oscillator frequency matches f equals q B over 2 pi m, which is 15.2 megahertz here.','புரோட்டான்கள் மையத்தில் தொடங்குகின்றன. இடைவெளியில் மின்புலம் அவற்றைத் தள்ளுகிறது. டீக்குள் அவை அரைவட்டத்தில் செல்கின்றன. இடைவெளிக்குத் திரும்பும்போது அலைவி புலத்தை மாற்றியிருக்கும்; எனவே மீண்டும் தள்ளப்படுகின்றன. ஒவ்வொரு கடப்பிலும் ஆற்றல் கூடுகிறது, வேகம் உயர்கிறது, ஆரம் வளர்கிறது; எனவே பாதை சுருளாகிறது. அலைவியின் அதிர்வெண் f = q B / 2π m க்குச் சமம்; இங்கு அது 15.2 மெகாஹெர்ட்ஸ்.')},
+ {st:'cyctop',tag:'real',dur:30,set:{csp:'p',cB:1,cV:100e3,cdet:0,cspd:.8},reset:true,
+  t:L('From above you can see the spiral clearly. The kinetic energy is q squared B squared r squared over 2 m, equation 3.64. At the edge the beam leaves along a tangent and hits the target. Read the final energy in the panel and compare it with the limit set by the dee radius.','மேலிருந்து சுருளைத் தெளிவாகக் காணலாம். இயக்க ஆற்றல் q² B² r² / 2m, சமன்பாடு 3.64. விளிம்பில் கற்றை தொடுகோட்டில் வெளியேறி இலக்கைத் தாக்குகிறது. இறுதி ஆற்றலை அளவீட்டுப் பலகையில் படித்து, டீ ஆரம் தரும் உச்ச வரம்புடன் ஒப்பிடுங்கள்.')},
+ {st:'cyctop',tag:'real',dur:40,set:{csp:'p',cB:1,cV:100e3,cdet:2,cspd:.5},reset:true,
+  t:L('Now detune the oscillator by two percent. The ions arrive at the gap a little late each turn, and soon the field pushes them backwards. The energy rises and then falls, and the beam never reaches the edge. Resonance is essential.','இப்போது அலைவியை இரண்டு சதவீதம் விலகச் செய்வோம். அயனிகள் ஒவ்வொரு சுற்றிலும் சற்றுத் தாமதமாக இடைவெளியை அடைகின்றன; விரைவில் புலம் அவற்றைப் பின்னோக்கித் தள்ளுகிறது. ஆற்றல் உயர்ந்து பின் குறைகிறது; கற்றை விளிம்பை அடைவதே இல்லை. அதிர்வு நிலை அவசியம்.')},
+ {st:'cyc',tag:'real',dur:30,set:{csp:'d',cB:1,cV:100e3,cdet:0,cspd:1.2},reset:true,
+  t:L('Choose the deuteron, which has the same charge as a proton but twice the mass. The required frequency is halved to 7.6 megahertz and the final energy is half as large for the same dee radius. Neutral particles cannot be accelerated, and electrons are unsuitable because their mass changes at high speed. These are the limitations on page 175.','டியூட்ரானைத் தேர்ந்தெடுங்கள்; அதற்குப் புரோட்டான் மின்னூட்டமே, நிறை இருமடங்கு. தேவையான அதிர்வெண் பாதியாகி 7.6 மெகாஹெர்ட்ஸ் ஆகிறது; அதே டீ ஆரத்திற்கு இறுதி ஆற்றலும் பாதி. நடுநிலைத் துகள்களை முடுக்க இயலாது; எலக்ட்ரான்கள் அதிக வேகத்தில் நிறை மாறுவதால் ஏற்றவை அல்ல. இவை பக்கம் 175 இல் உள்ள வரம்புகள்.')},
+ {st:'lab',tag:'mix',dur:7,set:null,reset:false,
+  t:L('That is the end of the guided tour. Use the menu below you to explore freely, change the parameters, or take the quiz. Remove the headset and rest your eyes for a few minutes.','வழிகாட்டிப் பயணம் முடிந்தது. கீழேயுள்ள பட்டியலைக் கொண்டு சுதந்திரமாக ஆராயலாம், அளவுருக்களை மாற்றலாம் அல்லது வினாடி வினாவை எடுக்கலாம். கண்ணாடியை அகற்றி சில நிமிடங்கள் கண்களுக்கு ஓய்வு கொடுங்கள்.')}
+];
+/* ---------------- scene ---------------- */
+M8.init=function(E,o){
+  var self=M8,S=self.S={station:0,vals:{},cyc:null,demo:null,t:0,speedMul:1,quality:E.quality};self.E=E;
+  self.params.forEach(function(p){S.vals[p.id]=p.def});
+  var geo={sph:E.geom(function(){var m=new Mesh();m.sphere(V.mid(),[1,1,1],[0,30,1],12);return m}()),
+    sphHi:E.geom(function(){var m=new Mesh();m.sphere(V.mid(),[1,1,1],[0,30,1],18);return m}()),
+    cyl:E.geom(function(){var m=new Mesh();m.cyl(V.mid(),[1,1,1],[0,30,0],10,1,true);return m}()),
+    tube:E.geom(function(){var m=new Mesh();m.cyl(V.mid(),[1,1,1],[0,30,1],5,1,false);return m}()),
+    cone:E.geom(function(){var m=new Mesh();m.cyl(V.mid(),[1,1,1],[0,30,0],10,0,true);return m}())};
+  self.geo=geo;E.fog.d=.028;
+  buildRoom(E,self);buildDemo(E,self,geo);buildCyclotron(E,self,geo);
+  /* hotspots */
+  self.hot=[];self.hotInst=E.inst(geo.sph,24);self.hotInst.blend=true;self.hotInst.alpha=.9;
+  self.hotLabels={};
+  self.hotspots.forEach(function(h,i){var o2={id:'hot:'+h.id,pos:h.pos?h.pos.slice():CC.slice(),r:.16,vis:false,def:h};E.hot.push(o2);h._o=o2;
+    var lab=E.label(h.name.en,{w:.55,px:34,W:520,bg:'rgba(10,20,34,.82)',pad:14,r:14,order:6});lab.vis=false;lab._en=h.name.en;h._lab=lab});
+  self.setStationVis();
+  self.recomputeDemo();
+};
+function mat(m,s,e){return[m,s,e||0]}
+function buildRoom(E,self){
+  /* floor / walls textures */
+  function cv(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
+  var f=cv(256,256),x=f.getContext('2d');x.fillStyle='#8d949a';x.fillRect(0,0,256,256);x.fillStyle='#7d858c';x.fillRect(0,0,128,128);x.fillRect(128,128,128,128);
+  for(var i=0;i<900;i++){x.fillStyle='rgba(255,255,255,'+Math.random()*.05+')';x.fillRect(Math.random()*256,Math.random()*256,2,2)}x.strokeStyle='#3d4247';x.lineWidth=3;x.strokeRect(0,0,256,256);x.beginPath();x.moveTo(128,0);x.lineTo(128,256);x.moveTo(0,128);x.lineTo(256,128);x.stroke();
+  E.addQuad({tex:E.texFromCanvas(f,true),flat:true,pos:[-0.5,0,0],w:14,h:10,rep:[14/1.0,10/1.0],yaw:0,order:0,lit:1});
+  var w=cv(512,512),y=w.getContext('2d');y.fillStyle='#c9cfc9';y.fillRect(0,0,512,512);y.fillStyle='#6f8a86';y.fillRect(0,256,512,256);y.fillStyle='#d8dcd6';y.fillRect(0,250,512,8);
+  for(i=0;i<2500;i++){y.fillStyle='rgba(0,0,0,'+Math.random()*.04+')';y.fillRect(Math.random()*512,Math.random()*512,2,2)}
+  var wt=E.texFromCanvas(w,true);
+  E.addQuad({tex:wt,pos:[-0.5,1.8,-5],w:14,h:3.6,rep:[5,1.2],order:0,lit:1});
+  E.addQuad({tex:wt,pos:[-7.5,1.8,0],w:10,h:3.6,rep:[3.5,1.2],yaw:PI/2,order:0,lit:1});
+  E.addQuad({tex:wt,pos:[6.5,1.8,0],w:10,h:3.6,rep:[3.5,1.2],yaw:-PI/2,order:0,lit:1});
+  E.addQuad({tex:wt,pos:[-0.5,1.8,5],w:14,h:3.6,rep:[5,1.2],yaw:PI,order:0,lit:1});
+  /* blackboard with chalk notes */
+  var b=cv(1024,512),z=b.getContext('2d');z.fillStyle='#233b34';z.fillRect(0,0,1024,512);z.strokeStyle='#8b6b43';z.lineWidth=16;z.strokeRect(8,8,1008,496);
+  z.fillStyle='rgba(255,255,255,.9)';z.font='600 46px "Segoe UI",sans-serif';var L1=['F = q (E + v × B)','r = m v / q B          T = 2π m / q B','f = q B / 2π m          v = E / B','KE = q² B² r² / 2m'];
+  L1.forEach(function(s,i){z.fillText(s,60,100+i*95)});z.font='500 30px "Segoe UI",sans-serif';z.fillStyle='rgba(255,230,150,.9)';z.fillText('Class 12 Physics · Unit 3 · pp. 170–176',60,470);
+  E.addQuad({tex:E.texFromCanvas(b),pos:[-0.5,1.75,-4.97],w:4.4,h:2.2,order:1,lit:1});
+  /* ceiling, light panels, door frame */
+  var m=new Mesh();m.box(V.mul(V.mtr(-0.5,3.65,0),V.msc(14,.1,10)),[.82,.83,.85],mat(0,10));
+  [-4,0,4].forEach(function(px){[-2.5,1.5].forEach(function(pz){m.box(V.mul(V.mtr(px,3.58,pz),V.msc(1.6,.04,.5)),[1,1,.95],mat(0,10,1.2))})});
+  /* bench for demo pedestal and for cyclotron */
+  var wood=[.62,.45,.3],steel=[.62,.64,.68];
+  m.box(V.mul(V.mtr(ZB[0],.77,ZB[2]),V.msc(2.2,.06,1.7)),wood,mat(0,20));
+  [[-1,-.75],[1,-.75],[-1,.75],[1,.75]].forEach(function(l){m.box(V.mul(V.mtr(ZB[0]+l[0]*1.0,.37,ZB[2]+l[1]),V.msc(.07,.74,.07)),steel,mat(.8,60))});
+  m.cyl(V.mul(V.mtr(ZA[0],.45,ZA[2]),V.msc(.5,.9,.5)),[.5,.52,.56],mat(.6,40),24,.92,true);
+  m.cyl(V.mul(V.mtr(ZA[0],.93,ZA[2]),V.msc(.78,.06,.78)),[.7,.72,.76],mat(.85,70),32,1,true);
+  /* cube frame */
+  var h=.8,cr=[.8,.86,.95];var C=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+  [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(function(e){var a=V.vadd(CC,V.vmul(C[e[0]],h)),c=V.vadd(CC,V.vmul(C[e[1]],h));m.cyl(V.mseg(a,c,.012),cr,mat(.9,80,.25),6,1,false)});
+  /* floor lines under cube */
+  m.cyl(V.mul(V.mtr(CC[0],.965,CC[2]),V.msc(.8,.006,.8)),[.1,.25,.4],mat(0,10,.3),32,1,true);
+  self.room=E.staticMesh(m);
+}
+function buildDemo(E,self,geo){
+  var D=self.demo={};
+  D.part=E.inst(geo.sphHi,1);D.halo=E.inst(geo.sph,1);D.halo.blend=true;D.halo.alpha=.28;
+  D.trail=E.inst(geo.tube,360);
+  D.bArrows=arrowSet(E,self,64);D.vArrow=arrowSet(E,self,1);D.fArrow=arrowSet(E,self,1);D.eArrows=arrowSet(E,self,18);
+  D.stBar=null;
+  /* plates for E field (not to scale) */
+  var m=new Mesh();m.box(V.mul(V.mtr(CC[0],CC[1]+.8,CC[2]),V.msc(1.5,.03,1.5)),[.8,.2,.2],mat(.7,60,.25));m.box(V.mul(V.mtr(CC[0],CC[1]-.8,CC[2]),V.msc(1.5,.03,1.5)),[.2,.3,.8],mat(.7,60,.25));
+  /* plates are drawn vertical for the E field along x: left (+) and right (-) */
+  var m2=new Mesh();m2.box(V.mul(V.mtr(CC[0]-.8,CC[1],CC[2]),V.msc(.03,1.5,1.5)),[.85,.25,.25],mat(.7,60,.3));m2.box(V.mul(V.mtr(CC[0]+.8,CC[1],CC[2]),V.msc(.03,1.5,1.5)),[.25,.35,.85],mat(.7,60,.3));
+  D.plates=E.staticMesh(m2);D.plates.vis=false;
+  D.scaleLab=E.label('',{w:1.5,px:34,W:900,bg:'rgba(10,20,34,.85)',pad:14,r:14,order:6,billboard:true});D.scaleLab.pos=[CC[0],CC[1]+1.2,CC[2]];
+  D.pLabels=[E.label('+  +  +  +',{w:.5,px:44,W:400,bg:null,color:'#ff8a80',order:6}),E.label('−  −  −  −',{w:.5,px:44,W:400,bg:null,color:'#8ab4ff',order:6})];
+  D.pLabels[0].pos=[CC[0]-.8,CC[1]+.88,CC[2]];D.pLabels[1].pos=[CC[0]+.8,CC[1]+.88,CC[2]];D.pLabels[0].vis=D.pLabels[1].vis=false;
+  D.tick=0;D.ring=[];D.rn=0;D.Z=1;D.F=1;D.hold=0;
+  D.cf=E.label('B ↑',{w:.28,px:56,W:200,bg:null,color:'#8fc7ff',order:6});D.cf.pos=[CC[0]+.7,CC[1]+.82,CC[2]+.7];
+}
+/* arrow set: shaft+head instanced */
+function arrowSet(E,self,max){var A={max:max,n:0,shaft:E.inst(self.geo.cyl,max),head:E.inst(self.geo.cone,max),col:[1,1,1,1]};A.shaft.vis=A.head.vis=false;return A}
+function arrowPut(A,k,a,b,r,col){var d=V.vsub(b,a),L=V.vlen(d);if(L<1e-6){A.shaft.put(k,V.msc(0,0,0),[0,0,0,0]);A.head.put(k,V.msc(0,0,0),[0,0,0,0]);return}
+  var hl=Math.min(L*.4,r*5),hb=V.vadd(a,V.vmul(V.vnorm(d),L-hl));A.shaft.put(k,V.mseg(a,hb,r),col);A.head.put(k,V.mseg(hb,b,r*2.4),col)}
+function arrowEnd(A,n,vis){A.n=n;A.shaft.n=A.head.n=n;A.shaft.dirty=A.head.dirty=true;A.shaft.vis=A.head.vis=vis}
+function buildCyclotron(E,self,geo){
+  var m=new Mesh(),cu=[.78,.46,.28],iron=[.28,.3,.34],brass=[.8,.65,.3],white=[.9,.9,.88],R=.41,g=.008;
+  var X=ZB[0],Z=ZB[2];function T(x,y,z){return V.mtr(X+x,y,Z+z)}
+  /* iron yoke + lower pole */
+  m.box(V.mul(T(0,.88,0),V.msc(1.7,.14,1.5)),iron,mat(.55,30));
+  m.box(V.mul(T(0,.88+.34,-.74),V.msc(1.7,.8,.1)),iron,mat(.55,30));/* back plate of the yoke */
+  m.cyl(V.mul(T(0,.94,0),V.msc(.55,.12,.55)),[.5,.52,.56],mat(.85,80),48,1,true);/* lower pole piece */
+  /* lower coil: stacked copper rings around pole */
+  for(var li=0;li<3;li++)for(var ri=0;ri<5;ri++)m.torus(V.mul(T(0,.9+li*.032,0),V.mrx(0)),.62+ri*.034,.016,cu,mat(.9,80),48,6);
+  /* vacuum tank wall (metal flanges; the wall itself is a ghost) */
+  m.torus(V.mul(T(0,1.0,0),V.mrx(0)),.64,.018,[.7,.72,.76],mat(.95,90),48,8);m.torus(V.mul(T(0,1.22,0),V.mrx(0)),.64,.018,[.7,.72,.76],mat(.95,90),48,8);
+  /* dees: D-shaped hollow boxes, open top (lid shown as ghost) */
+  var th0=Math.acos((g/2)/R),N=32,poly=[],polyL=[];
+  for(var k=0;k<=N;k++){var a=-th0+2*th0*k/N;poly.push([R*Math.cos(a),R*Math.sin(a)])}
+  for(k=0;k<=N;k++){var a2=PI-th0+2*th0*k/N;polyL.push([R*Math.cos(a2),R*Math.sin(a2)])}
+  /* right dee uses x>=g/2: clip origin side flat edge at x=g/2 */
+  var polyR=poly.map(function(p){return[p[0],p[1]]}),y0=PY-.03,y1=PY+.03;
+  /* extrude() draws closed shells; use two dee instances for polarity tint: build them as separate meshes */
+  var dmL=new Mesh(),dmR=new Mesh();
+  dmR.extrude(polyR,y0,y1,cu,mat(.9,90,.12),V.mtr(X,0,Z),true,false);dmL.extrude(polyL,y0,y1,cu,mat(.9,90,.12),V.mtr(X,0,Z),true,false);
+  self.deeR=E.staticMesh(dmR);self.deeL=E.staticMesh(dmL);
+  /* dee stems, ceramic insulators, cables to the oscillator */
+  [[1,0],[-1,0]].forEach(function(s,i){var sx=s[0];m.cyl(V.mseg([X+sx*R,PY,Z],[X+sx*.78,PY,Z],.022),cu,mat(.9,80),10,1,true);m.cyl(V.mseg([X+sx*.78,PY,Z],[X+sx*.93,PY,Z],.05),white,mat(.1,30),14,1,true);
+    for(var q=0;q<3;q++)m.cyl(V.mseg([X+sx*(.80+q*.04),PY,Z],[X+sx*(.81+q*.04),PY,Z],.065),white,mat(.1,30),14,1,true)});
+  var cab=[ZB[0]+1.55,.8+.45,ZB[2]];m.box(V.mul(V.mtr(cab[0],cab[1]-.5+.1,cab[2]),V.msc(.65,1.2,.7)),[.18,.2,.24],mat(.4,40));
+  /* cables: right dee -> cabinet, left dee -> cabinet (around the back) */
+  function cable(pts,col){var P=[];for(var k=0;k<pts.length-1;k++){for(var s=0;s<8;s++){var t=s/8;P.push(V.vadd(pts[k],V.vmul(V.vsub(pts[k+1],pts[k]),t)))}}P.push(pts[pts.length-1]);m.tube(P,.012,col,mat(0,20),6)}
+  cable([[X+.93,PY,Z],[X+1.12,PY,Z],[X+1.2,1.0,Z],[X+1.25,1.4,Z]],[.65,.12,.1]);
+  cable([[X-.93,PY,Z],[X-1.0,PY,Z],[X-1.0,PY,Z-.9],[X+.5,PY,Z-.95],[X+1.2,1.0,Z-.4],[X+1.25,1.5,Z-.15]],[.1,.2,.65]);
+  /* oscillator front: dial and indicator */
+  m.cyl(V.mul(V.mtr(cab[0]-.331,cab[1]+.1,cab[2]),V.mul(V.mrz(PI/2),V.msc(.24,.03,.24))),[.9,.9,.85],mat(.2,30),24,1,true);
+  m.box(V.mul(V.mtr(cab[0]-.331,cab[1]-.2,cab[2]),V.msc(.02,.2,.45)),[.05,.18,.1],mat(.3,60,.35));
+  /* ion source chimney and gas line */
+  m.cyl(V.mul(T(0,PY+.045,0),V.msc(.05,.09,.05)),brass,mat(.9,80),16,.8,true);
+  m.cyl(V.mseg([X,PY,Z+.05],[X,PY,Z+.84],.012),[.15,.15,.16],mat(.1,20),8,1,true);
+  m.cyl(V.mul(T(.95,.83+.22,.84),V.msc(.15,.44,.15)),[.2,.35,.55],mat(.5,70),20,.98,true);m.cyl(V.mul(T(.95,.83+.46,.84),V.msc(.05,.06,.05)),brass,mat(.9,80),12,1,true);
+  /* vacuum pump and pipe */
+  m.cyl(V.mseg([X-.64,1.11,Z+.32],[X-1.15,1.11,Z+.32],.04),[.7,.72,.76],mat(.9,80),12,1,true);m.cyl(V.mseg([X-1.15,1.11,Z+.32],[X-1.15,.2,Z+.32],.04),[.7,.72,.76],mat(.9,80),12,1,true);
+  m.cyl(V.mul(V.mtr(X-1.15,.2,Z+.32),V.msc(.2,.4,.2)),[.25,.45,.35],mat(.4,40),20,1,true);m.box(V.mul(V.mtr(X-1.15,.2,Z+.65),V.msc(.3,.35,.3)),[.2,.22,.25],mat(.3,30));
+  /* gauge on the pump */
+  /* ceramic stand-offs for coils */
+  /* upper pole + coil (ghost) */
+  self.cycStatic=E.staticMesh(m);
+  var gm=new Mesh();gm.cyl(V.mul(T(0,1.28,0),V.msc(.55,.12,.55)),[.6,.65,.72],mat(.5,40),48,1,true);
+  for(li=0;li<3;li++)for(ri=0;ri<5;ri++)gm.torus(V.mul(T(0,1.32-li*.032+.02,0),V.mrx(0)),.62+ri*.034,.016,cu,mat(.9,80),32,6);
+  var gl=E.staticMesh(gm,{blend:true,alpha:.16});self.ghostUp=gl;
+  var tk=new Mesh();tk.cyl(V.mul(T(0,1.11,0),V.msc(.64,.22,.64)),[.7,.85,1],mat(.3,60),64,1,false,true);tk.cyl(V.mul(T(0,1.11,0),V.msc(.64,.22,.64)),[.7,.85,1],mat(.3,60),64,1,false);
+  self.tank=E.staticMesh(tk,{blend:true,alpha:.10});
+  var lid=new Mesh();lid.extrude(polyR,PY+.03,PY+.032,[.9,.6,.4],mat(.5,60),V.mtr(X,0,Z));lid.extrude(polyL,PY+.03,PY+.032,[.9,.6,.4],mat(.5,60),V.mtr(X,0,Z));
+  self.lids=E.staticMesh(lid,{blend:true,alpha:.12});
+  /* B field arrows between poles (blue), gap E arrows, particle, trail, target flash */
+  var C=self.cy={};C.bA=arrowSet(E,self,37);C.eA=arrowSet(E,self,9);C.part=E.inst(self.geo.sphHi,1);C.halo=E.inst(self.geo.sph,1);C.halo.blend=true;C.halo.alpha=.3;C.trail=E.inst(self.geo.tube,3600);C.flash=E.inst(self.geo.sph,1);C.flash.blend=true;C.flash.alpha=.7;
+  C.exitTrail=E.inst(self.geo.tube,40);C.rl=E.label('',{w:1.25,px:32,W:900,bg:'rgba(10,20,34,.85)',pad:14,r:14,order:6});C.rl.pos=[X,1.75,Z-.0];
+  C.freqLab=E.label('',{w:.9,px:34,W:560,bg:'rgba(10,20,34,.85)',pad:12,r:14,order:6});C.freqLab.pos=[cab[0],cab[1]+.85,cab[2]];
+  /* B arrows grid: radius up to 0.5 */
+  var bi=0;[[0,0],[.2,0],[-.2,0],[0,.2],[0,-.2],[.2,.2],[-.2,-.2],[.2,-.2],[-.2,.2],[.4,0],[-.4,0],[0,.4],[0,-.4],[.35,.3],[-.35,-.3],[.35,-.3],[-.35,.3]].forEach(function(p){
+    arrowPut(C.bA,bi++,[X+p[0],1.02,Z+p[1]],[X+p[0],1.2,Z+p[1]],.007,[.4,.65,1,1])});arrowEnd(C.bA,bi,true);
+  C.bA.shaft.vis=C.bA.head.vis=true;
+  self.cyReset=function(){var S=self.S,v=S.vals,sp=P.SPECIES[v.csp];S.cyc=P.cycNew(sp,v.cB,v.cV,v.cdet);S.cyc.trailN=0;S.cyc.lastP=[0,0,0];S.cyc.ptsN=0;S.cyc.flashT=0;S.cyc.hit=null;S.cyc.stallT=0;S.cyc.maxKE=0;C.trail.n=0;C.trail.dirty=true;C.exitTrail.n=0;C.exitTrail.dirty=true;C.flash.n=0;C.flash.dirty=true;S.cyc.wait=0};
+  self.cyReset();
+}
+/* ---------------- scale choice for the demonstration chamber ---------------- */
+M8.recomputeDemo=function(){var self=M8,S=self.S,v=S.vals,D=self.demo,st=self.stations[S.station].id;if(!(st==='circ'||st==='helix'||st==='exb'))return;
+  var sp=P.SPECIES[v.sp],B=v.B,Rw=.55,Tc=P.period(sp,B);
+  D.sp=sp;D.st=st;D.ring=[];D.hold=0;D.pend=false;D.Tc=Tc;D.pt={x:[0,0,0],v:[0,0,0],t:0};
+  if(st==='circ'||st==='helix'){var vp=st==='circ'?v.v:v.vperp,r=P.radius(sp,vp,B);D.r=r;
+    /* a_x = (q/m)(-vz B): the orbit centre lies on -x for q>0, +x for q<0 */
+    D.ctr=[(sp.q>0?-1:1)*r,0,0];D.pt.v=[0,st==='helix'?v.vpar:0,vp];
+    var zz=Rw/r;if(st==='helix'){var pit=P.pitch(sp,v.vpar,B);D.pitch=pit;if(pit>0)zz=Math.min(zz,1.35/(pit*2.4))}
+    D.Z=ser(zz);D.off=st==='helix'?[0,-.7,0]:[0,0,0]}
+  else{var vE=v.E/B,vmax=Math.max(v.vsel,vE),rg=P.radius(sp,vmax,B);D.vE=vE;D.r=rg;D.ctr=[0,0,0];D.pt.v=[0,0,v.vsel];
+    /* about 3 cycloid periods across the cube; amplitude within the cube */
+    D.Z=ser(Math.min(Rw/rg,.45/(vE*Tc)));D.off=[0,0,-.7]}
+  D.F=serUp(4.0/Tc);D.dtReal=Tc/400};
+/* ---------------- station visibility ---------------- */
+M8.setStationVis=function(){var self=M8,S=self.S,st=self.stations[S.station].id,D=self.demo,C=self.cy,isDemo=(st==='circ'||st==='helix'||st==='exb'),isCyc=(st==='cyc'||st==='cyctop'||st==='lab');
+  D.part.vis=D.halo.vis=D.trail.vis=isDemo;D.pLabels[0].vis=D.pLabels[1].vis=st==='exb';D.plates.vis=st==='exb';D.scaleLab.vis=isDemo;D.cf.vis=isDemo;
+  if(!isDemo){[D.bArrows,D.vArrow,D.fArrow,D.eArrows].forEach(function(A){A.shaft.vis=A.head.vis=false})}
+  C.part.vis=C.halo.vis=C.trail.vis=(st==='cyc'||st==='cyctop');C.exitTrail.vis=C.flash.vis=(st==='cyc'||st==='cyctop');C.rl.vis=(st==='cyc'||st==='cyctop');C.freqLab.vis=(st==='cyc'||st==='cyctop');
+  C.eA.shaft.vis=C.eA.head.vis=(st==='cyc'||st==='cyctop');C.bA.shaft.vis=C.bA.head.vis=true;
+  self.hotspots.forEach(function(h){var on=h.st.indexOf(st)>=0;h._o.vis=on});
+};
+M8.setStationFromIndex=function(i){M8.S.station=i;M8.setStationVis();M8.recomputeDemo()};
+M8.setParam=function(id,val){var self=M8,S=self.S;S.vals[id]=val;var st=self.stations[S.station].id;
+  if(st==='cyc'||st==='cyctop')self.cyReset();else self.recomputeDemo()};
+M8.applySet=function(set){if(!set)return;var self=M8;if(typeof set==='string')set=self.presets[set];for(var k in set)self.S.vals[k]=set[k];
+  var st=self.stations[self.S.station].id;if(st==='cyc'||st==='cyctop')self.cyReset();else self.recomputeDemo()};
+M8.reset=function(){var st=M8.stations[M8.S.station].id;if(st==='cyc'||st==='cyctop')M8.cyReset();else M8.recomputeDemo()};
+/* ---------------- per frame ---------------- */
+M8.update=function(dt,E){var self=M8,S=self.S,st=self.stations[S.station].id,t=E.time;
+  /* hotspot orbs */
+  var hi=self.hotInst,hn=0;self.hotspots.forEach(function(h){var o=h._o;var show=o.vis;h._lab.vis=false;if(!show)return;
+    var pulse=1+.18*Math.sin(t*3+hn),p=o.pos;hi.put(hn,V.mul(V.mtr(p[0],p[1],p[2]),V.msc(.04*pulse,.04*pulse,.04*pulse)),[.35,.95,1,1]);hn++;
+    var gz=E.gaze.id==='hot:'+h.id,near=false;if(E.mode!=='std'&&E.headPos){var d=V.vnorm(V.vsub(p,E.headPos)),f=E._headFwd||[0,0,-1];near=V.vdot(d,f)>.965}
+    if(gz||near||(E.mode==='std'&&E.hoverHot===o)){h._lab.vis=true;h._lab.pos=[p[0],p[1]+.2,p[2]];var nm=(self.lang==='ta'?h.name.ta:h.name.en);h._lab.set(nm)}});
+  hi.n=hn;hi.dirty=true;
+  if(st==='circ'||st==='helix'||st==='exb')self.updDemo(dt,E,st);else if(st==='cyc'||st==='cyctop'||st==='lab')self.updCyc(dt,E,st);
+  /* ambient tone from the oscillator (illustrative) */
+  if(S.cyc&&(st==='cyc'||st==='cyctop'||st==='lab')&&E.ac){var f=S.cyc.fo/15.25e6;E.tone('rf',[ZB[0]+1.55,1.3,ZB[2]],160+80*f,.035)}
+};
+M8.updDemo=function(dt,E,st){var self=M8,S=self.S,D=self.demo,v=S.vals;if(!D.pt||D.st!==st)return;var sp=D.sp,B=v.B,Ex=st==='exb'?v.E:0;
+  var adv=dt*S.speedMul/D.F,steps=Math.min(400,Math.max(1,Math.ceil(adv/D.dtReal))),hh=adv/steps;
+  if(D.hold>0){D.hold-=dt}else if(adv>0){var Ef=st==='exb'?function(){return Ex}:null;for(var i=0;i<steps;i++)P.rk4(sp,B,Ef,D.pt,hh)}
+  var x=D.pt.x,Z=D.Z,pw=[CC[0]+(x[0]-D.ctr[0])*Z+D.off[0],CC[1]+(x[1]-D.ctr[1])*Z+D.off[1],CC[2]+(x[2]-D.ctr[2])*Z+D.off[2]];D.curP=pw;
+  var lim=.82,out=Math.abs(pw[0]-CC[0])>lim||Math.abs(pw[1]-CC[1])>lim||Math.abs(pw[2]-CC[2])>lim;
+  if(out&&D.hold<=0&&!D.pend){D.hold=.9;D.pend=true}
+  if(D.pend&&D.hold<=0){D.pend=false;self.recomputeDemo();return}
+  var col=sp.col;D.part.setOne(V.mul(V.mtr(pw[0],pw[1],pw[2]),V.msc(.04,.04,.04)),[col[0],col[1],col[2],1]);
+  D.halo.setOne(V.mul(V.mtr(pw[0],pw[1],pw[2]),V.msc(.085,.085,.085)),[col[0],col[1],col[2],1]);
+  if(!out&&D.hold<=0){D.ring.push(pw.slice());if(D.ring.length>340)D.ring.shift()}
+  var n=0;for(var k=1;k<D.ring.length;k++){var age=k/D.ring.length,f=.25+.75*age;D.trail.put(n++,V.mseg(D.ring[k-1],D.ring[k],.005+.006*age),[col[0]*f,col[1]*f,col[2]*f,1])}D.trail.n=n;D.trail.dirty=true;
+  var vv=D.pt.v,spd=Math.hypot(vv[0],vv[1],vv[2]),vd=V.vnorm(vv),a=sp.q/sp.m,fx=a*(Ex-vv[2]*B),fz=a*(vv[0]*B),fl=Math.hypot(fx,fz);
+  arrowPut(D.vArrow,0,pw,V.vadd(pw,V.vmul(vd,.34)),.011,[.2,1,.4,1]);arrowEnd(D.vArrow,1,true);
+  if(fl>2e-3*Math.abs(a)*Math.max(Math.abs(Ex),spd*B)){var Fd=[fx/fl,0,fz/fl];arrowPut(D.fArrow,0,pw,V.vadd(pw,V.vmul(Fd,.3)),.011,[1,.3,.25,1]);arrowEnd(D.fArrow,1,true)}else arrowEnd(D.fArrow,1,false);
+  var bi=0;[-.45,0,.45].forEach(function(ix){[-.45,0,.45].forEach(function(iz){[-.5,.15,.8].forEach(function(iy){var p=[CC[0]+ix,CC[1]+iy-.2,CC[2]+iz];arrowPut(D.bArrows,bi++,p,[p[0],p[1]+.18,p[2]],.006,[.35,.6,1,1])})})});arrowEnd(D.bArrows,bi,true);
+  if(st==='exb'){var ei=0;[-.45,0,.45].forEach(function(iy){[-.45,0,.45].forEach(function(iz){var p=[CC[0]-.28,CC[1]+iy,CC[2]+iz];arrowPut(D.eArrows,ei++,p,[p[0]+.5,p[1],p[2]],.006,[.3,.95,.4,1])})});arrowEnd(D.eArrows,ei,true)}else arrowEnd(D.eArrows,0,false);
+  var tr=P.fmt(1/Z,'m',2),fx_=D.F.toExponential(0).replace('e+','×10^');
+  D.scaleLab.set(self.lang==='ta'?('அளவு: இங்கு 1 m = உண்மையில் '+tr+' · நேரம் '+fx_+' மடங்கு மெதுவு'):('Scale: 1 m here = '+tr+' real · time slowed '+fx_+' times'));
+  var o=S.read={sp:sp,Z:Z,F:D.F,disp:D.Tc*D.F};
+  if(st==='circ'){o.r=P.radius(sp,v.v,B);o.T=D.Tc;o.f=P.freq(sp,B);o.v=spd;o.ke=P.ke(sp,spd)}
+  else if(st==='helix'){o.r=P.radius(sp,v.vperp,B);o.T=D.Tc;o.pitch=P.pitch(sp,v.vpar,B);o.f=P.freq(sp,B);o.v=spd}
+  else{o.vE=v.E/B;o.v=v.vsel;o.V=sp.m*v.vsel*v.vsel/(2*Math.abs(sp.q));o.FE=Math.abs(sp.q)*v.E;o.FB=Math.abs(sp.q)*v.vsel*B;o.ratio=v.vsel/(v.E/B)}
+  var hp=self.hotspots.filter(function(h){return h.id==='h_part'})[0];if(hp)hp._o.pos=[pw[0],pw[1]+.12,pw[2]]};
+M8.updCyc=function(dt,E,st){var self=M8,S=self.S,C=self.cy,cy=S.cyc,v=S.vals;if(!cy)return;
+  var X=ZB[0],Z=ZB[2],h=cy.T/600,adv=dt*S.speedMul*cy.T/v.cspd,steps=Math.min(900,Math.ceil(adv/h));
+  var doRun=!cy.exited&&(cy.wait<=0);if(cy.wait>0)cy.wait-=dt;
+  if(doRun&&adv>0){var hh=adv/Math.max(steps,1);for(var i=0;i<steps;i++){P.cycStep(cy,hh);
+    var p=cy.S.x,lp=cy.lastP;if(Math.hypot(p[0]-lp[0],p[2]-lp[2])>.016||cy.exited){C.trailPts=C.trailPts||[];self.cyAddPt(cy,[p[0],p[2]]);cy.lastP=p.slice()}
+    var K=P.ke(cy.sp,Math.hypot(cy.S.v[0],cy.S.v[2]));if(K>cy.maxKE)cy.maxKE=K;if(cy.exited)break}}
+  /* stall detection (detuned): energy has fallen well below the maximum reached */
+  var Kn=P.ke(cy.sp,Math.hypot(cy.S.v[0],cy.S.v[2]));
+  if(!cy.exited&&cy.S.t>40*cy.T&&Kn<.2*cy.maxKE&&cy.maxKE>0){cy.stalled=true}
+  if(!cy.exited&&cy.S.t>260*cy.T){cy.stalled=true}
+  if(cy.exited&&!cy.hit){/* straight line from exit point to the target ring (r=0.60) */
+    var e=cy.exit,vx=e.v[0],vz=e.v[2],vl=Math.hypot(vx,vz),ux=vx/vl,uz=vz/vl,b=e.x[0]*ux+e.x[2]*uz,c=e.x[0]*e.x[0]+e.x[2]*e.x[2]-.6*.6,tt=-b+Math.sqrt(b*b-c);cy.hit=[e.x[0]+ux*tt,e.x[2]+uz*tt];cy.flashT=0;cy.exitAnim=0;
+    var pts=[];for(var s=0;s<=24;s++){pts.push([e.x[0]+ux*tt*s/24,e.x[2]+uz*tt*s/24])}cy.exitPts=pts}
+  if(cy.exited){cy.exitAnim=(cy.exitAnim||0)+dt*S.speedMul;cy.flashT+=dt;if(cy.flashT>7){cy.wait=0.2;self.cyReset();return}}
+  if(cy.stalled&&!cy.exited){cy.stallT=(cy.stallT||0)+dt;if(cy.stallT>6){self.cyReset();return}}
+  var sp=cy.sp,col=sp.col,px=cy.exited?(cy.exitPts?cy.exitPts[Math.min(24,Math.floor(Math.min(1,cy.exitAnim/.5)*24))]:[cy.S.x[0],cy.S.x[2]]):[cy.S.x[0],cy.S.x[2]];
+  var wp=[X+px[0],PY,Z+px[1]];
+  C.part.setOne(V.mul(V.mtr(wp[0],wp[1],wp[2]),V.msc(.018,.018,.018)),[col[0],col[1],col[2],1]);C.halo.setOne(V.mul(V.mtr(wp[0],wp[1],wp[2]),V.msc(.04,.04,.04)),[col[0],col[1],col[2],1]);
+  if(cy.exited&&cy.exitPts){var n=0,k2=Math.min(24,Math.floor(Math.min(1,cy.exitAnim/.5)*24));for(var q=1;q<=k2;q++){var a=cy.exitPts[q-1],b2=cy.exitPts[q];C.exitTrail.put(n++,V.mseg([X+a[0],PY,Z+a[1]],[X+b2[0],PY,Z+b2[1]],.005),[col[0],col[1],col[2],1])}C.exitTrail.n=n;C.exitTrail.dirty=true;
+    if(k2>=24){var f=1+.5*Math.sin(cy.flashT*14),hp=cy.hit;C.flash.setOne(V.mul(V.mtr(X+hp[0],PY,Z+hp[1]),V.msc(.07*f,.07*f,.07*f)),[1,.95,.6,1])}}
+  /* gap field arrows: sign and size follow E(t) */
+  var ph=Math.cos(2*PI*cy.fo*cy.S.t+cy.phi),ei=0,sgn=ph>=0?1:-1;[-.32,-.24,-.16,-.08,0,.08,.16,.24,.32].forEach(function(zz){var L=.03+.12*Math.abs(ph);var a=[X-sgn*L/2,PY+.05,Z+zz],b=[X+sgn*L/2,PY+.05,Z+zz];arrowPut(C.eA,ei++,a,b,.005,[.3,.95,.4,.95])});arrowEnd(C.eA,ei,true);
+  /* dee polarity tint: field +x means left dee is at the higher potential */
+  var amp=Math.abs(ph);self.deeL.data[19]=self.deeR.data[19]=1;
+  /* dee tints: positive -> warm, negative -> cool */
+  self.deeL.data[16]=sgn>0?1+.45*amp:1-.3*amp;self.deeL.data[17]=1;self.deeL.data[18]=sgn>0?1-.3*amp:1+.5*amp;
+  self.deeR.data[16]=sgn>0?1-.3*amp:1+.45*amp;self.deeR.data[17]=1;self.deeR.data[18]=sgn>0?1+.5*amp:1-.3*amp;self.deeL.dirty=self.deeR.dirty=true;
+  /* trail instance sync */
+  if(cy.trailDirty){var N=Math.min(cy.trailSegs.length,3600);for(var j=cy.synced||0;j<N;j++){var sg=cy.trailSegs[j];C.trail.data.set(sg.m,j*20);C.trail.data[j*20+16]=sg.c[0];C.trail.data[j*20+17]=sg.c[1];C.trail.data[j*20+18]=sg.c[2];C.trail.data[j*20+19]=1}C.trail.n=N;C.trail.dirty=true;cy.synced=N;cy.trailDirty=false}
+  /* live numbers */
+  var vv=Math.hypot(cy.S.v[0],cy.S.v[2]),r=P.radius(sp,vv,cy.B),o=S.read={};o.fc=cy.fc;o.fo=cy.fo;o.T=cy.T;o.KE=P.ke(sp,vv);o.r=r;o.turns=cy.n/2;o.KEmax=P.kemax(sp,cy.B,cy.R);o.KEfinal=cy.exited?cy.exit.KE:null;o.exited=cy.exited;o.stalled=!!cy.stalled;o.detune=v.cdet;o.sp=sp;o.R=cy.R;o.maxKE=cy.maxKE;
+  o.slow=cy.T/v.cspd;
+  var tx=self.lang==='ta'?
+    ('ஆற்றல் '+P.fmt(o.KE/1.602e-13*1e6,'eV',3)+'  ·  r = '+(r*100).toFixed(1)+' cm  ·  சுற்றுகள் '+Math.floor(o.turns)):
+    ('KE '+P.fmt(o.KE/1.602e-19,'eV',3)+'  ·  r = '+(r*100).toFixed(1)+' cm  ·  turns '+Math.floor(o.turns));
+  C.rl.set(tx);C.rl.pos=[X,st==='cyctop'?1.7:1.78,Z-.1];
+  var ft=(self.lang==='ta'?'அலைவி ':'Oscillator ')+P.fmt(cy.fo,'Hz',4)+(self.lang==='ta'?'\nதேவை f = qB/2πm: ':'\nResonance f = qB/2πm: ')+P.fmt(cy.fc,'Hz',4);C.freqLab.set(ft)};
+M8.cyAddPt=function(cy,p){cy.trailSegs=cy.trailSegs||[];var self=M8,X=ZB[0],Z=ZB[2],col=cy.sp.col;
+  if(cy.prevW){var a=cy.prevW,b=[X+p[0],PY,Z+p[1]];cy.trailSegs.push({m:V.mseg(a,b,.0035),c:[col[0]*.9,col[1]*.9,col[2]*.9]});cy.trailDirty=true}cy.prevW=[X+p[0],PY,Z+p[1]]};
+
+/* live readouts for the HTML panel (formulas quoted with the textbook equation numbers) */
+M8.readout=function(lang){var self=M8,S=self.S,o=S.read||{},st=self.stations[S.station].id,ta=lang==='ta',F=P.fmt,R=[];function row(k,kt,val,eq){R.push({k:ta?kt:k,v:val,eq:eq||''})}
+  if(st==='lab'||!o.sp&&st!=='cyc'&&st!=='cyctop'){return[{k:ta?'குறிப்பு':'Note',v:ta?'நிலையத்தைத் தேர்ந்தெடுத்து சோதனை செய்யுங்கள்':'Choose a station to start experimenting',eq:''}]}
+  var sp=o.sp;if(sp)row('Particle','துகள்',ta?sp.ta:sp.en);
+  if(st==='circ'){row('Radius r = mv/qB','ஆரம் r = mv/qB',F(o.r,'m',3),'(3.57)');row('Period T = 2πm/qB','காலம் T = 2πm/qB',F(o.T,'s',3),'(3.59)');row('Frequency f = qB/2πm','அதிர்வெண் f = qB/2πm',F(o.f,'Hz',3),'(3.60)');row('Speed (constant)','வேகம் (மாறாதது)',F(o.v,'m/s',4));row('Kinetic energy (constant)','இயக்க ஆற்றல் (மாறாதது)',F(o.ke/1.602e-19,'eV',3));
+    row('Period on screen','திரையில் காலம்',o.disp.toFixed(1)+' s')}
+  else if(st==='helix'){row('Radius r = mv⊥/qB','ஆரம் r = mv⊥/qB',F(o.r,'m',3),'(3.57)');row('Period T','காலம் T',F(o.T,'s',3),'(3.59)');row('Pitch p = v∥ T','ஏற்றம் p = v∥ T',F(o.pitch,'m',3),'Ex. 3.21');row('Speed','வேகம்',F(o.v,'m/s',4))}
+  else if(st==='exb'){row('Selected speed E/B','தேர்ந்த வேகம் E/B',F(o.vE,'m/s',4),'(3.62)');row('Particle speed v','துகள் வேகம் v',F(o.v,'m/s',4));row('Equivalent accelerating voltage','சமமான முடுக்க மின்னழுத்தம்',F(o.V,'V',4));
+    row('Electric force qE','மின்விசை qE',F(o.FE,'N',3));row('Magnetic force qvB','காந்த விசை qvB',F(o.FB,'N',3));
+    row('Result','முடிவு',Math.abs(o.ratio-1)<.005?(ta?'விசைகள் சமம்: நேர்கோடு':'Forces equal: straight path'):o.ratio>1?(ta?'v > E/B: காந்த விசை வெல்கிறது':'v > E/B: magnetic force wins'):(ta?'v < E/B: மின்விசை வெல்கிறது':'v < E/B: electric force wins'))}
+  else{row('Resonance f = qB/2πm','அதிர்வு f = qB/2πm',F(o.fc,'Hz',4),'(3.60)');row('Oscillator frequency','அலைவி அதிர்வெண்',F(o.fo,'Hz',4)+' ('+(o.detune>0?'+':'')+o.detune.toFixed(1)+' %)');row('Period T','காலம் T',F(o.T,'s',3),'(3.59)');
+    row('Kinetic energy now','தற்போதைய இயக்க ஆற்றல்',F(o.KE/1.602e-19,'eV',3),'(3.64)');row('Orbit radius r','சுற்றுப்பாதை ஆரம் r',(o.r*100).toFixed(1)+' cm','(3.57)');row('Turns completed','முடிந்த சுற்றுகள்',Math.floor(o.turns)+'');
+    row('Limit q²B²R²/2m (R = 0.41 m)','வரம்பு q²B²R²/2m (R = 0.41 m)',F(o.KEmax/1.602e-19,'eV',3),'(3.64)');
+    if(o.exited)row('Beam energy at exit','வெளியேறும் ஆற்றல்',F(o.KEfinal/1.602e-19,'eV',3)+' ('+(100*o.KEfinal/o.KEmax).toFixed(0)+' % of limit)');
+    else row('Status','நிலை',o.stalled?(ta?'அதிர்வு தவறி ஆற்றல் குறைகிறது':'Out of resonance: energy falls'):(ta?'முடுக்கப்படுகிறது':'Accelerating'));
+    row('Slow motion','மெதுவசைவு','1 s = '+F(o.slow,'s',3)+' real')}
+  return R};
+M8.tourSteps=M8.tour;
+M8.dispose=function(E){};
+M8.setQuality=function(q){M8.S.quality=q};
+SBVR.register(M8);
+})();
+
+/* sbVR session: guided tour, narration, parameters, gaze menu. Works with any module that follows the module contract. */
+(function(){
+var SB=SBVR,Sp=SB.Speech;
+function T(o,lang){return o?(typeof o==='string'?o:(lang==='ta'&&o.ta?o.ta:o.en)):''}
+function Session(E,mod,o){o=o||{};var s=this;s.E=E;s.m=mod;s.lang=o.lang||'en';s.guided=o.guided!==false;s.playing=false;s.station=0;s.step=-1;s.stepT=0;s.speechDone=true;s.page='main';s.cb={};s.dirty=0;s.seated=true;s.simSpeed=1;s.sound=true;s.tourDone=false;s.stationsSeen={};s.t0=Date.now();
+  E.lang=s.lang;mod.lang=s.lang;
+  E.on('tick',function(dt){s._tick(dt)});E.on('ui',function(b){s._ui(b)});E.on('hotspot',function(h){s._hotspot(h)});
+  E.on('key',function(k){if(k==='play')s.togglePlay();else if(k==='next')s.next();else if(k==='prev')s.prev();else if(k==='exit')s.exit();else if(k==='menu')s.setPage(s.page==='main'?'stations':'main')});
+  E.on('mode',function(m){s.buildPanel();s.emit('mode',m)});
+  s._pollPads=0;}
+Session.prototype.on=function(n,f){this.cb[n]=f};Session.prototype.emit=function(n,a){if(this.cb[n])this.cb[n](a)};
+Session.prototype.start=function(){var s=this,E=s.E,m=s.m;E.start(m,{});m.lang=s.lang;s.goStation(0,true);s.buildPanel();if(s.guided){s.playing=true;s.gotoStep(0)}else{s.say(T(m.intro||{en:'Free exploration. Look at the glowing dots, or open the menu below you.',ta:'சுதந்திர ஆய்வு. ஒளிரும் புள்ளிகளைப் பாருங்கள் அல்லது கீழேயுள்ள பட்டியலைத் திறக்கவும்.'},s.lang),'mix')}};
+Session.prototype.stationIndexById=function(id){var st=this.m.stations;for(var i=0;i<st.length;i++)if(st[i].id===id)return i;return 0};
+Session.prototype.goStation=function(i,instant,cb){var s=this,E=s.E,m=s.m;s.station=i;var st=m.stations[i];s.stationsSeen[st.id]=1;
+  var go=function(){m.setStationFromIndex(i);s.buildPanel();s.emit('station',i);if(cb)cb()};
+  if(instant||E.mode==='std'){E.setStation(st,true);go()}else E.teleport(st,go)};
+Session.prototype.params=function(){var m=this.m,ids=m.stations[this.station].params;return ids.map(function(id){return m.params.filter(function(p){return p.id===id})[0]})};
+Session.prototype.setParam=function(id,v){var m=this.m,p=m.params.filter(function(q){return q.id===id})[0];if(!p)return;
+  if(p.kind==='choice'){m.setParam(id,v)}else{v=Math.max(p.min,Math.min(p.max,Math.round(v/p.step)*p.step));m.setParam(id,Math.abs(v)<1e-12?0:+v.toPrecision(10))}
+  this.buildPanel();this.emit('param',id)};
+Session.prototype.getParam=function(id){return this.m.S.vals[id]};
+Session.prototype.bump=function(id,dir){var p=this.m.params.filter(function(q){return q.id===id})[0],v=this.getParam(id);
+  if(p.kind==='choice'){var i=p.choices.indexOf(v);i=(i+dir+p.choices.length)%p.choices.length;this.setParam(id,p.choices[i])}
+  else{var st=p.step*(p.max-p.min>p.step*60?Math.round((p.max-p.min)/p.step/40):1);this.setParam(id,v+dir*st)}};
+Session.prototype.preset=function(name){this.m.applySet(name);this.buildPanel();this.emit('param','*')};
+Session.prototype.setLang=function(l){var s=this;s.lang=l;s.E.lang=l;s.m.lang=l;s.buildPanel();s.emit('lang',l);if(s.step>=0&&s.guided&&s.playing)s.gotoStep(s.step,true)};
+Session.prototype.reset=function(){this.m.reset();this.emit('reset')};
+/* narration */
+Session.prototype.say=function(text,tag,onEnd,min){var s=this,E=s.E;E.sub.text=text;E.sub.tag=tag||'';E.sub.hold=true;E.sub.t=0;s.emit('sub',{text:text,tag:tag});
+  s.speechDone=false;s.speaking=text;var est=Math.max(2.5,text.length/(s.lang==='ta'?10:14));s.estDur=est;
+  var fin=function(){s.speechDone=true;if(s.speaking===text){E.sub.hold=false;E.sub.t=4}if(onEnd)onEnd()};var ok=Sp.say(text,s.lang,.93,fin);s.hasVoice=ok;s._fin=fin;
+  if(!ok){s.speechDone=false;s._silentT=est;s._silent=true}else s._silent=false;
+  s.sayStart=Date.now()};
+Session.prototype._tick=function(dt){var s=this,E=s.E;
+  if(s._silent&&!E.paused&&s.playing!==false){s._silentT-=dt;if(s._silentT<=0){s._silent=false;if(s._fin)s._fin();else{s.speechDone=true}}}
+  if(s.guided&&s.playing&&s.step>=0){s.stepT+=dt;var st=s.m.tour[s.step];if(s.speechDone&&s.stepT>=(st.dur||8)){if(s.step<s.m.tour.length-1)s.gotoStep(s.step+1);else{s.playing=false;s.tourDone=true;E.paused=false;s.emit('done');s.emit('state')}}}
+  /* gamepad / Bluetooth controller */
+  s._pad(dt)};
+Session.prototype._pad=function(dt){var s=this;if(!navigator.getGamepads)return;var gp=navigator.getGamepads(),p=null;for(var i=0;i<gp.length;i++)if(gp[i]&&gp[i].connected){p=gp[i];break}
+  if(!p){s._padState=null;return}var b=p.buttons.map(function(x){return x.pressed}),o=s._padState||[];
+  function edge(i){return b[i]&&!o[i]}
+  if(edge(0)||edge(7))s.E.activateGaze();if(edge(1))s.togglePlay();if(edge(2))s.E.recentre();if(edge(3))s.setPage(s.page==='main'?'stations':'main');
+  if(edge(14)||edge(4))s.prev();if(edge(15)||edge(5))s.next();if(edge(9))s.exit();
+  var ax=p.axes[0]||0;if(Math.abs(ax)>.7&&!s._axLatch){s._axLatch=true;if(ax>0)s.next();else s.prev()}else if(Math.abs(ax)<.3)s._axLatch=false;
+  s._padState=b};
+/* tour */
+Session.prototype.gotoStep=function(i,keepStation){var s=this,m=s.m,E=s.E,st=m.tour[i];if(!st)return;s.step=i;s.stepT=0;s.tourDone=false;E.paused=false;
+  var idx=s.stationIndexById(st.st),speak=function(){m.applySet(st.set);if(st.reset)m.reset();s.buildPanel();s.emit('param','*');s.say(T(st.t,s.lang),st.tag,null);s.emit('step',i)};
+  if(idx!==s.station&&!keepStation)s.goStation(idx,false,speak);else{if(idx!==s.station)s.goStation(idx,true);speak()}
+  s.emit('step',i);s.emit('state')};
+Session.prototype.next=function(){var s=this;if(!s.guided){s.guided=true}if(s.step<s.m.tour.length-1){s.playing=true;s.gotoStep(s.step+1)}};
+Session.prototype.prev=function(){var s=this;if(s.step>0){s.playing=true;s.guided=true;s.gotoStep(s.step-1)}};
+Session.prototype.togglePlay=function(){var s=this;if(s.playing){s.pause()}else s.play()};
+Session.prototype.pause=function(){var s=this;s.playing=false;s.E.paused=true;Sp.pause();s.emit('state');s.buildPanel()};
+Session.prototype.play=function(){var s=this;s.E.paused=false;if(s.tourDone||s.step<0){s.guided=true;s.playing=true;s.gotoStep(0);return}s.playing=true;s.guided=true;Sp.resume();
+  if(s.step<0)s.gotoStep(0);s.emit('state');s.buildPanel()};
+Session.prototype.restart=function(){var s=this;s.guided=true;s.playing=true;s.E.paused=false;s.gotoStep(0)};
+Session.prototype.setGuided=function(g){var s=this;s.guided=g;if(g){s.playing=true;s.E.paused=false;if(s.step<0)s.gotoStep(0);else s.gotoStep(s.step)}else{s.playing=false;s.E.paused=false;Sp.stop();s.say(T({en:'Free exploration: change the parameters or move to another station.',ta:'சுதந்திர ஆய்வு: அளவுருக்களை மாற்றுங்கள் அல்லது வேறொரு நிலையத்திற்குச் செல்லுங்கள்.'},s.lang),'mix')}s.buildPanel();s.emit('state')};
+Session.prototype._hotspot=function(h){var s=this,d=h.def;if(!d)return;s.playing=false;s.E.paused=false;Sp.stop();s.say(T(d.name,s.lang)+'. '+T(d.text,s.lang),'mix');s.emit('state');s.buildPanel();s.emit('hotspotInfo',d)};
+Session.prototype.exit=function(){var s=this;Sp.stop();s.emit('exit')};
+/* ---------------- gaze panel ---------------- */
+Session.prototype.setPage=function(p){this.page=p;this.buildPanel()};
+Session.prototype.buildPanel=function(){var s=this,E=s.E,m=s.m,ta=s.lang==='ta',B=[],pg=s.page,W=1024,x0=24,gw=W-48;
+  function btn(id,text,x,y,w,h,o){var b={id:id,text:text,x:x,y:y,w:w,h:h};if(o)for(var k in o)b[k]=o[k];B.push(b);return b}
+  function row(ids,y,h,labels,opts){var n=ids.length,gap=14,w=(gw-gap*(n-1))/n;ids.forEach(function(id,i){btn(id,labels[i],x0+i*(w+gap),y,w,h,opts&&opts[i])})}
+  var st=m.stations[s.station],title=T(m.title,s.lang);
+  if(pg==='main'){
+    btn('t',T(st.name,s.lang)+(s.step>=0&&s.guided?'  ·  '+(s.step+1)+'/'+m.tour.length:''),x0,16,gw,56,{kind:'label',px:32});
+    row(['prev','play','next'],84,110,['◀  '+(ta?'முந்தைய':'Previous'),s.playing?'❚❚  '+(ta?'இடைநிறுத்து':'Pause'):'▶  '+(ta?'இயக்கு':'Play'),(ta?'அடுத்து':'Next')+'  ▶'],[{},{on:s.playing},{}]);
+    row(['stations','params','legend','settings'],210,96,[ta?'நிலையங்கள்':'Stations',ta?'அளவுருக்கள்':'Parameters',ta?'உண்மை / விளக்கம்':'Real vs illustrative',ta?'அமைப்புகள்':'Settings'],[{px:30},{px:30},{px:26},{px:30}]);
+    row(['recentre','guided','lang','exit'],322,96,[ta?'மையப்படுத்து':'Recentre',s.guided?(ta?'வழிகாட்டி: ஆம்':'Guided: ON'):(ta?'சுதந்திரம்':'Free explore'),ta?'English':'தமிழ்',ta?'வெளியேறு':'Exit'],[{px:30},{px:28,on:s.guided},{px:30},{kind:'danger',px:30}])}
+  else if(pg==='stations'){btn('t',ta?'நிலையத்தைத் தேர்ந்தெடுக்கவும்':'Choose a station',x0,16,gw,52,{kind:'label',px:32});var y=80;
+    m.stations.forEach(function(q,i){btn('go:'+i,(i+1)+'. '+T(q.name,s.lang),x0,y,gw,78,{px:30,on:i===s.station,align:'left'});y+=88});btn('back',ta?'◀ பின்':'◀ Back',x0,y+6,gw,80,{px:32})}
+  else if(pg==='params'){var ps=s.params();btn('t',ta?'அளவுருக்கள்: நிலை '+T(st.name,s.lang):'Parameters: '+T(st.name,s.lang),x0,16,gw,52,{kind:'label',px:28});var y2=80;
+    if(!ps.length){btn('n',ta?'இங்கு மாற்றக்கூடிய அளவுருக்கள் இல்லை':'No parameters here. Go to a station.',x0,y2,gw,90,{kind:'label',px:30});y2+=100}
+    ps.forEach(function(p){var val=p.kind==='choice'?(function(){var sp=SBP8.SPECIES[s.getParam(p.id)];return ta?sp.ta:sp.en})():p.fmt(s.getParam(p.id));
+      btn('pl:'+p.id,T(p.label,s.lang),x0,y2,gw,40,{kind:'label',px:24,align:'left'});y2+=42;
+      btn('pm:'+p.id,'–',x0,y2,150,84,{px:48,repeat:true});btn('pv:'+p.id,val,x0+164,y2,gw-328,84,{kind:'label',px:34});btn('pp:'+p.id,'+',x0+gw-150,y2,150,84,{px:48,repeat:true});y2+=98});
+    var pre=s.stationPresets();pre.forEach(function(q){btn('pre:'+q.id,q.text,x0,y2,gw,76,{px:28});y2+=86});
+    btn('back',ta?'◀ பின்':'◀ Back',x0,y2+4,gw,80,{px:32})}
+  else if(pg==='legend'){btn('t',ta?'உண்மை இயற்பியல் vs விளக்கம்':'Real physics vs illustration',x0,16,gw,52,{kind:'label',px:30});var y3=76;
+    m.legend.forEach(function(q){var tx=(q.k==='real'?(ta?'● உண்மை: ':'● REAL: '):(ta?'● விளக்கம்: ':'● ILLUSTRATIVE: '))+T(q.t,s.lang).replace(/^(REAL physics|ILLUSTRATIVE|SCALE|SIMPLIFIED|உண்மை இயற்பியல்|விளக்கத்திற்காக|அளவு|எளிமைப்படுத்தல்): /,'');btn('l'+y3,tx,x0,y3,gw,q.k==='real'?170:150,{kind:'label',px:25,align:'left'});y3+=q.k==='real'?176:156});
+    btn('back',ta?'◀ பின்':'◀ Back',x0,y3+4,gw,80,{px:32})}
+  else if(pg==='settings'){btn('t',ta?'அமைப்புகள்':'Comfort and settings',x0,16,gw,52,{kind:'label',px:32});var y4=80;
+    function setrow(id,lab,val){btn('sl:'+id,lab,x0,y4,gw,38,{kind:'label',px:24,align:'left'});y4+=40;btn('sm:'+id,'–',x0,y4,150,74,{px:44,repeat:true});btn('sv:'+id,val,x0+164,y4,gw-328,74,{kind:'label',px:32});btn('sp:'+id,'+',x0+gw-150,y4,150,74,{px:44,repeat:true});y4+=86}
+    setrow('dwell',ta?'தேர்வு நேரம் (பார்வை)':'Gaze selection time',E.dwell.toFixed(1)+' s');setrow('ipd',ta?'கண் இடைவெளி (IPD)':'Eye separation (IPD)',E.ipd.toFixed(0)+' mm');setrow('speed',ta?'இயக்க வேகம்':'Playback speed',s.simSpeed.toFixed(2)+'×');setrow('lens',ta?'லென்ஸ் திருத்தம்':'Lens correction strength',E.lensK.toFixed(2));
+    btn('seat',s.seated?(ta?'அமர்ந்த நிலை (பரிந்துரை)':'Seated mode (recommended)'):(ta?'நிற்கும் நிலை':'Standing mode'),x0,y4,gw/2-7,76,{px:26,on:s.seated});btn('snd',s.sound?(ta?'ஒலி: ஆம்':'Sound: ON'):(ta?'ஒலி: இல்லை':'Sound: OFF'),x0+gw/2+7,y4,gw/2-7,76,{px:26,on:s.sound});y4+=88;
+    btn('back',ta?'◀ பின்':'◀ Back',x0,y4,gw,80,{px:32})}
+  E.setPanel(pg,B,title)};
+Session.prototype.stationPresets=function(){var s=this,id=s.m.stations[s.station].id,ta=s.lang==='ta',r=[];
+  if(id==='helix')r.push({id:'ex321',text:ta?'பாடநூல் எடுத்துக்காட்டு 3.21':'Textbook Example 3.21'});
+  if(id==='exb'){r.push({id:'ex322',text:ta?'பாடநூல் எடுத்துக்காட்டு 3.22 (200 V எலக்ட்ரான்)':'Textbook Example 3.22 (200 V electron)'});r.push({id:'null',text:ta?'v = E/B ஆக அமை':'Set v = E / B'})}
+  if(id==='cyc'||id==='cyctop'){r.push({id:'res',text:ta?'அலைவியை அதிர்வு நிலைக்கு அமை':'Tune oscillator to resonance'});r.push({id:'rst',text:ta?'மீண்டும் தொடங்கு':'Restart the run'})}
+  if(id==='circ')r.push({id:'rst',text:ta?'மீண்டும் தொடங்கு':'Restart'});
+  return r};
+Session.prototype.runPreset=function(id){var s=this,m=s.m;if(id==='null'){var vv=m.S.vals.E/m.S.vals.B;s.setParam('vsel',Math.min(1.2e7,Math.max(1e6,vv)));m.S.vals.vsel=vv;m.reset()}else if(id==='res'){s.setParam('cdet',0)}else if(id==='rst'){m.reset()}else s.preset(id);s.buildPanel();s.emit('param','*')};
+Session.prototype._ui=function(b){var s=this,E=s.E,id=b.id;
+  if(id==='prev')s.prev();else if(id==='next')s.next();else if(id==='play')s.togglePlay();
+  else if(id==='stations')s.setPage('stations');else if(id==='params')s.setPage('params');else if(id==='legend')s.setPage('legend');else if(id==='settings')s.setPage('settings');else if(id==='back')s.setPage('main');
+  else if(id==='recentre'){E.recentre();s.toast&&s.toast()}else if(id==='guided')s.setGuided(!s.guided);else if(id==='lang')s.setLang(s.lang==='ta'?'en':'ta');else if(id==='exit')s.exit();
+  else if(id.indexOf('go:')===0){s.playing=false;s.guided=false;E.paused=false;s.goStation(+id.slice(3));s.setPage('main');s.say(T(s.m.stations[+id.slice(3)].name,s.lang)+'. '+T({en:'Free exploration. Use the Parameters menu.',ta:'சுதந்திர ஆய்வு. அளவுருக்கள் பட்டியலைப் பயன்படுத்துங்கள்.'},s.lang),'mix');s.emit('state')}
+  else if(id.indexOf('pm:')===0)s.bump(id.slice(3),-1);else if(id.indexOf('pp:')===0)s.bump(id.slice(3),1);
+  else if(id.indexOf('pre:')===0)s.runPreset(id.slice(4));
+  else if(id.indexOf('sm:')===0||id.indexOf('sp:')===0){var dir=id[1]==='m'?-1:1,k=id.slice(3);
+    if(k==='dwell')E.dwell=Math.max(.8,Math.min(3,+(E.dwell+dir*.1).toFixed(1)));else if(k==='ipd')E.ipd=Math.max(54,Math.min(72,E.ipd+dir));else if(k==='speed'){s.simSpeed=Math.max(.25,Math.min(2,+(s.simSpeed+dir*.25).toFixed(2)));s.m.S.speedMul=s.simSpeed}else if(k==='lens')E.lensK=Math.max(.4,Math.min(1.6,+(E.lensK+dir*.05).toFixed(2)));
+    s.buildPanel();s.emit('settings')}
+  else if(id==='seat'){s.seated=!s.seated;E.eyeH=s.seated?1.2:1.6;s.buildPanel();s.emit('settings')}else if(id==='snd'){s.sound=!s.sound;E.audioOn=s.sound;s.buildPanel()}};
+SBVR.Session=Session;
+})();
+
 </script>
 <script>
 (function(){
@@ -13138,6 +14162,193 @@ function mbRecord(word){
 }
 window.__LAB={LAB_EXPS:LAB_EXPS,Y:{prBeams:prBeams,prRefl:prRefl,prDev:prDev,prDmin:prDmin,dgBeams:dgBeams,dgPos:dgPos,ySpecQ:ySpecQ,DG_LINES:DG_LINES},cxStep:cxStep,cxPotProbe:cxPotProbe,xNpnProbe:xNpnProbe,CX:CX,CLP:CLP,LABX_CFG:LABX_CFG,cx:{place:cxPlace,wire:cxAddWire,setK:cxSetK,key:cxKey,sw:cxSw,plug:cxPlug,setJ:cxSetJ,press:cxPress,solve:cxSolve,reset:cxReset,probe:cxProbe,nets:cxNets},MB:MB,MBP:MBP,LAB:LAB,mbPlace:mbPlace,mbAddWire:mbAddWire,mbTrueL:mbTrueL,mbCheck:mbCheck,mbReset:mbReset,mbTick:mbTick,mbSubmit:mbSubmit,mbRecord:mbRecord,labRender:labRender,mbSetJ:mbSetJ,mbPress:mbPress,mbToggleKey:mbToggleKey,mbTogglePlug:mbTogglePlug,mbToggleHR:mbToggleHR,MB_STEPS:MB_STEPS,mbOrderViva:mbOrderViva,MB_VIVA:MB_VIVA};
 
+/* ---- Teach > Virtual Reality (VR): launcher, device check, stage with HUD, teacher tools ---- */
+var VR_CAT=[
+ {u:1,id:'m1',pg:'pp. 11–17',en:'Inside an electric field: charges and field lines',ta:'மின்புலத்தின் உள்ளே: மின்னூட்டங்களும் புலக்கோடுகளும்'},
+ {u:1,id:'m2',pg:'pp. 20–24',en:'Electric dipole: field and torque',ta:'மின் இருமுனை: புலமும் திருப்புத்திறனும்'},
+ {u:1,id:'m3',pg:'pp. 39–41',en:'Gauss’s law with a Gaussian surface',ta:'காஸ் விதி: காஸியன் பரப்பு'},
+ {u:1,id:'m4',pg:'pp. 30–32',en:'Equipotential landscape',ta:'சமமின்னழுத்த நிலப்பரப்பு'},
+ {u:1,id:'m5',pg:'pp. 53–60',en:'Inside a capacitor and a dielectric',ta:'மின்தேக்கி மற்றும் மின்கடத்தாப் பொருளின் உள்ளே'},
+ {u:2,id:'m6',pg:'pp. 83–88',en:'Drift velocity inside a wire',ta:'கம்பியின் உள்ளே இழுப்பு வேகம்'},
+ {u:3,id:'m7',pg:'pp. 154–164',en:'Magnetic field of a wire, a loop and a solenoid',ta:'கம்பி, வளையம், நீள்வட்டச் சுருளின் காந்தப்புலம்'},
+ {u:3,id:'m8',pg:'pp. 170–176',en:'Charged particle in magnetic and electric fields, and the cyclotron',ta:'காந்த, மின்புலங்களில் மின்துகள் மற்றும் சைக்ளோட்ரான்'},
+ {u:4,id:'m9',pg:'pp. 197–206',en:'Faraday’s experiments and Lenz’s law',ta:'ஃபாரடேயின் சோதனைகளும் லென்ஸ் விதியும்'},
+ {u:4,id:'m10',pg:'pp. 224–227',en:'Inside an AC generator',ta:'ஏசி இயக்கியின் உள்ளே'},
+ {u:4,id:'m11',pg:'pp. 207, 228',en:'Transformer core and eddy currents',ta:'மின்மாற்றி உள்ளகமும் சுழல் மின்னோட்டமும்'},
+ {u:5,id:'m12',pg:'pp. 272–275',en:'Riding an electromagnetic wave',ta:'மின்காந்த அலையில் பயணம்'},
+ {u:6,id:'m13',pg:'pp. 19–20',en:'Total internal reflection and optical fibre',ta:'முழு அக எதிரொளிப்பு மற்றும் ஒளியிழை'},
+ {u:6,id:'m14',pg:'pp. 30–41',en:'Rays through lenses and prisms',ta:'லென்ஸ், முப்பட்டகம் வழிக் கதிர்கள்'},
+ {u:7,id:'m15',pg:'pp. 56–74',en:'Wavefronts: Huygens, interference and diffraction',ta:'அலைமுகப்புகள்: ஹைஜன்ஸ், குறுக்கீட்டு, விளிம்பு விளைவு'},
+ {u:7,id:'m16',pg:'pp. 79–87',en:'Polarisation: light as a transverse wave',ta:'தளவிளைவு: குறுக்கலையாக ஒளி'},
+ {u:7,id:'m17',pg:'pp. 87–92',en:'Microscope and telescope ray paths',ta:'நுண்ணோக்கி, தொலைநோக்கிக் கதிர்ப்பாதைகள்'},
+ {u:8,id:'m18',pg:'pp. 111–116',en:'Photoelectric effect at a metal surface',ta:'உலோகப் பரப்பில் ஒளிமின் விளைவு'},
+ {u:8,id:'m19',pg:'pp. 124–126',en:'Matter waves and the Davisson–Germer experiment',ta:'பருப்பொருள் அலைகளும் டேவிசன்–ஜெர்மர் சோதனையும்'},
+ {u:9,id:'m20',pg:'pp. 148–160',en:'Rutherford scattering and the Bohr atom',ta:'ரூதர்ஃபோர்டு சிதறல் மற்றும் போர் அணு'},
+ {u:9,id:'m21',pg:'pp. 173–184',en:'Radioactive decay, fission and chain reaction',ta:'கதிரியக்கச் சிதைவு, பிளவு, சங்கிலி வினை'},
+ {u:10,id:'m22',pg:'pp. 202–205',en:'PN junction and depletion layer',ta:'PN சந்தி மற்றும் குறைவு அடுக்கு'},
+ {u:10,id:'m23',pg:'pp. 217–222',en:'Transistor action',ta:'டிரான்சிஸ்டர் செயல்பாடு'},
+ {u:11,id:'m24',pg:'pp. 255, 275',en:'Journey through scales: from the nanoscale to particles',ta:'அளவுகள் வழிப் பயணம்: நானோ அளவிலிருந்து துகள்கள் வரை'}
+];
+var VRS={u:3,id:'m8',mode:null,guided:true,caps:null,opened:false,eng:null,ses:null,stage:null};
+function vrBuilt(id){return SBVR.modules.some(function(m){return m.id===id})}
+function vrMod(id){return SBVR.modules.filter(function(m){return m.id===id})[0]}
+function vrProg(){return store.get('vrProg',{})}
+function vrSaveProg(id,patch){var p=vrProg();p[id]=Object.assign(p[id]||{},patch);store.set('vrProg',p)}
+function vrCss(){if(document.getElementById('vrCss'))return;var s=document.createElement('style');s.id='vrCss';
+  s.textContent='#teach-vr .vr-sec{margin:12px 0;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}#teach-vr h3{margin:0 0 8px;font-size:17px}'+
+  '#teach-vr .vr-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}#teach-vr select{padding:8px;border-radius:8px;min-height:40px;max-width:100%}'+
+  '#teach-vr .vr-cap{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;font-size:14px}#teach-vr .vr-cap div{padding:6px 8px;border-radius:8px;background:var(--tint)}'+
+  '#teach-vr .vr-ok{color:var(--good);font-weight:700}#teach-vr .vr-no{color:var(--bad);font-weight:700}'+
+  '#teach-vr .vr-modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}#teach-vr .vr-mode{padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--card);text-align:left;cursor:pointer;color:var(--ink);font:inherit;min-height:96px}'+
+  '#teach-vr .vr-mode b{display:block;font-size:16px;margin-bottom:4px}#teach-vr .vr-mode.rec{border-color:var(--accent)}#teach-vr .vr-mode small{color:var(--muted);display:block}#teach-vr .vr-mode:disabled{opacity:.5;cursor:not-allowed}'+
+  '#teach-vr .vr-warn{background:var(--warm-bg);color:var(--warm);border-left:4px solid var(--warm);padding:10px 12px;border-radius:8px;font-size:14px}'+
+  '#teach-vr .vr-note{font-size:13px;color:var(--muted);margin:6px 0}#teach-vr table{border-collapse:collapse;width:100%;font-size:14px}#teach-vr td,#teach-vr th{border:1px solid var(--line);padding:5px 8px;text-align:left}'+
+  '#vrStage{position:fixed;inset:0;z-index:9999;background:#000;color:#fff;font:15px/1.4 system-ui,"Noto Sans Tamil",sans-serif;user-select:none;-webkit-user-select:none}#vrHost{position:absolute;inset:0}'+
+  '#vrStage button{font:inherit;color:#fff;background:rgba(20,32,48,.82);border:1px solid rgba(160,200,255,.35);border-radius:12px;padding:8px 12px;min-height:44px;min-width:44px;cursor:pointer;backdrop-filter:blur(6px)}#vrStage button:active{background:rgba(60,100,170,.9)}#vrStage button.on{background:rgba(30,120,90,.9)}'+
+  '#vrStage select{font:inherit;color:#fff;background:rgba(20,32,48,.82);border:1px solid rgba(160,200,255,.35);border-radius:12px;padding:8px;min-height:44px;max-width:46vw}'+
+  '#vrTop{position:absolute;left:0;right:0;top:0;padding:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:linear-gradient(rgba(0,0,0,.65),transparent);z-index:3}#vrTop .t{flex:1;min-width:120px;font-weight:700;font-size:15px}'+
+  '#vrBot{position:absolute;left:0;right:0;bottom:0;padding:8px;z-index:3;background:linear-gradient(transparent,rgba(0,0,0,.75))}#vrSub{max-width:900px;margin:0 auto 8px;padding:10px 14px;border-radius:12px;background:rgba(8,12,20,.78);font-size:17px;line-height:1.45;min-height:22px}'+
+  '#vrSub .tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-right:8px;vertical-align:1px}#vrSub .tag.real{background:#1e7b4c}#vrSub .tag.mix{background:#8f5b00}#vrSub .tag.illus{background:#8f5b00}'+
+  '#vrCtl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}'+
+  '#vrSide{position:absolute;top:58px;right:0;bottom:130px;width:min(360px,92vw);overflow:auto;background:rgba(8,14,24,.9);border-left:1px solid rgba(160,200,255,.3);padding:10px;z-index:4;transform:translateX(105%);transition:transform .2s}#vrSide.open{transform:none}'+
+  '#vrSide h4{margin:10px 0 6px;font-size:14px;color:#9fd1ff}#vrSide .tabs{display:flex;gap:6px;flex-wrap:wrap}#vrSide .tabs button{padding:6px 10px;min-height:38px;font-size:13px}'+
+  '#vrSide label{display:block;font-size:13px;margin-top:10px}#vrSide input[type=range]{width:100%;min-height:36px}#vrSide .val{float:right;font-weight:700;color:#9fe3b5}'+
+  '#vrSide table{width:100%;border-collapse:collapse;font-size:13px}#vrSide td{border-bottom:1px solid rgba(255,255,255,.12);padding:5px 3px;vertical-align:top}#vrSide td.v{text-align:right;font-weight:700;color:#9fe3b5}#vrSide td small{color:#8aa}'+
+  '#vrSide .q{margin:8px 0;padding:8px;border-radius:10px;background:rgba(255,255,255,.07)}#vrSide .q button{display:block;width:100%;text-align:left;margin:4px 0;font-size:14px}#vrSide .q button.ok{background:#1e7b4c}#vrSide .q button.bad{background:#a03030}'+
+  '#vrStage.vrmode #vrTop,#vrStage.vrmode #vrBot,#vrStage.vrmode #vrSide{display:none}'+
+  '#vrStage.class #vrSub{font-size:26px;max-width:1300px}#vrStage.class button{font-size:20px;min-height:58px;padding:10px 18px}'+
+  '#vrMsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(560px,92vw);background:rgba(8,14,24,.94);border:1px solid rgba(160,200,255,.4);border-radius:16px;padding:16px;z-index:6}#vrMsg h3{margin:0 0 8px}'+
+  '#vrRot{position:absolute;inset:0;z-index:7;background:#000;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:20px}';
+  document.head.appendChild(s)}
+function vrEn(){return isTa()?'ta':'en'}
+function vrCaps(cb){if(VRS.caps)return cb(VRS.caps);SBVR.detect(function(c){VRS.caps=c;cb(c)})}
+window.vrOpen=function(){vrCss();var host=$('#teach-vr');VRS.host=host;vrCaps(function(){vrRender()});if(!VRS.caps)host.textContent=X('Checking your device…','உங்கள் சாதனத்தைச் சோதிக்கிறது…')};
+function vrRender(){var host=VRS.host;if(!host)return;host.textContent='';var ta=isTa(),c=VRS.caps;
+  var top=labDiv('vr-sec');top.appendChild(el('h3',null,X('Virtual Reality (VR)','மெய்நிகர் உண்மை (VR)')));
+  top.appendChild(labDiv('vr-note',X('Explore Physics from the inside: stand next to a cyclotron, follow a single charged particle, and look around in 360°. Works on phones with Cardboard-type glasses, VR headsets, and on any phone, tablet or computer without glasses.','இயற்பியலை உள்ளிருந்து அறியுங்கள்: சைக்ளோட்ரான் அருகே நில்லுங்கள், ஒரு மின்துகளைப் பின்தொடருங்கள், 360° இல் சுற்றிப் பாருங்கள். கார்ட்போர்டு வகைக் கண்ணாடி அணிந்த தொலைபேசிகள், VR தலைக்கவசங்கள், மேலும் கண்ணாடி இல்லாமல் எந்தத் தொலைபேசி, டேப்லெட், கணினியிலும் இயங்கும்.')));
+  var r1=labDiv('vr-row');var us=el('select');LAB_UNITS.forEach(function(u){var o=el('option',null,(ta?'பாடம் ':'Unit ')+u[0]+'. '+(ta?u[2]:u[1])+(VR_CAT.some(function(m){return m.u===u[0]&&vrBuilt(m.id)})?' ●':''));o.value=u[0];us.appendChild(o)});us.value=VRS.u;
+  var cs=el('select');cs.style.cssText+=';flex:1;min-width:220px';
+  function fillC(){cs.textContent='';VR_CAT.filter(function(m){return m.u===VRS.u&&vrBuilt(m.id)}).forEach(function(m){var o=el('option',null,(ta?m.ta:m.en)+' · '+m.pg);o.value=m.id;cs.appendChild(o)});var ids=VR_CAT.filter(function(m){return m.u===VRS.u&&vrBuilt(m.id)}).map(function(m){return m.id});
+    if(ids.length){if(ids.indexOf(VRS.id)<0)VRS.id=ids[0];cs.value=VRS.id;cs.disabled=false}else{var o2=el('option',null,X('No VR concept is available for this unit yet','இந்தப் பாடத்திற்கு இன்னும் VR கருத்து இல்லை'));o2.value='';cs.appendChild(o2);cs.disabled=true;VRS.id=''}}
+  fillC();us.onchange=function(){VRS.u=parseInt(us.value,10);fillC();vrRender();};cs.onchange=function(){VRS.id=cs.value;vrRender()};
+  var lg=el('select');[['en','English'],['ta','தமிழ்']].forEach(function(p){var o=el('option',null,p[1]);o.value=p[0];lg.appendChild(o)});lg.value=vrEn();lg.onchange=function(){exMed.value=lg.value;exMed.dispatchEvent(new Event('change'));vrRender()};
+  r1.appendChild(us);r1.appendChild(cs);r1.appendChild(lg);top.appendChild(r1);host.appendChild(top);
+  var m=VRS.id&&vrMod(VRS.id);
+  if(!m){host.appendChild(vrCatalogue());return}
+  /* device check */
+  var dv=labDiv('vr-sec');dv.appendChild(el('h3',null,X('Your device','உங்கள் சாதனம்')));var g=labDiv('vr-cap');
+  function cap(ok,en,ta_){var d=labDiv();var b=el('span',ok?'vr-ok':'vr-no',ok?'✓ ':'✗ ');d.appendChild(b);d.appendChild(document.createTextNode(ta?ta_:en));g.appendChild(d)}
+  cap(c.webgl2,'3D graphics (WebGL 2)','3D வரைகலை (WebGL 2)');cap(c.gyro||c.gyroPermission,'Motion sensor for head tracking','தலை அசைவுக் கண்காணிப்புக்கான இயக்க உணரி');cap(c.xr,'VR headset (WebXR)','VR தலைக்கவசம் (WebXR)');cap(c.fullscreen,'Full screen','முழுத்திரை');cap(c.speech,'Spoken narration','பேச்சு விளக்கம்');
+  if(c.speech){var hasTa=SBVR.Speech.has('ta'),hasEn=SBVR.Speech.has('en');cap(hasEn,'English voice','ஆங்கிலக் குரல்');cap(hasTa,'Tamil voice (otherwise subtitles only)','தமிழ்க் குரல் (இல்லையெனில் வசனம் மட்டும்)')}
+  dv.appendChild(g);var tier=c.tier==='low'?X('Low-end device: the app will reduce graphics quality automatically.','குறைந்த திறன் சாதனம்: செயலி வரைகலைத் தரத்தைத் தானாகக் குறைக்கும்.'):c.tier==='high'?X('High-end device: full quality.','உயர் திறன் சாதனம்: முழுத் தரம்.'):X('Mid-range device: quality adapts automatically to keep the picture smooth.','நடுத்தர சாதனம்: காட்சி சீராக இருக்க தரம் தானாகச் சரிசெய்யப்படும்.');
+  dv.appendChild(labDiv('vr-note',tier));if(!c.webgl2)dv.appendChild(labDiv('vr-warn',X('This browser does not support WebGL 2, so the 3D scene cannot start. Please use a recent Chrome, Edge, Firefox or Safari.','இந்த உலாவி WebGL 2 ஐ ஆதரிக்காததால் 3D காட்சியைத் தொடங்க இயலாது. சமீபத்திய Chrome, Edge, Firefox அல்லது Safari ஐப் பயன்படுத்துங்கள்.')));host.appendChild(dv);
+  /* modes */
+  var ms=labDiv('vr-sec');ms.appendChild(el('h3',null,X('Choose how to view','எவ்வாறு காண வேண்டும் எனத் தேர்ந்தெடுக்கவும்')));var mm=labDiv('vr-modes');var rec=c.xr?'xr':((c.gyro||c.gyroPermission)&&c.mobile?'cardboard':'std');
+  function mode(id,en,ta_,den,dta,dis,rc){var b=el('button','vr-mode'+(rc?' rec':''));b.type='button';b.disabled=!!dis;var h=el('b',null,(ta?ta_:en)+(rc?(ta?'  ★ பரிந்துரை':'  ★ recommended'):''));b.appendChild(h);b.appendChild(el('small',null,ta?dta:den));b.onclick=function(){vrLaunch(id)};mm.appendChild(b)}
+  mode('std','Standard 3D','நிலையான 3D','Drag with mouse or finger to orbit, scroll or pinch to zoom. No glasses needed.','சுட்டி அல்லது விரலால் இழுத்துச் சுற்றலாம்; உருட்டி அல்லது கிள்ளி அளவை மாற்றலாம். கண்ணாடி தேவையில்லை.',!c.webgl2,rec==='std');
+  mode('360','360° look-around','360° சுற்றிப்பார்','Move your phone to look around (or drag). Tap the screen or look at a glowing dot to select.','தொலைபேசியை அசைத்துச் சுற்றிப் பாருங்கள் (அல்லது இழுக்கவும்). தொடு அல்லது ஒளிரும் புள்ளியைப் பார்த்துத் தேர்ந்தெடுங்கள்.',!c.webgl2,false);
+  mode('cardboard','Immersive VR (phone in glasses)','மூழ்கடிக்கும் VR (கண்ணாடியில் தொலைபேசி)','Split-screen stereo for Cardboard-type glasses: separate left and right eye views, lens correction, head tracking, gaze menu. Put the phone in landscape.','கார்ட்போர்டு வகைக் கண்ணாடிக்கான இரு திரைக் காட்சி: தனித்தனி இடது, வலது கண் காட்சிகள், லென்ஸ் திருத்தம், தலைக் கண்காணிப்பு, பார்வை பட்டியல். தொலைபேசியைக் கிடைமட்டமாக வையுங்கள்.',!c.webgl2,rec==='cardboard');
+  mode('xr','VR headset (WebXR)','VR தலைக்கவசம் (WebXR)','For headsets that support WebXR in the browser, with controllers or gaze.','உலாவியில் WebXR ஆதரிக்கும் தலைக்கவசங்களுக்கு; கட்டுப்படுத்தி அல்லது பார்வையுடன்.',!c.xr,rec==='xr');
+  mode('class','Classroom display','வகுப்பறைத் திரை','Full-screen Standard 3D with large controls for a smart panel or projector. Space = play/pause, arrows = next/previous, R = recentre.','ஸ்மார்ட் பேனல் அல்லது புரொஜெக்டருக்கான பெரிய கட்டுப்பாடுகளுடன் முழுத்திரை நிலையான 3D. Space = இயக்கு/நிறுத்து, அம்புகள் = அடுத்து/முந்தைய, R = மையப்படுத்து.',!c.webgl2,false);
+  ms.appendChild(mm);var r2=labDiv('vr-row');var gl=el('select');[[1,X('Guided tour (narrated)','வழிகாட்டிப் பயணம் (குரலுடன்)')],[0,X('Free exploration','சுதந்திர ஆய்வு')]].forEach(function(p){var o=el('option',null,p[1]);o.value=p[0];gl.appendChild(o)});gl.value=VRS.guided?1:0;gl.onchange=function(){VRS.guided=gl.value==='1'};r2.appendChild(gl);
+  var ps=el('select');Object.keys(SBVR.PROFILES).forEach(function(k){var o=el('option',null,SBVR.PROFILES[k].name[vrEn()]);o.value=k;ps.appendChild(o)});ps.value=store.get('vrProf','cb2');ps.onchange=function(){store.set('vrProf',ps.value)};r2.appendChild(el('span','vr-note',X('Glasses type:','கண்ணாடி வகை:')));r2.appendChild(ps);
+  var inch=el('input');inch.type='number';inch.min=4;inch.max=8;inch.step=.1;inch.value=store.get('vrInch',6.1);inch.style.cssText='width:70px;padding:8px;border-radius:8px;border:1px solid var(--line)';inch.onchange=function(){store.set('vrInch',Math.max(4,Math.min(8,parseFloat(inch.value)||6.1)))};r2.appendChild(el('span','vr-note',X('Phone screen size (inches):','தொலைபேசித் திரை அளவு (அங்குலம்):')));r2.appendChild(inch);ms.appendChild(r2);host.appendChild(ms);
+  /* safety */
+  var sf=labDiv('vr-sec');sf.appendChild(el('h3',null,X('Safety and comfort','பாதுகாப்பும் வசதியும்')));
+  [X('Supervised use only. Follow the age guidance printed on your glasses or headset; many makers advise against use by young children.','மேற்பார்வையில் மட்டுமே பயன்படுத்தவும். உங்கள் கண்ணாடி அல்லது தலைக்கவசத்தில் உள்ள வயது வழிகாட்டலைப் பின்பற்றுங்கள்; பல தயாரிப்பாளர்கள் சிறு குழந்தைகள் பயன்படுத்துவதைப் பரிந்துரைப்பதில்லை.'),
+   X('Sit on a chair in a clear area. Nothing moves your viewpoint on its own; changes of position use a short fade.','தெளிவான இடத்தில் நாற்காலியில் அமருங்கள். உங்கள் பார்வைப் புள்ளியை எதுவும் தானாக நகர்த்தாது; இடமாற்றங்கள் குறுகிய மங்கலுடன் நடக்கும்.'),
+   X('Take a break of at least 5 minutes every 10 to 15 minutes. Stop at once if you feel dizzy, sick or have eye strain. The red EXIT disc is below you; the Exit button is in the gaze menu (look down).','ஒவ்வொரு 10–15 நிமிடத்திற்கும் குறைந்தது 5 நிமிடம் ஓய்வெடுங்கள். தலைச்சுற்றல், குமட்டல், கண் சோர்வு ஏற்பட்டால் உடனே நிறுத்துங்கள். சிவப்பு EXIT வட்டம் உங்கள் கீழே உள்ளது; வெளியேறு பொத்தான் பார்வைப் பட்டியலில் (கீழே பாருங்கள்).'),
+   X('Hold the phone in the glasses firmly; keep the screen brightness high and the phone cool.','தொலைபேசியை கண்ணாடியில் உறுதியாகப் பொருத்துங்கள்; திரை ஒளிர்வை அதிகமாகவும் தொலைபேசியைக் குளிர்ச்சியாகவும் வையுங்கள்.')].forEach(function(t){sf.appendChild(labDiv('vr-note','• '+t))});host.appendChild(sf);
+  /* teacher */
+  var tc=labDiv('vr-sec');tc.appendChild(el('h3',null,X('Teacher tools','ஆசிரியர் கருவிகள்')));
+  tc.appendChild(labDiv('vr-note',X('Textbook: Unit '+m.unit+', sections '+m.sections+', '+m.pages+'. Equations and examples are taken from the Class 12 English-medium book; Tamil wording is not checked against the Tamil-medium book.','பாடநூல்: பாடம் '+m.unit+', பிரிவுகள் '+m.sections+', '+m.pages+'. சமன்பாடுகளும் எடுத்துக்காட்டுகளும் 12 ஆம் வகுப்பு ஆங்கில வழி நூலிலிருந்து; தமிழ்ச் சொற்கள் தமிழ்வழி நூலுடன் சரிபார்க்கப்படவில்லை.')));
+  var ob=el('b',null,X('Learning objectives','கற்றல் நோக்கங்கள்'));tc.appendChild(ob);var ul=el('ul');ul.style.margin='4px 0 8px 18px';m.objectives.forEach(function(o){ul.appendChild(el('li',null,ta?o.ta:o.en))});tc.appendChild(ul);
+  var r3=labDiv('vr-row');r3.appendChild(button(X('Assessment questions','மதிப்பீட்டு வினாக்கள்'),'btn',function(){vrQuizOverlay(m)}));r3.appendChild(button(X('Show the guided tour script','வழிகாட்டிப் பயண உரையைக் காட்டு'),'btn',function(){vrScript(m)}));tc.appendChild(r3);
+  var pg=vrProg()[m.id];tc.appendChild(labDiv('vr-note',pg?(X('Progress on this device: tour completed '+(pg.tour?'yes':'no')+', sessions '+(pg.visits||0)+', best quiz score '+(pg.quiz!=null?pg.quiz+'/'+m.quiz.length:'not taken')+'.','இந்தச் சாதனத்தில் முன்னேற்றம்: பயணம் முடிந்தது '+(pg.tour?'ஆம்':'இல்லை')+', அமர்வுகள் '+(pg.visits||0)+', சிறந்த வினாடி வினா மதிப்பெண் '+(pg.quiz!=null?pg.quiz+'/'+m.quiz.length:'எடுக்கவில்லை')+'.')):X('No progress recorded on this device yet. Progress is stored only on the device being used.','இந்தச் சாதனத்தில் இன்னும் முன்னேற்றம் பதிவாகவில்லை. முன்னேற்றம் பயன்படுத்தும் சாதனத்தில் மட்டுமே சேமிக்கப்படும்.')));
+  host.appendChild(tc);host.appendChild(vrCatalogue());
+  host.appendChild(vrTestSteps())}
+function vrCatalogue(){var d=el('details','vr-sec');d.appendChild(el('summary',null,X('VR concept catalogue (all 24 planned concepts)','VR கருத்துப் பட்டியல் (திட்டமிட்ட 24 கருத்துகள்)')));var t=el('table');var ta=isTa();
+  VR_CAT.forEach(function(m){var tr=el('tr');tr.appendChild(el('td',null,(ta?'பாடம் ':'Unit ')+m.u));tr.appendChild(el('td',null,ta?m.ta:m.en));tr.appendChild(el('td',null,m.pg));tr.appendChild(el('td',null,vrBuilt(m.id)?(ta?'● உள்ளது':'● Available'):(ta?'○ உருவாக்கத்தில்':'○ In development')));t.appendChild(tr)});d.appendChild(t);return d}
+function vrTestSteps(){var d=el('details','vr-sec');d.appendChild(el('summary',null,X('How to test on a phone with VR glasses','VR கண்ணாடியுடன் தொலைபேசியில் சோதிப்பது எப்படி')));var ta=isTa();
+  var st=ta?['Android தொலைபேசியில் Chrome ஐத் திறந்து, இந்தச் செயலியை https முகவரியில் (அல்லது Claude இல்) திறந்து, உங்கள் தொலைபேசியின் சுழற்சி பூட்டை அணைக்கவும்.','Teach → Virtual Reality (VR) → “Immersive VR (phone in glasses)” ஐத் தேர்ந்தெடுக்கவும். இயக்க அனுமதி கேட்டால் அனுமதிக்கவும் (iPhone இல் தேவை).','உடனே முழுத்திரையில் இரு படங்கள் தோன்றும். தொலைபேசியை கண்ணாடியில் பொருத்தி அணியுங்கள்.','தலையைத் திருப்புங்கள்: காட்சி உங்களுடன் சீராக நகர வேண்டும். திசை தவறினால் நேராகப் பார்த்து “மையப்படுத்து” (மெனு) அல்லது திரையைத் தொடுங்கள்.','கீழே பாருங்கள் (பார்வைப் பட்டியல்). பொத்தானைப் பார்த்துக்கொண்டிருந்தால் வட்டம் நிரம்பி 1.5 வினாடியில் தேர்வாகும்; திரையைத் தொட்டாலும் உடனே தேர்வாகும்.','ஒளிரும் புள்ளியைப் பார்த்து அதன் விளக்கத்தைக் கேளுங்கள். படங்கள் இரட்டையாகத் தெரிந்தால் அமைப்புகளில் கண் இடைவெளி (IPD) மற்றும் லென்ஸ் திருத்தத்தை மாற்றுங்கள்.','ஒவ்வொரு 10 நிமிடத்திற்கும் ஓய்வு எடுங்கள்.']:
+   ['Open the app in Chrome on an Android phone over https (or inside Claude) and turn off the rotation lock.','Teach → Virtual Reality (VR) → choose “Immersive VR (phone in glasses)”. Allow motion sensor access if asked (needed on iPhone).','Two pictures appear full screen. Put the phone into the glasses and wear them.','Turn your head: the scene should move smoothly with you. If the direction drifts, look straight ahead and use Recentre (menu) or tap the screen.','Look down to see the gaze menu. Hold your gaze on a button: the ring fills in 1.5 seconds and selects it. A tap on the screen (Cardboard button) selects immediately.','Look at a glowing dot to hear about it. If images look doubled or stretched, adjust Eye separation (IPD) and Lens correction in Settings.','Take a rest every 10 minutes. Report anything uncomfortable.'];
+  var ol=el('ol');ol.style.margin='6px 0 6px 18px';st.forEach(function(t){ol.appendChild(el('li',null,t))});d.appendChild(ol);return d}
+function vrScript(m){labOverlay(X('Guided tour script','வழிகாட்டிப் பயண உரை'),function(box){m.tour.forEach(function(s,i){var p=labDiv();p.style.margin='8px 0';p.appendChild(el('b',null,(i+1)+'. '+(isTa()?m.stations.filter(function(q){return q.id===s.st})[0].name.ta:m.stations.filter(function(q){return q.id===s.st})[0].name.en)+': '));p.appendChild(document.createTextNode(isTa()?s.t.ta:s.t.en));box.appendChild(p)})})}
+function vrQuizOverlay(m){labOverlay(X('Assessment questions','மதிப்பீட்டு வினாக்கள்'),function(box){var sc=0,i=0;function show(){box.textContent='';if(i>=m.quiz.length){box.appendChild(el('h3',null,X('Score: ','மதிப்பெண்: ')+sc+'/'+m.quiz.length));var pg=vrProg()[m.id]||{};if(pg.quiz==null||sc>pg.quiz)vrSaveProg(m.id,{quiz:sc});box.appendChild(labDiv('lab-note',X('Saved on this device.','இந்தச் சாதனத்தில் சேமிக்கப்பட்டது.')));return}
+    var q=m.quiz[i],ta=isTa();box.appendChild(el('b',null,(i+1)+'/'+m.quiz.length+'. '+(ta?q.q.ta:q.q.en)));var done=false;q.o.forEach(function(o,k){var b=button(String.fromCharCode(65+k)+'. '+(ta?o.ta:o.en),'btn',function(){if(done)return;done=true;var ok=k===q.a;if(ok)sc++;b.style.background=ok?'#d9f2dc':'#f8d7da';box.appendChild(labDiv(ok?'lab-add':'lab-note',(ok?X('Correct. ','சரி. '):X('Not quite. ','சரியல்ல. '))+(ta?q.why.ta:q.why.en)));box.appendChild(button(i<m.quiz.length-1?X('Next','அடுத்து'):X('Finish','முடி'),'btn',function(){i++;show()}))});b.style.cssText='display:block;width:100%;text-align:left;margin:6px 0;background:#fff;color:#111;border:1px solid #bbb;border-radius:8px;padding:8px';box.appendChild(b)})}show()})}
+function vrCatalogueCountText(){return''}
+/* ---------------- stage ---------------- */
+function vrLaunch(kind){var m=vrMod(VRS.id);if(!m)return;VRS.kind=kind;vrCaps(function(c){
+  if(!c.webgl2){toast(X('WebGL 2 is not available in this browser.','இந்த உலாவியில் WebGL 2 இல்லை.'));return}
+  var st=document.createElement('div');st.id='vrStage';if(kind==='class')st.className='class';
+  st.innerHTML='<div id="vrHost"></div><div id="vrTop"></div><div id="vrBot"><div id="vrSub"></div><div id="vrCtl"></div></div><div id="vrSide"></div><div id="vrRot">'+(isTa()?'தொலைபேசியைக் கிடைமட்டமாகத் திருப்புங்கள்':'Please turn the phone to landscape')+'</div>';
+  document.body.appendChild(st);document.body.style.overflow='hidden';VRS.stage=st;
+  var E;try{E=new SBVR.Engine($('#vrHost',st),{scale:c.tier==='low'?.7:c.tier==='high'?1:.85})}catch(err){st.remove();document.body.style.overflow='';VRS.stage=null;toast(X('Could not start the 3D engine: ','3D இயந்திரத்தைத் தொடங்க இயலவில்லை: ')+err.message);return}
+  VRS.eng=E;E.profile=store.get('vrProf','cb2');E.phoneInch=store.get('vrInch',6.1);E.aa=c.tier!=='low';if(c.tier==='low')E.quality=1;
+  var S=new SBVR.Session(E,m,{lang:vrEn(),guided:VRS.guided});VRS.ses=S;
+  vrBuildHud(S,E,m);S.on('exit',function(){if(E.mode==='vr'){E.exitVR();vrHud(true);S.buildPanel()}else vrClose()});
+  S.on('done',function(){vrSaveProg(m.id,{tour:true})});
+  if(kind==='class')try{st.requestFullscreen&&st.requestFullscreen().catch(function(){})}catch(e){}
+  vrVisits=0;var pg=vrProg()[m.id]||{};vrSaveProg(m.id,{visits:(pg.visits||0)+1,last:Date.now()});
+  S.start();
+  if(kind==='360'){E.enter360().then(function(ok){if(!ok&&c.gyroPermission)vrMsg(X('Motion access was not allowed, so touch dragging is used for looking around.','இயக்க அணுகல் அனுமதிக்கப்படவில்லை; எனவே சுற்றிப்பார்க்க தொடு-இழுத்தல் பயன்படுத்தப்படும்.'))});$('#vrStage').classList.remove('vrmode')}
+  else if(kind==='cardboard'){vrMsg(null,function(){return E.enterCardboard().then(function(ok){vrHud(false);S.buildPanel();vrBreakTimer(S,E);if(!ok&&!E.head.haveSensor)vrMsg(X('No motion sensor was detected. You can still look around by dragging, but head tracking needs a phone with a gyroscope.','இயக்க உணரி கண்டறியப்படவில்லை. இழுத்துச் சுற்றிப் பார்க்கலாம்; ஆனால் தலைக் கண்காணிப்புக்கு கைரோஸ்கோப் உள்ள தொலைபேசி வேண்டும்.'))})},'cardboard')}
+  else if(kind==='xr'){E.enterXR().then(function(){vrHud(false);vrBreakTimer(S,E)}).catch(function(e){vrMsg(X('The headset session could not start: ','தலைக்கவசம் தொடங்க இயலவில்லை: ')+e.message)})}
+  document.addEventListener('fullscreenchange',vrFsChange);window.addEventListener('resize',vrOrient);vrOrient();
+  vrRefreshHud();VRS.readTimer=setInterval(vrRefreshRead,300)})}
+var vrVisits=0;
+function vrFsChange(){var E=VRS.eng;if(!E)return;if(!document.fullscreenElement&&E.mode==='vr'&&E.vrKind==='cardboard'){E.exitVR();vrHud(true);VRS.ses&&VRS.ses.buildPanel()}}
+function vrOrient(){var r=$('#vrRot');if(!r||!VRS.eng)return;var land=window.innerWidth>window.innerHeight;r.style.display=(VRS.eng.mode==='vr'&&VRS.eng.vrKind==='cardboard'&&!land)?'flex':'none'}
+function vrHud(show){var st=VRS.stage;if(!st)return;st.classList.toggle('vrmode',!show);vrOrient()}
+function vrMsg(text,onGo,kind){var st=VRS.stage;if(!st)return;var old=$('#vrMsg',st);if(old)old.remove();var d=document.createElement('div');d.id='vrMsg';
+  if(onGo){var h=el('h3',null,X('Put on your glasses','கண்ணாடியை அணியுங்கள்'));d.appendChild(h);[X('Turn the phone to landscape and put it into the glasses.','தொலைபேசியைக் கிடைமட்டமாகத் திருப்பிக் கண்ணாடியில் பொருத்துங்கள்.'),X('Sit down in a clear area. Use only with supervision, and take a break every 10 to 15 minutes.','தெளிவான இடத்தில் அமருங்கள். மேற்பார்வையுடன் மட்டுமே பயன்படுத்துங்கள்; ஒவ்வொரு 10–15 நிமிடத்திற்கும் ஓய்வெடுங்கள்.'),X('Look down for the menu. Hold your gaze on a button for 1.5 seconds, or tap the screen.','மெனுவுக்குக் கீழே பாருங்கள். ஒரு பொத்தானை 1.5 வினாடி பார்த்திருங்கள் அல்லது திரையைத் தொடுங்கள்.')].forEach(function(t){var p=el('div',null,'• '+t);p.style.margin='6px 0';d.appendChild(p)});
+    var r=el('div');r.style.cssText='display:flex;gap:8px;margin-top:12px';r.appendChild(button(X('Start VR','VR தொடங்கு'),'',function(){d.remove();onGo()}));r.appendChild(button(X('Cancel','ரத்து'),'',function(){d.remove()}));d.appendChild(r)}
+  else{d.appendChild(el('div',null,text));var r2=el('div');r2.style.marginTop='10px';r2.appendChild(button('OK','',function(){d.remove()}));d.appendChild(r2)}
+  st.appendChild(d)}
+function vrBreakTimer(S,E){clearTimeout(VRS.breakT);VRS.breakT=setTimeout(function(){if(VRS.eng!==E)return;var t=isTa()?'10 நிமிடம் ஆயிற்று. கண்ணாடியை அகற்றி ஓய்வெடுங்கள்.':'Ten minutes are up. Please take off the glasses and rest your eyes.';S.pause();S.say(t,'mix')},10*60*1000)}
+function vrClose(){var E=VRS.eng;clearInterval(VRS.readTimer);clearTimeout(VRS.breakT);document.removeEventListener('fullscreenchange',vrFsChange);window.removeEventListener('resize',vrOrient);
+  try{if(E){E.exitVR&&E.mode==='vr'&&E.exitVR();E.stop();var l=E.gl.getExtension('WEBGL_lose_context');l&&l.loseContext()}}catch(e){}
+  try{SBVR.Speech.stop();if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(function(){});if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock()}catch(e){}
+  if(VRS.stage)VRS.stage.remove();VRS.stage=null;VRS.eng=null;VRS.ses=null;document.body.style.overflow='';if(VRS.host)vrRender()}
+function vrBuildHud(S,E,m){var st=VRS.stage,ta=function(){return S.lang==='ta'},top=$('#vrTop',st),ctl=$('#vrCtl',st),side=$('#vrSide',st);
+  function T(o){return ta()?o.ta:o.en}
+  top.appendChild(button('✕',null,function(){vrClose()}));top.lastChild.setAttribute('aria-label','Close');
+  var tt=el('div','t',T(m.title));top.appendChild(tt);
+  var sel=el('select');sel.id='vrStSel';m.stations.forEach(function(q,i){var o=el('option',null,(i+1)+'. '+T(q.name));o.value=i;sel.appendChild(o)});sel.onchange=function(){S.playing=false;S.guided=false;S.E.paused=false;S.goStation(+sel.value);S.emit('state')};top.appendChild(sel);
+  var mb=el('select');mb.id='vrModeSel';[['std','3D'],['360','360°'],['cardboard','VR']].forEach(function(p){var o=el('option',null,p[1]);o.value=p[0];mb.appendChild(o)});mb.value=VRS.kind==='360'?'360':(VRS.kind==='cardboard'||VRS.kind==='xr')?'cardboard':'std';
+  mb.onchange=function(){vrSwitch(mb.value)};top.appendChild(mb);
+  var lb=button(S.lang==='ta'?'English':'தமிழ்',null,function(){var l=S.lang==='ta'?'en':'ta';S.setLang(l);lb.textContent=l==='ta'?'English':'தமிழ்';vrRefreshHud()});lb.id='vrLang';top.appendChild(lb);
+  var fb=button('⛶',null,function(){var d=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else (st.requestFullscreen||d.requestFullscreen).call(st)});fb.setAttribute('aria-label','Full screen');top.appendChild(fb);
+  var b1=button('◀',null,function(){S.prev()}),b2=button('▶',null,function(){S.togglePlay()}),b3=button('▶▶',null,function(){S.next()}),b4=button('↻',null,function(){S.restart()}),b5=button('⌖',null,function(){E.recentre()}),b6=button('☰',null,function(){side.classList.toggle('open')});
+  b2.id='vrPlay';b1.setAttribute('aria-label','Previous');b3.setAttribute('aria-label','Next');b4.setAttribute('aria-label','Restart tour');b5.setAttribute('aria-label','Recentre');b6.setAttribute('aria-label','Panel');
+  [b1,b2,b3,b4,b5,b6].forEach(function(b){ctl.appendChild(b)});
+  S.on('sub',function(o){vrSub(o)});S.on('state',vrRefreshHud);S.on('station',function(i){var s=$('#vrStSel');if(s)s.value=i;vrRefreshHud();vrBuildSide()});S.on('param',function(){vrBuildSide()});S.on('lang',function(){var q=$('#vrStSel');if(q){var cur=S.station;q.innerHTML='';S.m.stations.forEach(function(st,i){var o=el('option',null,(i+1)+'. '+T(st.name));o.value=i;q.appendChild(o)});q.value=cur}vrBuildSide();vrRefreshHud()});S.on('step',vrRefreshHud);
+  S.on('reset',function(){});vrBuildSide();
+  E.on('mode',function(md){var s=$('#vrModeSel');if(s&&md!=='vr')s.value=md==='360'?'360':'std'})}
+function vrSub(o){var d=$('#vrSub');if(!d)return;d.textContent='';if(o.tag){var t=el('span','tag '+o.tag,o.tag==='real'?(VRS.ses.lang==='ta'?'உண்மை':'REAL'):o.tag==='illus'?(VRS.ses.lang==='ta'?'விளக்கம்':'ILLUSTRATIVE'):(VRS.ses.lang==='ta'?'உண்மை + விளக்கம்':'REAL + ILLUSTRATIVE'));d.appendChild(t)}d.appendChild(document.createTextNode(o.text||''))}
+function vrRefreshHud(){var S=VRS.ses;if(!S)return;var p=$('#vrPlay');if(p){p.textContent=S.playing?'❚❚':'▶';p.classList.toggle('on',S.playing)}var tt=$('#vrTop .t');if(tt)tt.textContent=(S.lang==='ta'?S.m.title.ta:S.m.title.en)}
+function vrSwitch(v){var S=VRS.ses,E=VRS.eng,st=VRS.stage;if(!S||!E)return;
+  if(v==='std'){E.exitVR&&E.mode==='vr'&&E.exitVR();E.setMode('std');E.stopSensors();vrHud(true)}
+  else if(v==='360'){if(E.mode==='vr')E.exitVR();E.enter360().then(function(){vrHud(true)})}
+  else{vrMsg(null,function(){return E.enterCardboard().then(function(){vrHud(false);S.buildPanel();vrBreakTimer(S,E)})},'cardboard')}}
+function vrBuildSide(){var S=VRS.ses,side=$('#vrSide');if(!S||!side)return;var m=S.m,ta=S.lang==='ta',keepTab=VRS.tab||'p';side.textContent='';
+  var tabs=el('div','tabs');[['p',ta?'அளவுருக்கள்':'Parameters'],['r',ta?'அளவீடுகள்':'Readouts'],['l',ta?'உண்மை/விளக்கம்':'Real vs illustrative'],['q',ta?'வினாடி வினா':'Quiz']].forEach(function(t){var b=button(t[1],keepTab===t[0]?'on':'',function(){VRS.tab=t[0];vrBuildSide()});tabs.appendChild(b)});side.appendChild(tabs);
+  var body=el('div');body.id='vrSideBody';side.appendChild(body);
+  if(keepTab==='p'){var ps=S.params();if(!ps.length)body.appendChild(el('div',null,ta?'இந்த நிலையத்தில் அளவுருக்கள் இல்லை.':'This station has no parameters. Choose another station.'));
+    ps.forEach(function(p){var lab=el('label',null,ta?p.label.ta:p.label.en);var val=el('span','val');lab.appendChild(val);
+      if(p.kind==='choice'){var sl=el('select');sl.style.cssText='width:100%;margin-top:6px';p.choices.forEach(function(c){var o=el('option',null,ta?SBP8.SPECIES[c].ta:SBP8.SPECIES[c].en);o.value=c;sl.appendChild(o)});sl.value=S.getParam(p.id);sl.onchange=function(){S.setParam(p.id,sl.value)};lab.appendChild(sl)}
+      else{var r=el('input');r.type='range';r.min=p.min;r.max=p.max;r.step=p.step;r.value=S.getParam(p.id);val.textContent=p.fmt(+r.value);r.oninput=function(){val.textContent=p.fmt(+r.value);S.setParam(p.id,+r.value)};lab.appendChild(r)}body.appendChild(lab)});
+    S.stationPresets().forEach(function(q){var b=button(q.text,null,function(){S.runPreset(q.id);vrBuildSide()});b.style.cssText='display:block;width:100%;margin-top:10px';body.appendChild(b)});
+    var sp=el('label',null,ta?'இயக்க வேகம்':'Playback speed');var sv=el('span','val',S.simSpeed.toFixed(2)+'×');sp.appendChild(sv);var sr=el('input');sr.type='range';sr.min=.25;sr.max=2;sr.step=.25;sr.value=S.simSpeed;sr.oninput=function(){S.simSpeed=+sr.value;S.m.S.speedMul=S.simSpeed;sv.textContent=S.simSpeed.toFixed(2)+'×'};sp.appendChild(sr);body.appendChild(sp)}
+  else if(keepTab==='r'){body.id='vrRead';vrRefreshRead()}
+  else if(keepTab==='l'){m.legend.forEach(function(q){var d=el('div','q',(q.k==='real'?(ta?'● உண்மை: ':'● REAL: '):(ta?'● விளக்கம்: ':'● ILLUSTRATIVE: '))+(ta?q.t.ta:q.t.en).replace(/^(REAL physics|ILLUSTRATIVE|SCALE|SIMPLIFIED|உண்மை இயற்பியல்|விளக்கத்திற்காக|அளவு|எளிமைப்படுத்தல்): /,''));body.appendChild(d)})}
+  else{VRS.qi=VRS.qi||0;VRS.qs=VRS.qs||0;vrQuizSide(body)}}
+function vrQuizSide(body){var S=VRS.ses,m=S.m,ta=S.lang==='ta';body.textContent='';if(VRS.qi>=m.quiz.length){body.appendChild(el('h4',null,(ta?'மதிப்பெண்: ':'Score: ')+VRS.qs+'/'+m.quiz.length));var pg=vrProg()[m.id]||{};if(pg.quiz==null||VRS.qs>pg.quiz)vrSaveProg(m.id,{quiz:VRS.qs});body.appendChild(button(ta?'மீண்டும்':'Retry',null,function(){VRS.qi=0;VRS.qs=0;vrQuizSide(body)}));return}
+  var q=m.quiz[VRS.qi],d=el('div','q');d.appendChild(el('b',null,(VRS.qi+1)+'/'+m.quiz.length+'. '+(ta?q.q.ta:q.q.en)));var done=false;q.o.forEach(function(o,k){var b=button(String.fromCharCode(65+k)+'. '+(ta?o.ta:o.en),null,function(){if(done)return;done=true;var ok=k===q.a;if(ok)VRS.qs++;b.classList.add(ok?'ok':'bad');d.appendChild(el('div',null,(ok?(ta?'சரி. ':'Correct. '):(ta?'சரியல்ல. ':'Not quite. '))+(ta?q.why.ta:q.why.en)));d.appendChild(button(VRS.qi<m.quiz.length-1?(ta?'அடுத்து':'Next'):(ta?'முடி':'Finish'),null,function(){VRS.qi++;vrQuizSide(body)}))});d.appendChild(b)});body.appendChild(d)}
+function vrRefreshRead(){var S=VRS.ses,b=$('#vrRead');if(!S||!b||!S.m.readout)return;var rows=S.m.readout(S.lang),t=b.querySelector('table');if(!t){t=el('table');b.appendChild(t)}
+  var h='';rows.forEach(function(r){h+='<tr><td>'+r.k.replace(/</g,'&lt;')+(r.eq?' <small>'+r.eq+'</small>':'')+'</td><td class="v">'+String(r.v).replace(/</g,'&lt;')+'</td></tr>'});if(t._h!==h){t.innerHTML=h;t._h=h}}
+window.__VRS=VRS;
+
 
 /* ---------- profile menu + log out (online/login version only) ---------- */
 (function(){
@@ -13212,11 +14423,13 @@ $('#bresBtn').addEventListener('click',async function(){
 
 /* ---------- Main switch ---------- */
 function showMain(v){
-  $('#bookPick').hidden=(v==='custom'||v==='exam'||v==='weekly'||v==='optics'||v==='prac');
+  $('#bookPick').hidden=(v==='custom'||v==='exam'||v==='weekly'||v==='optics'||v==='prac'||v==='vr');
   $('#teach-vl').hidden=v!=='optics';
   if(v==='optics'&&window.vlOpen)window.vlOpen();
   $('#teach-prac').hidden=v!=='prac';
   if(v==='prac'&&window.labOpen)window.labOpen();
+  $('#teach-vr').hidden=v!=='vr';
+  if(v==='vr'&&window.vrOpen)window.vrOpen();
   $('#teach-exam').hidden=v!=='exam';
   $('#teach-weekly').hidden=v!=='weekly';
   if(v==='weekly')renderWeekly();
@@ -13228,7 +14441,7 @@ function showMain(v){
 seg($('#mainSeg'),showMain);
 showMain('book');
 if(STUDENT){
-  $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='exam'&&b.dataset.v!=='optics'&&b.dataset.v!=='prac')b.hidden=true});
+  $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='exam'&&b.dataset.v!=='optics'&&b.dataset.v!=='prac'&&b.dataset.v!=='vr')b.hidden=true});
   var tl=$('#tb-teach');if(tl){var nd=tl.lastChild;if(nd&&nd.nodeType===3)nd.textContent='Learn'}
   var th2=$('#tab-teach h2'),tlb=$('#tab-teach .lab');if(th2)th2.textContent='Practice and simulations';if(tlb)tlb.textContent='Learn';
   var te=$('#tb-tour');if(te)te.hidden=true;
