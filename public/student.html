@@ -2328,7 +2328,7 @@ function renderKit(){
 seg($('#kitSeg'),function(v){ks.v=v;renderKit()});
 if(OFFLINE){
   ['saved'].forEach(function(t){var b=$('#tb-'+t);if(b)b.hidden=true});
-  $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='book'&&b.dataset.v!=='exam'&&b.dataset.v!=='weekly'&&b.dataset.v!=='optics'&&b.dataset.v!=='prac')b.hidden=true});
+  $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='book'&&b.dataset.v!=='exam'&&b.dataset.v!=='weekly'&&b.dataset.v!=='optics'&&b.dataset.v!=='prac'&&b.dataset.v!=='vr')b.hidden=true});
   var tb=$('.tabbar');if(tb)tb.classList.add('off2');
   $$('#tab-today,#tab-ask,#tab-english,#tab-saved').forEach(function(x){x.hidden=true});
   $('#tab-teach').hidden=false;
