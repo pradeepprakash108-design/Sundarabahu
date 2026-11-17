@@ -956,7 +956,7 @@ Engine.prototype._bindInput=function(){var E=this,cv=E.cv,down=null,moved=0;
   function pt(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
   cv.addEventListener('pointerdown',function(e){cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);down={x:e.clientX,y:e.clientY,id:e.pointerId};moved=0;E.pointer=Object.assign(pt(e),{has:true})});
   cv.addEventListener('pointermove',function(e){var p=pt(e);E.pointer={x:p.x,y:p.y,has:true};if(!down)return;var dx=e.clientX-down.x,dy=e.clientY-down.y;down.x=e.clientX;down.y=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);
-    var k=.0055;if(E.mode==='std'){E.orbit.yaw-=dx*k;E.orbit.pitch=clamp(E.orbit.pitch+dy*k,-.2,1.45)}else if(E.head.haveSensor){E.rig.yaw-=dx*k*.8}else{E.rig.tYaw-=dx*k*.8;E.rig.tPitch=clamp(E.rig.tPitch+dy*k*.8,-1.4,1.4)}});
+    var k=.0055;if(E.mode==='std'){E.orbit.yaw-=dx*k;E.orbit.pitch=clamp(E.orbit.pitch+dy*k,-.2,1.55)}else if(E.head.haveSensor){E.rig.yaw-=dx*k*.8}else{E.rig.tYaw-=dx*k*.8;E.rig.tPitch=clamp(E.rig.tPitch+dy*k*.8,-1.4,1.4)}});
   function up(e){if(!down)return;var was=moved<8;down=null;if(was){if(E.mode==='vr'&&E.vrKind==='cardboard'){E.activateGaze()}else if(E.mode==='360'){E.activateGaze(true)}else E.pickPointer()}}
   cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',function(){down=null});
   cv.addEventListener('wheel',function(e){if(E.mode==='std'){e.preventDefault();E.orbit.dist=clamp(E.orbit.dist*(1+Math.sign(e.deltaY)*.08),E.orbit.min,E.orbit.max)}},{passive:false});
@@ -1414,8 +1414,7 @@ function buildRoom(E,self){
   L1.forEach(function(s,i){z.fillText(s,60,100+i*95)});z.font='500 30px "Segoe UI",sans-serif';z.fillStyle='rgba(255,230,150,.9)';z.fillText('Class 12 Physics · Unit 3 · pp. 170–176',60,470);
   E.addQuad({tex:E.texFromCanvas(b),pos:[-0.5,1.75,-4.97],w:4.4,h:2.2,order:1,lit:1});
   /* ceiling, light panels, door frame */
-  var m=new Mesh();m.box(V.mul(V.mtr(-0.5,3.65,0),V.msc(14,.1,10)),[.82,.83,.85],mat(0,10));
-  [-4,0,4].forEach(function(px){[-2.5,1.5].forEach(function(pz){m.box(V.mul(V.mtr(px,3.58,pz),V.msc(1.6,.04,.5)),[1,1,.95],mat(0,10,1.2))})});
+  var m=new Mesh();/* open-top room: no ceiling so the eagle-eye view is unobstructed */
   /* bench for demo pedestal and for cyclotron */
   var wood=[.62,.45,.3],steel=[.62,.64,.68];
   m.box(V.mul(V.mtr(ZB[0],.77,ZB[2]),V.msc(2.2,.06,1.7)),wood,mat(0,20));
@@ -1797,8 +1796,7 @@ function buildRoom(E,d,G){
   z.fillStyle='rgba(255,255,255,.9)';z.font='600 44px "Segoe UI",sans-serif';(d.board||[]).slice(0,4).forEach(function(s,i){z.fillText(s,60,100+i*95)});
   z.font='500 30px "Segoe UI",sans-serif';z.fillStyle='rgba(255,230,150,.9)';z.fillText('Class 12 Physics · Unit '+d.unit+' · '+d.pages,60,470);
   E.addQuad({tex:E.texFromCanvas(b),pos:[-7.46,1.75,-1.5],w:4.4,h:2.2,yaw:PI/2,order:1,lit:1});
-  var m=new Mesh();m.box(V.mul(V.mtr(-0.5,3.65,0),V.msc(14,.1,10)),[.82,.83,.85],mat(0,10));
-  [-4,0,4].forEach(function(px){[-2.5,1.5].forEach(function(pz){m.box(V.mul(V.mtr(px,3.58,pz),V.msc(1.6,.04,.5)),[1,1,.95],mat(0,10,1.2))})});
+  var m=new Mesh();/* open-top room: no ceiling so the eagle-eye view is unobstructed */
   if(!d.noCurtain)m.box(V.mul(V.mtr(K.C[0],1.55,-3.4),V.msc(5.2,2.9,.06)),[.05,.07,.11],mat(0,10));
   if(!d.noTable){var wood=[.62,.45,.3],steel=[.62,.64,.68],C=K.C,tw=d.tableW||2.8,td=d.tableD||1.5;
     m.box(V.mul(V.mtr(C[0],.77,C[2]),V.msc(tw,.06,td)),wood,mat(0,20));
