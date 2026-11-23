@@ -168,6 +168,21 @@ details.panel[open]>summary{margin-bottom:10px}
 .lphw{font-family:'Caveat','Segoe Print','Bradley Hand','Comic Sans MS',cursive;font-size:1.7rem;line-height:36px;font-weight:500;color:var(--ink);margin:0}
 .lphw-h{font-weight:700;font-size:2rem}.lphw-s{font-weight:700;color:var(--accent);text-decoration:underline}
 ul.lphw{padding-left:1.1em;list-style:"– "}
+.eqx sub,.eqx sup{font-size:.72em;line-height:0}
+.eqf{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .2em;font-size:.95em;line-height:1.25}
+.eqf .n{border-bottom:1.3px solid currentColor;padding:0 .25em .06em}.eqf .d{padding:.06em .25em 0}
+.lpmap{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:22px;max-width:680px}
+.lpmap li{position:relative;display:flex;align-items:center;gap:12px;background:var(--tint);border:1.5px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:1.05rem}
+.lpmap li:not(:last-child)::after{content:'';position:absolute;left:26px;bottom:-17px;width:2px;height:12px;background:var(--accent)}
+.lpmap li:not(:last-child)::before{content:'';position:absolute;left:21px;bottom:-21px;border:6px solid transparent;border-top:8px solid var(--accent);border-bottom:0}
+.lpmn{flex:0 0 28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;display:flex;align-items:center;justify-content:center}
+.lpmt{min-width:0}
+.lpfigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start}
+.lpfig{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
+.lpfig img{max-width:100%;height:auto;cursor:zoom-in;border-radius:6px}
+.lpfig figcaption{font-size:.85rem;color:#51646E;margin-top:4px}
+.lpzoom{position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;cursor:zoom-out}
+.lpzoom img{max-width:100%;max-height:82vh;background:#fff;border-radius:8px}.lpzcap{color:#fff}
 .kit ul,.kit ol{margin:.4em 0;padding-left:1.3em}
 .kit li{margin:.25em 0}
 /* ===== Colour theme and responsive layout ===== */
@@ -886,18 +901,18 @@ Mesh.prototype.arrow=function(a,b,r,col,mat,seg){/* shaft + head */var d=vsub(b,
 var VS_MAIN='#version 300 es\nprecision highp float;layout(location=0)in vec3 aP;layout(location=1)in vec3 aN;layout(location=2)in vec3 aC;layout(location=3)in vec3 aM;layout(location=4)in vec4 i0;layout(location=5)in vec4 i1;layout(location=6)in vec4 i2;layout(location=7)in vec4 i3;layout(location=8)in vec4 iT;uniform mat4 uVP;out vec3 vN,vW,vC,vM;out float vA;void main(){mat4 m=mat4(i0,i1,i2,i3);vec4 w=m*vec4(aP,1.);vW=w.xyz;vN=mat3(m)*aN;vC=aC*iT.rgb;vM=aM;vA=iT.a;gl_Position=uVP*w;}';
 var FS_MAIN='#version 300 es\nprecision mediump float;in vec3 vN,vW,vC,vM;in float vA;uniform vec3 uEye,uL1,uL2,uFogC;uniform float uFog,uAlpha;out vec4 o;'+
  'vec3 env(vec3 r){float h=r.y*.5+.5;vec3 c=mix(vec3(.30,.32,.35),vec3(.86,.9,.97),smoothstep(.15,.85,h));c+=vec3(1.,.97,.9)*pow(max(dot(r,uL1),0.),24.)*1.6;c+=vec3(.8,.9,1.)*pow(max(dot(r,uL2),0.),12.)*.5;c*=1.-.5*smoothstep(.0,-.6,r.y);return c;}'+
- 'void main(){vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 V=normalize(uEye-vW);float d1=max(dot(N,uL1),0.),d2=max(dot(N,uL2),0.);vec3 amb=mix(vec3(.34,.33,.33),vec3(.66,.70,.78),N.y*.5+.5);'+
+ 'void main(){vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 V=normalize(uEye-vW);float d1=clamp(dot(N,uL1)*.85+.15,0.,1.),d2=max(dot(N,uL2),0.);vec3 amb=mix(vec3(.34,.33,.33),vec3(.66,.70,.78),N.y*.5+.5);'+
  'float ao=mix(.72,1.,smoothstep(.0,.55,vW.y));vec3 base=vC*(amb*ao+d1*vec3(.95,.92,.86)*.85+d2*vec3(.5,.58,.7)*.35);'+
  'vec3 H=normalize(uL1+V);float sp=pow(max(dot(N,H),0.),vM.y)*(.15+vM.x*.9);vec3 R=reflect(-V,N);float fr=pow(1.-max(dot(N,V),0.),3.);'+
- 'vec3 metal=vC*env(R)*(.55+.45*fr)+sp*vec3(1.,.95,.88);vec3 col=mix(base+sp*vec3(1.,.95,.9)*.4,metal,vM.x);col+=vC*vM.z*1.4;'+
+ 'vec3 metal=vC*env(R)*(.55+.45*fr)+sp*vec3(1.,.95,.88);vec3 col=mix(base+sp*vec3(1.,.95,.9)*.4,metal,vM.x);col+=vC*vM.z*1.4;col+=mix(vec3(.45,.6,.95),vec3(1.),vM.x)*fr*.07*(1.-vM.z);'+
  'float dist=length(uEye-vW);float f=1.-exp(-uFog*dist*uFog*dist);col=mix(col,uFogC,clamp(f,0.,1.));o=vec4(col,vA*uAlpha);}';
 var VS_TEX='#version 300 es\nprecision highp float;layout(location=0)in vec2 aP;layout(location=1)in vec2 aU;uniform mat4 uVP,uM;uniform vec2 uRep;out vec2 vU;out vec3 vW;void main(){vec4 w=uM*vec4(aP,0.,1.);vW=w.xyz;vU=aU*uRep;gl_Position=uVP*w;}';
 var FS_TEX='#version 300 es\nprecision mediump float;in vec2 vU;in vec3 vW;uniform sampler2D uT;uniform vec4 uTint;uniform vec3 uEye,uFogC;uniform float uFog,uMode,uProg,uLit;out vec4 o;'+
  'void main(){if(uMode>.5){vec2 p=vU-.5;float r=length(p)*2.;float a=atan(p.x,-p.y);float ring=smoothstep(.92,.88,r)*smoothstep(.62,.66,r);float prog=step((a/6.2832+.5),uProg)*ring;float dot_=smoothstep(.16,.12,r);float base=ring*.45;vec3 c=mix(vec3(1.),vec3(.2,1.,.45),step(.001,uProg));o=vec4(mix(vec3(1.),vec3(.2,.95,.4),prog)*(1.),max(max(base,prog),dot_*.9)*uTint.a);return;}'+
  'vec4 t=texture(uT,vU);vec3 c=t.rgb*uTint.rgb;float dist=length(uEye-vW);float f=1.-exp(-uFog*dist*uFog*dist);c=mix(c,uFogC,clamp(f,0.,1.)*uLit);o=vec4(c,t.a*uTint.a);}';
 var VS_FS='#version 300 es\nprecision highp float;out vec2 vU;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vU=p;gl_Position=vec4(p*2.-1.,0.,1.);}';
-var FS_DIST='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;uniform vec2 uLens,uHalfMM,uTexU;uniform vec4 uTan;uniform float uDist,uK1,uK2;out vec4 o;void main(){vec2 p=(vU-uLens)*uHalfMM/uDist;float r2=dot(p,p);vec2 q=p*(1.+uK1*r2+uK2*r2*r2);vec2 t=(q-uTan.xz)/(uTan.yw-uTan.xz);if(t.x<0.||t.x>1.||t.y<0.||t.y>1.){o=vec4(0.,0.,0.,1.);return;}o=vec4(texture(uT,vec2(mix(uTexU.x,uTexU.y,t.x),t.y)).rgb,1.);}';
-var FS_BLIT='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;out vec4 o;void main(){o=vec4(texture(uT,vU).rgb,1.);}';
+var FS_DIST='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;uniform vec2 uLens,uHalfMM,uTexU;uniform vec4 uTan;uniform float uDist,uK1,uK2;out vec4 o;vec3 bloomT(sampler2D t,vec2 u){vec2 px=1./vec2(textureSize(t,0));vec3 b=vec3(0.);for(int i=0;i<8;i++){float a=float(i)*.7854;vec2 d=vec2(cos(a),sin(a));b+=max(texture(t,u+d*px*3.).rgb-.7,0.)+max(texture(t,u+d*px*9.).rgb-.7,0.)*.8;}return b/8.;}vec3 gradeC(vec3 c){c=mix(c,c*c*(3.-2.*c),.32);float l=dot(c,vec3(.299,.587,.114));return mix(vec3(l),c,1.05);}void main(){vec2 p=(vU-uLens)*uHalfMM/uDist;float r2=dot(p,p);vec2 q=p*(1.+uK1*r2+uK2*r2*r2);vec2 t=(q-uTan.xz)/(uTan.yw-uTan.xz);if(t.x<0.||t.x>1.||t.y<0.||t.y>1.){o=vec4(0.,0.,0.,1.);return;}vec2 tu=vec2(mix(uTexU.x,uTexU.y,t.x),t.y);vec3 c=texture(uT,tu).rgb;c+=bloomT(uT,tu)*.7;o=vec4(gradeC(c),1.);}';
+var FS_BLIT='#version 300 es\nprecision highp float;in vec2 vU;uniform sampler2D uT;out vec4 o;vec3 bloomT(sampler2D t,vec2 u){vec2 px=1./vec2(textureSize(t,0));vec3 b=vec3(0.);for(int i=0;i<8;i++){float a=float(i)*.7854;vec2 d=vec2(cos(a),sin(a));b+=max(texture(t,u+d*px*3.).rgb-.7,0.)+max(texture(t,u+d*px*9.).rgb-.7,0.)*.8;}return b/8.;}vec3 gradeC(vec3 c){c=mix(c,c*c*(3.-2.*c),.32);float l=dot(c,vec3(.299,.587,.114));return mix(vec3(l),c,1.05);}void main(){vec3 c=texture(uT,vU).rgb;c+=bloomT(uT,vU)*.85;c=gradeC(c);c*=1.-.3*pow(length(vU-.5)*1.25,2.4);o=vec4(c,1.);}';
 var VS_SKY=VS_FS;
 var FS_SKY='#version 300 es\nprecision highp float;in vec2 vU;uniform mat4 uIV;uniform vec4 uTan;out vec4 o;void main(){vec2 t=mix(uTan.xz,uTan.yw,vU);vec3 d=normalize((uIV*vec4(t,-1.,0.)).xyz);o=vec4(mix(vec3(.05,.06,.08),vec3(.22,.25,.3),smoothstep(-.3,.9,d.y)),1.);}';
 
@@ -3524,6 +3539,7 @@ var TABS=['today','ask','english','teach','passage','spark','tour','neet','saved
 function showTab(name){
   TABS.forEach(function(t){$('#tab-'+t).hidden=t!==name;$('#tb-'+t).setAttribute('aria-selected',t===name?'true':'false')});
   window.scrollTo(0,0);
+  if(window.navPush)navPush();
 }
 $$('.tabbar button').forEach(function(b){b.addEventListener('click',function(){showTab(b.dataset.tab)})});
 function seg(root,onChange){
@@ -3840,6 +3856,7 @@ function planData(sc,K,u){
     slow:K.ex[0],top:K.qb[K.qb.length-1].q};
 }
 var FIGS={"1.2": [1, 4], "1.3": [1, 9], "1.5": [1, 12], "1.4": [1, 12], "1.7": [1, 13], "1.8": [1, 15], "1.9": [1, 18], "1.11": [1, 18], "1.10": [1, 18], "1.12": [1, 18], "1.13": [1, 19], "1.15": [1, 22], "1.16": [1, 22], "1.17": [1, 23], "1.18": [1, 24], "1.19": [1, 25], "1.20": [1, 26], "1.21": [1, 27], "1.22": [1, 27], "1.23": [1, 28], "1.24": [1, 28], "1.25": [1, 30], "1.26": [1, 32], "1.27": [1, 32], "1.28": [1, 34], "1.29": [1, 35], "1.30": [1, 37], "1.31": [1, 38], "1.32": [1, 38], "1.33": [1, 39], "1.34": [1, 40], "1.36": [1, 42], "1.37": [1, 42], "1.38": [1, 43], "1.39": [1, 44], "1.40": [1, 45], "1.41": [1, 46], "1.42": [1, 47], "1.43": [1, 47], "1.45": [1, 48], "1.47": [1, 49], "1.48": [1, 51], "1.50": [1, 53], "1.53": [1, 54], "1.54": [1, 55], "1.60": [1, 63], "1.61": [1, 65], "1.63": [1, 66], "2.1": [1, 81], "2.2": [1, 82], "2.3": [1, 82], "2.4": [1, 83], "2.5": [1, 85], "2.6": [1, 86], "2.7": [1, 86], "2.8": [1, 87], "2.9": [1, 90], "2.10": [1, 91], "2.11": [1, 94], "2.12": [1, 94], "2.14": [1, 96], "2.15": [1, 97], "2.16": [1, 98], "2.19": [1, 100], "2.17": [1, 100], "2.18": [1, 100], "2.20": [1, 101], "2.22": [1, 103], "2.23": [1, 105], "2.24": [1, 105], "2.25": [1, 107], "2.26": [1, 108], "2.27": [1, 110], "2.28": [1, 110], "2.31": [1, 113], "2.33": [1, 114], "2.35": [1, 114], "2.34": [1, 114], "2.36": [1, 115], "3.2": [1, 126], "3.3": [1, 127], "3.4": [1, 127], "3.5": [1, 128], "3.6": [1, 130], "3.7": [1, 131], "3.8": [1, 133], "3.10": [1, 134], "3.12": [1, 135], "3.13": [1, 136], "3.15": [1, 137], "3.14": [1, 137], "3.16": [1, 139], "3.18": [1, 144], "3.20": [1, 145], "3.19": [1, 145], "3.21": [1, 146], "3.22": [1, 147], "3.23": [1, 148], "3.24": [1, 149], "3.25": [1, 151], "3.26": [1, 152], "3.27": [1, 152], "3.29": [1, 153], "3.28": [1, 153], "3.30": [1, 154], "3.31": [1, 154], "3.32": [1, 156], "3.33": [1, 157], "3.34": [1, 158], "3.35": [1, 159], "3.37": [1, 162], "3.38": [1, 164], "3.41": [1, 164], "3.39": [1, 164], "3.40": [1, 164], "3.42": [1, 166], "3.43": [1, 167], "3.44": [1, 168], "3.45": [1, 170], "3.46": [1, 171], "3.47": [1, 171], "3.48": [1, 173], "3.49": [1, 174], "3.50": [1, 175], "3.51": [1, 176], "3.52": [1, 177], "3.53": [1, 178], "3.54": [1, 179], "3.55": [1, 179], "3.58": [1, 180], "3.57": [1, 180], "3.59": [1, 181], "3.60": [1, 182], "3.61": [1, 184], "3.62": [1, 185], "4.1": [1, 196], "4.2": [1, 197], "4.3": [1, 198], "4.4": [1, 199], "4.5": [1, 200], "4.6": [1, 202], "4.7": [1, 203], "4.8": [1, 204], "4.9": [1, 206], "4.10": [1, 207], "4.11": [1, 208], "4.13": [1, 210], "4.15": [1, 211], "4.17": [1, 211], "4.16": [1, 211], "4.18": [1, 212], "4.20": [1, 213], "4.19": [1, 213], "4.21": [1, 215], "4.22": [1, 216], "4.23": [1, 219], "4.24": [1, 221], "4.25": [1, 221], "4.26": [1, 223], "4.27": [1, 224], "4.28": [1, 224], "4.29": [1, 225], "4.31": [1, 227], "4.30": [1, 227], "4.33": [1, 230], "4.34": [1, 233], "4.36": [1, 234], "4.37": [1, 235], "4.38": [1, 237], "4.39": [1, 238], "4.40": [1, 238], "4.41": [1, 239], "4.42": [1, 239], "4.43": [1, 240], "4.44": [1, 241], "4.45": [1, 242], "4.46": [1, 244], "4.47": [1, 245], "4.48": [1, 245], "4.49": [1, 246], "4.51": [1, 249], "4.50": [1, 249], "4.52": [1, 252], "5.1": [1, 266], "5.4": [1, 268], "5.3": [1, 268], "5.5": [1, 269], "5.6": [1, 269], "5.8": [1, 273], "5.9": [1, 274], "5.10": [1, 275], "5.11": [1, 277], "5.12": [1, 278], "5.16": [1, 279], "6.1": [2, 2], "6.3": [2, 3], "6.4": [2, 3], "6.5": [2, 4], "6.6": [2, 5], "6.8": [2, 6], "6.7": [2, 6], "6.9": [2, 7], "6.10": [2, 7], "6.12": [2, 8], "6.11": [2, 8], "6.13": [2, 11], "6.14": [2, 13], "6.15": [2, 15], "6.17": [2, 15], "6.16": [2, 15], "6.19": [2, 16], "6.20": [2, 17], "6.21": [2, 20], "6.22": [2, 20], "6.24": [2, 21], "6.25": [2, 22], "6.27": [2, 22], "6.28": [2, 24], "6.30": [2, 26], "6.31": [2, 28], "6.32": [2, 30], "6.33": [2, 30], "6.34": [2, 30], "6.35": [2, 31], "6.36": [2, 33], "6.38": [2, 36], "6.40": [2, 38], "6.39": [2, 38], "6.41": [2, 40], "6.42": [2, 40], "6.43": [2, 41], "6.44": [2, 42], "6.45": [2, 44], "7.2": [2, 55], "7.4": [2, 56], "7.5": [2, 57], "7.6": [2, 58], "7.7": [2, 60], "7.8": [2, 61], "7.10": [2, 62], "7.9": [2, 62], "7.12": [2, 63], "7.11": [2, 63], "7.13": [2, 64], "7.14": [2, 65], "7.15": [2, 65], "7.16": [2, 67], "7.18": [2, 70], "7.17": [2, 70], "7.19": [2, 73], "7.20": [2, 74], "7.22": [2, 77], "7.21": [2, 77], "7.24": [2, 78], "7.23": [2, 78], "7.25": [2, 79], "7.26": [2, 80], "7.28": [2, 81], "7.27": [2, 81], "7.29": [2, 82], "7.30": [2, 82], "7.31": [2, 84], "7.32": [2, 85], "7.34": [2, 86], "7.33": [2, 86], "7.37": [2, 88], "7.36": [2, 88], "7.38": [2, 89], "7.39": [2, 90], "7.40": [2, 91], "7.41": [2, 92], "7.42": [2, 92], "7.43": [2, 93], "7.44": [2, 94], "7.45": [2, 94], "7.46": [2, 95], "7.47": [2, 96], "7.48": [2, 97], "8.2": [2, 110], "8.1": [2, 110], "8.3": [2, 110], "8.4": [2, 111], "8.5": [2, 111], "8.7": [2, 112], "8.6": [2, 112], "8.8": [2, 113], "8.9": [2, 114], "8.10": [2, 115], "8.11": [2, 115], "8.12": [2, 116], "8.13": [2, 119], "8.15": [2, 120], "8.14": [2, 120], "8.16": [2, 122], "8.17": [2, 125], "8.18": [2, 125], "8.20": [2, 130], "8.22": [2, 131], "8.23": [2, 132], "9.1": [2, 141], "9.2": [2, 142], "9.3": [2, 143], "9.4": [2, 144], "9.5": [2, 145], "9.6": [2, 146], "9.7": [2, 146], "9.9": [2, 149], "9.10": [2, 149], "9.11": [2, 150], "9.12": [2, 150], "9.14": [2, 151], "9.13": [2, 151], "9.15": [2, 152], "9.17": [2, 153], "9.18": [2, 154], "9.19": [2, 154], "9.20": [2, 156], "9.21": [2, 161], "9.22": [2, 161], "9.23": [2, 162], "9.24": [2, 167], "9.25": [2, 173], "9.26": [2, 174], "9.27": [2, 180], "9.28": [2, 181], "9.30": [2, 185], "10.1": [2, 196], "10.6": [2, 201], "10.8": [2, 202], "10.9": [2, 203], "10.10": [2, 203], "10.12": [2, 204], "10.13": [2, 204], "10.16": [2, 207], "10.19": [2, 210], "10.20": [2, 211], "10.21": [2, 212], "10.24": [2, 214], "10.25": [2, 215], "10.28": [2, 217], "10.27": [2, 217], "10.29": [2, 217], "10.30": [2, 219], "10.31": [2, 220], "10.32": [2, 220], "10.33": [2, 221], "10.35": [2, 222], "10.34": [2, 222], "10.47": [2, 232], "10.48": [2, 232], "10.49": [2, 233], "10.50": [2, 234], "10.51": [2, 235], "10.52": [2, 236], "10.53": [2, 238], "10.54": [2, 239], "10.55": [2, 240], "10.56": [2, 241], "10.57": [2, 242], "1.1": [1, 2], "1.6": [1, 13], "1.14": [1, 20], "1.35": [1, 40], "1.44": [1, 47], "1.46": [1, 48], "1.49": [1, 52], "1.51": [1, 53], "1.52": [1, 54], "1.55": [1, 57], "1.56": [1, 57], "1.57": [1, 58], "1.58": [1, 60], "1.59": [1, 61], "1.62": [1, 65], "2.13": [1, 95], "2.21": [1, 102], "2.29": [1, 111], "2.30": [1, 112], "2.32": [1, 113], "2.37": [1, 115], "3.1": [1, 126], "3.9": [1, 133], "3.11": [1, 134], "3.17": [1, 139], "3.36": [1, 161], "3.56": [1, 179], "4.12": [1, 208], "4.14": [1, 210], "4.32": [1, 228], "4.35": [1, 233], "5.2": [1, 267], "5.7": [1, 272], "5.14": [1, 278], "5.13": [1, 278], "5.15": [1, 279], "6.2": [2, 2], "6.18": [2, 15], "6.23": [2, 21], "6.26": [2, 22], "6.29": [2, 24], "7.1": [2, 54], "7.3": [2, 55], "7.35": [2, 87], "8.19": [2, 127], "8.21": [2, 130], "9.8": [2, 148], "9.16": [2, 152], "9.29": [2, 182], "10.2": [2, 197], "10.3": [2, 199], "10.4": [2, 199], "10.5": [2, 200], "10.7": [2, 201], "10.11": [2, 203], "10.14": [2, 205], "10.15": [2, 206], "10.17": [2, 207], "10.18": [2, 209], "10.22": [2, 213], "10.23": [2, 214], "10.26": [2, 216], "10.36": [2, 223], "10.37": [2, 225], "10.39": [2, 225], "10.38": [2, 225], "10.40": [2, 227], "10.41": [2, 227], "10.42": [2, 228], "10.43": [2, 228], "10.44": [2, 228], "10.45": [2, 229], "10.46": [2, 229]};
+var FIGIMG={};
 var NOTES={}; var NOTES_TA={};
 function figList(sc,f0,f1){
   var u=sc.no.split('.')[0],a=[];
@@ -3859,21 +3876,7 @@ function lpWatch(K){var t=K.ex[3],g=/Mistakes?:\s*([^]*)$/.exec(t),m=/Exam point
 function lpBlanks(K){var o=[];K.key.forEach(function(k){var i=k.indexOf(' = ');if(i>0&&i<=26&&k.length>i+4)o.push({q:k.slice(0,i)+' = ',a:k.slice(i+3)})});return o.slice(0,3)}
 function lpWrap(s,n){var w=s.split(' '),l=[],c='';w.forEach(function(x){if(c&&(c+' '+x).length>n){l.push(c);c=x}else c=c?c+' '+x:x});if(c)l.push(c);return l}
 function lpMap(keys){
-  var NS='http://www.w3.org/2000/svg',lines=keys.map(function(k){return lpWrap(k,58)}),y=8,W=640,boxes=[];
-  lines.forEach(function(l){var h=14+l.length*20;boxes.push({y:y,h:h,l:l});y+=h+26});
-  var H=y-26+8,s=document.createElementNS(NS,'svg');
-  s.setAttribute('viewBox','0 0 '+W+' '+H);s.setAttribute('class','lpsvg');s.setAttribute('role','img');s.setAttribute('aria-label','The key ideas of this lesson in order');
-  function m(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);(p||s).appendChild(e);return e}
-  var df=m('defs',{}),mk=m('marker',{id:'lpar',viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},df);
-  m('path',{d:'M0 0L10 5L0 10z',fill:'currentColor'},mk);
-  boxes.forEach(function(b,i){
-    m('rect',{x:8,y:b.y,width:W-16,height:b.h,rx:10,'class':'lpbx'});
-    m('circle',{cx:34,cy:b.y+b.h/2,r:13,'class':'lpnb'});
-    var n=m('text',{x:34,y:b.y+b.h/2+1,'text-anchor':'middle','dominant-baseline':'central','class':'lpnt'});n.textContent=i+1;
-    b.l.forEach(function(t,j){var e=m('text',{x:60,y:b.y+22+j*20,'class':'lptx'});e.textContent=t});
-    if(i<boxes.length-1)m('line',{x1:34,y1:b.y+b.h+2,x2:34,y2:b.y+b.h+22,stroke:'currentColor','stroke-width':2,'marker-end':'url(#lpar)',opacity:.6});
-  });
-  return s;
+  var o=el('ol','lpmap');keys.forEach(function(k,i){var li=el('li');li.append(el('span','lpmn',String(i+1)),el('span','lpmt',k));o.append(li)});return o;
 }
 function lpShuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function lpGame(K){
@@ -3886,10 +3889,10 @@ function lpGame(K){
     q.o.forEach(function(t,k){var b=button(t,'lpob',function(){
       if(done)return;done=true;var ok=k===q.a;mark[i]=ok?'ok':'no';if(ok)score++;
       b.classList.add(ok?'ok':'no');if(!ok)opts.children[q.a].classList.add('ok');
-      fb.textContent=(ok?'Correct. ':'Not quite. ')+q.w;
+      fb.textContent=(ok?'Correct. ':'Not quite. ')+q.w;eqWalk(fb);
       var n=button(i<Q.length-1?'Next':'See score','btn',function(){i++;if(i<Q.length)show();else end()});host.append(n);n.focus();
     });opts.append(b)});
-    host.append(opts,fb);
+    host.append(opts,fb);eqWalk(host);
   }
   function end(){
     host.replaceChildren(el('p','lpscore','Score: '+score+' / '+Q.length),el('p',null,score===Q.length?'Perfect. The whole class knows this concept.':score>=Q.length-1?'Good work. Look again at the one you missed.':'Keep going. Read the key ideas once more and play again.'),button('Play again','btn',start));
@@ -3902,6 +3905,16 @@ function lpNotes(sc,K){
   var ex=lpEx(K),wt=lpWatch(K),s=K.ex[0].split(/(?<=\.)\s+/).slice(0,2).join(' ');
   var o={title:sc.no+' '+sc.title,say:s,keys:K.key.slice(),ex:ex?(ex.n?ex.q+'  '+ex.a:ex.a):'',mis:wt.mistake?wt.mistake.charAt(0).toUpperCase()+wt.mistake.slice(1):''};
   return o;
+}
+function lpFigIds(sc){
+  var u=sc.no.split('.')[0],a=[];
+  for(var k in FIGS){var v=FIGS[k];if(k.split('.')[0]===u&&v[0]===sc.vol&&v[1]>=sc.pp[0]&&v[1]<=sc.pp[1]&&FIGIMG[k])a.push(k)}
+  a.sort(function(x,y){return parseInt(x.split('.')[1],10)-parseInt(y.split('.')[1],10)});
+  return a.slice(0,10);
+}
+function lpZoom(src,cap){
+  var o=el('div','lpzoom');var im=el('img');im.src=src;im.alt=cap;o.append(im,el('div','lpzcap',cap+'  ·  tap to close'));
+  o.addEventListener('click',function(){o.remove()});document.body.append(o);
 }
 function lpRender(H,sc,K,u){
   var P=planData(sc,K,u),ag=lpAgenda(K),ex=lpEx(K),wt=lpWatch(K),bl=lpBlanks(K);
@@ -3923,6 +3936,12 @@ function lpRender(H,sc,K,u){
   var s1=el('div','panel');s1.append(el('h3',null,'The idea in simple words'),el('p','lpbig',K.ex[0]));R.append(s1);
   var s2=el('div','panel lpthink');s2.append(el('span','lptag','Think of it like this'),el('p',null,K.ex[1]));R.append(s2);
   var s3=el('div','panel');s3.append(el('h3',null,'Key ideas in order'),lpMap(K.key));R.append(s3);
+  var fid=lpFigIds(sc);
+  if(fid.length){var fp=el('div','panel');fp.append(el('h3',null,'Diagrams'));var fg=el('div','lpfigs');
+    fid.forEach(function(k){var f=el('figure','lpfig'),im=el('img');im.src=FIGIMG[k];im.alt='Figure '+k;im.loading='lazy';
+      im.addEventListener('click',function(){lpZoom(FIGIMG[k],'Figure '+k)});
+      f.append(im,el('figcaption',null,'Figure '+k));fg.append(f)});
+    fp.append(fg);R.append(fp)}
   /* worked example */
   if(ex){var e=el('div','panel');e.append(el('h3',null,'Worked example'));
     if(ex.n){e.append(el('p','lpbig',ex.q),el('div','lpsol',ex.a))}else{e.append(el('div','lpsol',ex.a))}
@@ -3964,6 +3983,7 @@ function lpRender(H,sc,K,u){
   if(N.ex)nb.append(el('div','lphw lphw-s','Example'),el('div','lphw',N.ex));
   if(N.mis)nb.append(el('div','lphw lphw-s','Do not forget'),el('div','lphw',N.mis));
   R.append(nb);
+  eqWalk(R);
 }
 function planMd(sc,K,u){
   var P=planData(sc,K,u),ex=lpEx(K),wt=lpWatch(K),bl=lpBlanks(K);
@@ -3983,6 +4003,59 @@ function planMd(sc,K,u){
   t+='## Homework\n'+K.hw.map(function(x){return '- '+x}).join('\n')+'\n\n';
   var N=lpNotes(sc,K);t+='## Write in your notes\n**'+N.title+'**\n\nIn my words: '+N.say+'\n\nKey points:\n'+N.keys.map(function(x){return '- '+x}).join('\n')+'\n'+(N.ex?'\nExample: '+N.ex+'\n':'')+(N.mis?'\nDo not forget: '+N.mis+'\n':'');
   return t;
+}
+/* ---------- Equations written the way the textbook prints them: real subscripts, superscripts and stacked fractions ---------- */
+var EQ_SUB={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','₊':'+','₋':'−','ₐ':'a','ₑ':'e','ₒ':'o','ₓ':'x','ₙ':'n','ₘ':'m','ₖ':'k','ₗ':'l','ₚ':'p','ₛ':'s','ₜ':'t','ₕ':'h','ᵢ':'i','ⱼ':'j','ᵣ':'r','ᵤ':'u','ᵥ':'v'};
+var EQ_SUP={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁺':'+','⁻':'−','ⁿ':'n'};
+var EQ_UNIT=/^(m|s|V|A|J|N|C|W|T|H|F|K|Hz|kg|g|Wb|Ω|rad|mol|cd|cm|mm|km|eV|MeV)[²³]?$/;
+function eqSpan(c,t){var s=document.createElement(c==='sub'||c==='sup'?c:'span');if(s.tagName==='SPAN')s.className=c;s.textContent=t;return s}
+function eqInline(str,host){
+  /* sub/sup from underscore, caret and unicode digits */
+  var re=/_\{([^}]+)\}|_([A-Za-z0-9α-ωΑ-Ω]+)|\^\{([^}]+)\}|\^([A-Za-z0-9+−-]+)|([₀-₉₊₋ₐₑₒₓₙₘₖₗₚₛₜₕᵢⱼᵣᵤᵥ]+)|([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿ]+)/g,i=0,m,buf='';
+  function flush(){if(buf){host.append(document.createTextNode(buf));buf=''}}
+  while((m=re.exec(str))){
+    buf+=str.slice(i,m.index);i=m.index+m[0].length;flush();
+    if(m[1]!=null||m[2]!=null)host.append(eqSpan('sub',m[1]!=null?m[1]:m[2]));
+    else if(m[3]!=null||m[4]!=null)host.append(eqSpan('sup',m[3]!=null?m[3]:m[4]));
+    else if(m[5]!=null)host.append(eqSpan('sub',m[5].split('').map(function(c){return EQ_SUB[c]||c}).join('')));
+    else host.append(eqSpan('sup',m[6].split('').map(function(c){return EQ_SUP[c]||c}).join('')));
+  }
+  buf+=str.slice(i);flush();return host;
+}
+function eqFrac(n,d){var f=document.createElement('span');f.className='eqf';var a=document.createElement('span');a.className='n';var b=document.createElement('span');b.className='d';
+  function strip(s){return s.replace(/^\((.*)\)$/,'$1')}
+  eqInline(strip(n),a);eqInline(strip(d),b);f.append(a,b);return f}
+var EQ_T='(?:\\([^()]+\\)|[A-Za-z0-9₀-₉⁰¹²³⁴-⁹⁺⁻.ΔΦΩαβγδεθλμπρστφωℏ_′√])+';
+function eqRich(str){
+  var host=document.createDocumentFragment(),parts=[],pos=0;
+  /* spaced fractions  "a b / c"  and tight fractions  "a/b" */
+  var tight=new RegExp('('+EQ_T+')/('+EQ_T+')','g'),spaced=/(?:^|[=+−,;:(]\s)([^=+−,;:()]*?\S)\s\/\s(\([^()]+\)|\S+)/g;
+  var hits=[],m;
+  spaced.lastIndex=0;
+  while((m=spaced.exec(str))){var st=m.index+m[0].indexOf(m[1]),en=m.index+m[0].length;var nu=m[1],de=m[2].replace(/[.,;:]+$/,'');en-=m[2].length-de.length;
+    if(!/^[a-z]{3,}$/.test(nu)&&!/^[a-z]{3,}$/.test(de))hits.push({s:st,e:en,n:nu,d:de})}
+  tight.lastIndex=0;
+  while((m=tight.exec(str))){
+    var nu2=m[1].replace(/^[.]+/,''),de2=m[2].replace(/[.]+$/,''),s0=m.index+(m[1].length-nu2.length),e0=m.index+m[0].length-(m[2].length-de2.length);
+    if(EQ_UNIT.test(nu2)&&EQ_UNIT.test(de2))continue;
+    if(/^[a-z]{3,}$/.test(nu2)||/^[a-z]{3,}$/.test(de2))continue;
+    if(/^\d+$/.test(nu2)&&/^\d+$/.test(de2)&&+nu2>31)continue;
+    var clash=hits.some(function(h){return s0<h.e&&e0>h.s});if(clash)continue;
+    hits.push({s:s0,e:e0,n:nu2,d:de2});
+  }
+  hits.sort(function(a,b){return a.s-b.s});
+  var last=0;
+  hits.forEach(function(h){if(h.s<last)return;eqInline(str.slice(last,h.s),host);host.append(eqFrac(h.n,h.d));last=h.e});
+  eqInline(str.slice(last),host);
+  return host;
+}
+function eqWalk(root){
+  var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),list=[],n;
+  while((n=w.nextNode())){
+    var p=n.parentNode;if(!p||/^(SCRIPT|STYLE|TEXTAREA|INPUT|SVG|text|tspan)$/i.test(p.nodeName)||p.closest('svg,.eqx,.eqf'))continue;
+    if(/[_^]|\S\/\S|\s\/\s|[₀-₉₊₋⁰¹²³⁴-⁹⁺⁻]/.test(n.nodeValue))list.push(n);
+  }
+  list.forEach(function(t){var s=document.createElement('span');s.className='eqx';s.append(eqRich(t.nodeValue));t.parentNode.replaceChild(s,t)});
 }
 function bullets(arr,ordered){var l=el(ordered?'ol':'ul');arr.forEach(function(x){l.append(el('li',null,x))});return l}
 function renderKit(){
@@ -4041,8 +4114,9 @@ function renderKit(){
     ac.append(button('Download all notes for this concept','btn',function(){saveFile('notes-'+sc.no+'-'+slug(sc.title).slice(0,24)+'.md',kitMd(sc,K,u))}));
     H.append(ac);
   }
+  eqWalk(H);
 }
-seg($('#kitSeg'),function(v){ks.v=v;renderKit()});
+seg($('#kitSeg'),function(v){ks.v=v;renderKit();if(window.navPush)navPush()});
 if(OFFLINE){
   ['saved'].forEach(function(t){var b=$('#tb-'+t);if(b)b.hidden=true});
   $$('#mainSeg button').forEach(function(b){if(b.dataset.v!=='book'&&b.dataset.v!=='exam'&&b.dataset.v!=='weekly'&&b.dataset.v!=='optics'&&b.dataset.v!=='prac'&&b.dataset.v!=='vr')b.hidden=true});
@@ -16241,6 +16315,7 @@ function showMain(v){
   $('#teach-book').hidden=v!=='book';
   $('#teach-bres').hidden=v!=='bres';
   $('#teach-custom').hidden=v!=='custom';
+  if(window.navPush)navPush();
 }
 seg($('#mainSeg'),showMain);
 showMain('book');
@@ -16253,6 +16328,30 @@ if(STUDENT){
   setSeg($('#mainSeg'),'exam');showMain('exam');
 }
 
+
+/* ---------- Phone Back button: step back through the pages the user visited instead of leaving the site ---------- */
+(function(){
+  var busy=false;
+  function curTab(){for(var i=0;i<TABS.length;i++){var e=$('#tab-'+TABS[i]);if(e&&!e.hidden)return TABS[i]}return 'today'}
+  function curMain(){var b=$('#mainSeg [aria-pressed="true"]');return b?b.dataset.v:'book'}
+  function state(){return {sb:1,t:curTab(),m:curMain(),k:ks.v}}
+  window.navPush=function(){
+    if(busy)return;var s=state(),l=history.state;
+    if(l&&l.sb&&l.t===s.t&&l.m===s.m&&l.k===s.k)return;
+    try{history.pushState(s,'')}catch(e){}
+  };
+  window.addEventListener('popstate',function(e){
+    var s=e.state;if(!s||!s.sb)return;
+    busy=true;
+    try{
+      showTab(s.t);
+      if(curMain()!==s.m){setSeg($('#mainSeg'),s.m);showMain(s.m)}
+      if(ks.v!==s.k){ks.v=s.k;setSeg($('#kitSeg'),s.k);renderKit()}
+    }catch(x){}
+    busy=false;
+  });
+  try{history.replaceState(state(),'')}catch(e){}
+})();
 /* ---------- Saved ---------- */
 function renderSaved(){
   var list=$('#savedList');list.replaceChildren();
