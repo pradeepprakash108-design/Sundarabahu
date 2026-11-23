@@ -581,24 +581,53 @@ function bar(user, role, img) {
   return '<script>window.__SB=' + data + ';</scr' + 'ipt><script>' + PROFILE_JS + '</scr' + 'ipt>';
 }
 
+/* ---------- PWA: public files + tags injected into every page (nothing else in the app is touched) ---------- */
+const PWA_FILES = { '/manifest.webmanifest': 'application/manifest+json; charset=utf-8', '/sw.js': 'text/javascript; charset=utf-8',
+  '/icons/icon-192.png': 'image/png', '/icons/icon-512.png': 'image/png', '/icons/maskable-192.png': 'image/png', '/icons/maskable-512.png': 'image/png',
+  '/icons/apple-touch-icon.png': 'image/png', '/icons/favicon-64.png': 'image/png' };
+const PWA_TAGS = '<meta name="theme-color" content="#7A1F2B"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon-64.png"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Sundarabahu">'
+  + '<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js",{scope:"/"}).catch(function(){})})</scr' + 'ipt>';
+const PWA_VIEWPORT = '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">';
+function pwaHtml(s) {            /* for pages built as strings in this file */
+  return s.replace(/<meta charset="utf-8">/i, m => m + PWA_TAGS);
+}
+function pwaRewrite(res) {       /* for the static app pages: add tags after <meta charset>, plus a viewport only if the page has none */
+  let hasVp = false;
+  return new HTMLRewriter()
+    .on('meta[name="viewport"]', { element() { hasVp = true; } })
+    .on('meta[charset]', { element(el) { el.after(PWA_TAGS, { html: true }); } })
+    .on('title', { element(el) { if (!hasVp) el.before(PWA_VIEWPORT, { html: true }); } })
+    .transform(res);
+}
+async function pwaFile(req, env, p) {
+  const r = await env.ASSETS.fetch(new Request(new URL(p, req.url), { method: 'GET' }));
+  if (!r.ok) return new Response('Not found', { status: 404 });
+  const h = new Headers();
+  h.set('content-type', PWA_FILES[p]);
+  h.set('cache-control', p === '/sw.js' || p === '/manifest.webmanifest' ? 'no-cache' : 'public, max-age=86400');
+  if (p === '/sw.js') h.set('service-worker-allowed', '/');
+  return new Response(r.body, { status: 200, headers: h });
+}
+
 /* ---------- entry ---------- */
 export default {
   async fetch(req, env) {
     const url = new URL(req.url), p = url.pathname;
-    if (!env.DB) return html(SETUP_HTML('The KV namespace binding named <b>DB</b> is missing.'), 500);
+    if (PWA_FILES[p] && (req.method === 'GET' || req.method === 'HEAD')) return pwaFile(req, env, p);   /* public: Chrome fetches these without a session */
+    if (!env.DB) return html(pwaHtml(SETUP_HTML('The KV namespace binding named <b>DB</b> is missing.')), 500);
     if (p.startsWith('/api/')) {
       try { return await api(req, env, url, p); } catch (e) { return json({ error: 'Server error' }, 500); }
     }
     const s = await getSession(req, env);
-    if (p === '/admin') return s && s.r === 'admin' ? html(ADMIN_HTML) : Response.redirect(url.origin + '/', 302);
-    if (!s) return html(LOGIN_HTML);
+    if (p === '/admin') return s && s.r === 'admin' ? html(pwaHtml(ADMIN_HTML)) : Response.redirect(url.origin + '/', 302);
+    if (!s) return html(pwaHtml(LOGIN_HTML));
     let areq = req;
     if (s.r === 'student') areq = new Request(url.origin + '/student', req);
     else if (p === '/student' || p === '/student.html') areq = new Request(url.origin + '/', req);
     const res = await env.ASSETS.fetch(areq);
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('text/html')) return res;
-    const out = new HTMLRewriter().on('body', { element(el) { /* profile menu now lives in the app itself */ } }).transform(res);
+    const out = pwaRewrite(res);
     const h = new Headers(out.headers); h.set('cache-control', 'private, no-store');
     return new Response(out.body, { status: out.status, headers: h });
   }

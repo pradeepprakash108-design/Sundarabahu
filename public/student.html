@@ -130,6 +130,44 @@ details.panel[open]>summary{margin-bottom:10px}
 .opt{display:block;width:100%;text-align:left;margin-top:8px;font:600 .95rem var(--body);min-height:44px;padding:.5rem .8rem;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 .opt.good{border-color:var(--good);background:var(--good-bg)}
 .opt.bad{border-color:var(--bad);background:var(--bad-bg)}
+
+.lp{display:flex;flex-direction:column;gap:14px}
+.lphead h2{margin:.2em 0 .1em;font-size:1.6rem}
+.lpgrid2{align-items:start;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.lpgrid2,.lpegrid{grid-template-columns:1fr!important}}
+.lp h3{margin:0 0 .5em}
+.lpag{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lpag li{display:flex;gap:10px;align-items:baseline}
+.lpmin{flex:0 0 4.6em;white-space:nowrap;font:700 .8rem var(--mono);color:var(--accent);background:var(--tint);padding:.1rem .45rem;border-radius:999px;text-align:center}
+.lpbig{font-size:1.12rem;line-height:1.55;margin:0}
+.lptag{display:inline-block;font:700 .75rem var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--tint);padding:.15rem .6rem;border-radius:999px;margin-bottom:6px}
+.lptag.warm{color:var(--warm);background:var(--warm-bg)}
+.lpthink{border-left:4px solid var(--accent)}.lpwatch{border-left:4px solid var(--warm)}
+.lpsvg{width:100%;max-width:640px;height:auto;display:block;margin:0 auto;color:var(--ink)}
+.lpbx{fill:var(--tint);stroke:var(--accent);stroke-width:1.5}.lpnb{fill:var(--accent)}
+.lpnt{fill:var(--accent-ink);font:700 14px var(--body)}.lptx{fill:var(--ink);font:500 15px var(--body)}
+.lpsol{background:var(--tint);border-radius:10px;padding:12px 14px;margin-top:8px;font-size:1.05rem}
+.lpq,.lpws{margin:0;padding-left:1.3em;display:grid;gap:8px}
+.lpdet{display:block;margin-top:4px}.lpdet summary{cursor:pointer;color:var(--accent);font-weight:700;font-size:.9rem}
+.lpengage{display:flex;flex-direction:column;gap:12px}.lpengage h2{margin:0;font-size:1.3rem}
+.lpegrid{align-items:start;display:grid;grid-template-columns:1fr 1fr;gap:14px}.lpegrid .lpgame{grid-column:1/-1}
+.lpcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.lpetag{align-self:flex-start;font:700 .74rem var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--tint);padding:2px 10px;border-radius:99px}
+.lpsh{margin:6px 0 0;font-weight:700;color:var(--warm)}
+.lproles,.lpchk{margin:0;padding-left:1.15em;display:grid;gap:3px}.lpchk{list-style:"✓  "}
+.lpgm{display:flex;flex-direction:column;gap:12px;min-height:150px}
+.lpgq{font-size:1.12rem;font-weight:600;margin:0}
+.lpopts{display:flex;flex-wrap:wrap;gap:10px}
+.lpob{font:600 1rem var(--body);background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:10px 16px;cursor:pointer;min-height:44px}
+.lpob:hover{border-color:var(--accent)}.lpob.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}.lpob.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.lpdots{display:flex;gap:6px}.lpdots i{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.lpdots i.ok{background:var(--good)}.lpdots i.no{background:var(--bad)}.lpdots i.cur{outline:2px solid var(--accent);outline-offset:1px}
+.lpfb{min-height:1.4em;font-weight:600;margin:0}.lpscore{font-size:1.6rem;font-weight:700;margin:0}
+.lp:fullscreen{background:var(--bg);overflow:auto;padding:24px}
+.lpnotes{background-color:var(--card);background-image:repeating-linear-gradient(transparent,transparent 35px,var(--line) 35px,var(--line) 36px);background-position:0 8px;padding-left:28px;border-left:3px solid var(--bad)}
+.lphw{font-family:'Caveat','Segoe Print','Bradley Hand','Comic Sans MS',cursive;font-size:1.7rem;line-height:36px;font-weight:500;color:var(--ink);margin:0}
+.lphw-h{font-weight:700;font-size:2rem}.lphw-s{font-weight:700;color:var(--accent);text-decoration:underline}
+ul.lphw{padding-left:1.1em;list-style:"– "}
 .kit ul,.kit ol{margin:.4em 0;padding-left:1.3em}
 .kit li{margin:.25em 0}
 /* ===== Colour theme and responsive layout ===== */
@@ -263,6 +301,23 @@ h2{background:linear-gradient(90deg,var(--accent),var(--c-five));-webkit-backgro
 .zfig figcaption{font-size:.78rem;color:#51646E;margin-top:6px;text-align:left}
 .zref{margin-top:10px;font-size:.84rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;overflow-wrap:anywhere}
 .zref strong{color:var(--ink)}
+.sure{margin:6px 0 2px;line-height:1.55}
+.sure .stx{margin:5px 0}
+.sure .shd{margin:12px 0 4px;font-weight:700;text-decoration:underline}
+.sure .seq{display:flex;align-items:center;gap:10px;margin:7px 0;padding:2px 4px}
+.sure .sex{flex:1;text-align:center;overflow-wrap:anywhere}
+.sure .snum{white-space:nowrap;color:var(--muted)}
+.sure .seq.box .sex{border:1.5px solid var(--accent);border-radius:4px;padding:7px 10px;flex:0 1 auto;margin:0 auto}
+.sure .seq.box{justify-content:center;position:relative}
+.sure .seq.box .snum{position:absolute;right:4px}
+.sure .sfr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;font-size:.95em}
+.sure .sfr .sn{border-bottom:1.3px solid currentColor;padding:0 .2em .08em}
+.sure .sfr .sd{padding:.08em .2em 0}
+.sure .svec,.sure .shat{position:relative;display:inline-block}
+.sure .svec::before{content:'→';position:absolute;left:0;right:0;text-align:center;top:-.78em;font-size:.7em;line-height:1}
+.sure .shat::before{content:'^';position:absolute;left:0;right:0;text-align:center;top:-.45em;font-size:.9em;line-height:1}
+.sure sub,.sure sup{font-size:.72em;line-height:0}
+.srcnote{font-size:.78rem;color:var(--muted);margin-top:8px}
 .eqn{font-family:var(--mono);font-size:.86rem;background:var(--tint);border-radius:8px;padding:6px 9px;margin-top:8px;overflow-wrap:anywhere}
 .dnote{margin-top:10px;padding:9px 11px;border-radius:10px;background:var(--warm-bg);color:var(--ink);font-size:.88rem}
 .ttw{overflow-x:auto;margin-top:8px}
@@ -3796,19 +3851,137 @@ function figList(sc,f0,f1){
     out.push(j-i>=2?a[i]+'–'+a[j]:a.slice(i,j+1).join(', '));i=j+1}
   return out.join(', ');
 }
+/* ---------- Lesson plan: student-facing plan shown on the board (generated from each concept's study kit) ---------- */
+function lpAgenda(K){return K.out.map(function(x){var g=/^(\d+)\s*min:?\s*(.*)$/.exec(x);return g?{m:+g[1],t:g[2]}:{m:0,t:x}})}
+function lpNum(K){for(var i=0;i<K.qb.length;i++){var q=K.qb[i];if(/^(Find|Calculate|Determine|Compute|What is the|A |An |Two |Three )/.test(q.q)&&/=/.test(q.a)&&/\d/.test(q.a))return q}return null}
+function lpEx(K){var n=lpNum(K);if(n)return {q:n.q,a:n.a,n:n};var g=/Example:\s*([^]*)$/.exec(K.ex[2]);if(g)return {q:'Example',a:g[1],n:null};return null}
+function lpWatch(K){var t=K.ex[3],g=/Mistakes?:\s*([^]*)$/.exec(t),m=/Exam points:\s*([^]*?)\s*Mistakes?:/.exec(t);return {mistake:g?g[1]:'',points:m?m[1]:''}}
+function lpBlanks(K){var o=[];K.key.forEach(function(k){var i=k.indexOf(' = ');if(i>0&&i<=26&&k.length>i+4)o.push({q:k.slice(0,i)+' = ',a:k.slice(i+3)})});return o.slice(0,3)}
+function lpWrap(s,n){var w=s.split(' '),l=[],c='';w.forEach(function(x){if(c&&(c+' '+x).length>n){l.push(c);c=x}else c=c?c+' '+x:x});if(c)l.push(c);return l}
+function lpMap(keys){
+  var NS='http://www.w3.org/2000/svg',lines=keys.map(function(k){return lpWrap(k,58)}),y=8,W=640,boxes=[];
+  lines.forEach(function(l){var h=14+l.length*20;boxes.push({y:y,h:h,l:l});y+=h+26});
+  var H=y-26+8,s=document.createElementNS(NS,'svg');
+  s.setAttribute('viewBox','0 0 '+W+' '+H);s.setAttribute('class','lpsvg');s.setAttribute('role','img');s.setAttribute('aria-label','The key ideas of this lesson in order');
+  function m(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);(p||s).appendChild(e);return e}
+  var df=m('defs',{}),mk=m('marker',{id:'lpar',viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},df);
+  m('path',{d:'M0 0L10 5L0 10z',fill:'currentColor'},mk);
+  boxes.forEach(function(b,i){
+    m('rect',{x:8,y:b.y,width:W-16,height:b.h,rx:10,'class':'lpbx'});
+    m('circle',{cx:34,cy:b.y+b.h/2,r:13,'class':'lpnb'});
+    var n=m('text',{x:34,y:b.y+b.h/2+1,'text-anchor':'middle','dominant-baseline':'central','class':'lpnt'});n.textContent=i+1;
+    b.l.forEach(function(t,j){var e=m('text',{x:60,y:b.y+22+j*20,'class':'lptx'});e.textContent=t});
+    if(i<boxes.length-1)m('line',{x1:34,y1:b.y+b.h+2,x2:34,y2:b.y+b.h+22,stroke:'currentColor','stroke-width':2,'marker-end':'url(#lpar)',opacity:.6});
+  });
+  return s;
+}
+function lpShuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function lpGame(K){
+  var host=el('div','lpgm'),Q,i,score,mark;
+  function show(){
+    host.replaceChildren();
+    var dots=el('div','lpdots');Q.forEach(function(_,k){var d=el('i',mark[k]||'');if(k===i)d.classList.add('cur');dots.append(d)});host.append(dots);
+    var q=Q[i];host.append(el('p','lpgq',(i+1)+'. '+q.q));
+    var opts=el('div','lpopts'),fb=el('p','lpfb'),done=false;
+    q.o.forEach(function(t,k){var b=button(t,'lpob',function(){
+      if(done)return;done=true;var ok=k===q.a;mark[i]=ok?'ok':'no';if(ok)score++;
+      b.classList.add(ok?'ok':'no');if(!ok)opts.children[q.a].classList.add('ok');
+      fb.textContent=(ok?'Correct. ':'Not quite. ')+q.w;
+      var n=button(i<Q.length-1?'Next':'See score','btn',function(){i++;if(i<Q.length)show();else end()});host.append(n);n.focus();
+    });opts.append(b)});
+    host.append(opts,fb);
+  }
+  function end(){
+    host.replaceChildren(el('p','lpscore','Score: '+score+' / '+Q.length),el('p',null,score===Q.length?'Perfect. The whole class knows this concept.':score>=Q.length-1?'Good work. Look again at the one you missed.':'Keep going. Read the key ideas once more and play again.'),button('Play again','btn',start));
+  }
+  function start(){Q=lpShuffle(K.qz);i=0;score=0;mark=[];show()}
+  start();return host;
+}
+function lpAns(txt,ans){var d=el('details','lpdet');d.append(el('summary',null,'Answer'),el('span',null,ans));return d}
+function lpNotes(sc,K){
+  var ex=lpEx(K),wt=lpWatch(K),s=K.ex[0].split(/(?<=\.)\s+/).slice(0,2).join(' ');
+  var o={title:sc.no+' '+sc.title,say:s,keys:K.key.slice(),ex:ex?(ex.n?ex.q+'  '+ex.a:ex.a):'',mis:wt.mistake?wt.mistake.charAt(0).toUpperCase()+wt.mistake.slice(1):''};
+  return o;
+}
+function lpRender(H,sc,K,u){
+  var P=planData(sc,K,u),ag=lpAgenda(K),ex=lpEx(K),wt=lpWatch(K),bl=lpBlanks(K);
+  var R=el('div','lp');H.append(R);
+  var hd=el('div','panel lphead');hd.append(el('div','lab','Unit '+u.no+'. '+u.title),el('h2',null,sc.no+' '+sc.title),el('p','muted','About '+P.mins+' minutes · '+P.per+' period'+(P.per>1?'s':'')+' of 45 minutes · Class 12'));R.append(hd);
+  var tb=el('div','actions');
+  tb.append(button('Show full screen','btn',function(){try{if(document.fullscreenElement)document.exitFullscreen();else R.requestFullscreen()}catch(e){}}));
+  tb.append(button('Download this lesson plan','btn ghost',function(){saveFile('lesson-plan-'+sc.no+'-'+slug(sc.title).slice(0,24)+'.md',planMd(sc,K,u))}));
+  tb.append(button('Download plans for the whole unit','btn ghost',function(){var s=u.secs.map(function(x){return KITDATA[x.no]?planMd(x,KITDATA[x.no],u):''}).join('\n\n---\n\n');saveFile('lesson-plans-unit-'+u.no+'-'+slug(u.title).slice(0,24)+'.md',s)}));
+  R.append(tb);
+  /* goals + agenda */
+  var g=el('div','lpgrid2');
+  var a=el('div','panel');a.append(el('h3',null,'By the end of this lesson you can'));
+  a.append(bullets(K.qb.slice(0,3).map(function(q){return q.q.replace(/\?$/,'.').replace(/^Why /,'Explain why ').replace(/^What is /,'Say what ').replace(/^What did /,'Say what ').replace(/^Who /,'Say who ').replace(/^Name /,'Name ')})));
+  var b=el('div','panel');b.append(el('h3',null,'Today’s plan'));
+  var tl=el('ol','lpag');ag.forEach(function(x){var li=el('li');li.append(el('span','lpmin',x.m?x.m+' min':''),el('span',null,x.t));tl.append(li)});b.append(tl);
+  g.append(a,b);R.append(g);
+  /* idea in simple words + picture */
+  var s1=el('div','panel');s1.append(el('h3',null,'The idea in simple words'),el('p','lpbig',K.ex[0]));R.append(s1);
+  var s2=el('div','panel lpthink');s2.append(el('span','lptag','Think of it like this'),el('p',null,K.ex[1]));R.append(s2);
+  var s3=el('div','panel');s3.append(el('h3',null,'Key ideas in order'),lpMap(K.key));R.append(s3);
+  /* worked example */
+  if(ex){var e=el('div','panel');e.append(el('h3',null,'Worked example'));
+    if(ex.n){e.append(el('p','lpbig',ex.q),el('div','lpsol',ex.a))}else{e.append(el('div','lpsol',ex.a))}
+    R.append(e)}
+  else{var e2=el('div','panel');e2.append(el('h3',null,'Step by step'),el('div','lpsol',K.ex[2]));R.append(e2)}
+  /* watch out */
+  if(wt.mistake||wt.points){var w=el('div','panel lpwatch');w.append(el('span','lptag warm','Watch out'));
+    if(wt.mistake)w.append(el('p',null,'Common mistake: '+wt.mistake));
+    if(wt.points)w.append(el('p','muted','For the exam: '+wt.points));R.append(w)}
+  /* quick questions */
+  var qs=el('div','panel');qs.append(el('h3',null,'Quick questions'));var ol=el('ol','lpq');
+  K.qb.filter(function(q){return q.m===2&&(!ex||!ex.n||q!==ex.n)}).slice(0,3).forEach(function(q){var li=el('li');li.append(el('span',null,q.q),lpAns(null,q.a));ol.append(li)});
+  qs.append(ol);R.append(qs);
+  /* engage */
+  var en=el('div','lpengage');en.append(el('h2',null,'Engage: choose one when time allows'));
+  var eg=el('div','lpegrid');
+  var c1=el('div','lpcard lpgame');c1.append(el('span','lpetag','Game'),el('h3',null,'Quick-fire: '+sc.title),lpGame(K));
+  var c2=el('div','lpcard');c2.append(el('span','lpetag','Worksheet'),el('h3',null,'Worksheet'));
+  var n=0;
+  if(bl.length){c2.append(el('p','lpsh','A. Complete the formula'));var o1=el('ol','lpws');bl.forEach(function(x){var li=el('li');li.append(el('span',null,x.q+' ______'),lpAns(null,x.a));o1.append(li)});c2.append(o1)}
+  c2.append(el('p','lpsh',bl.length?'B. Answer in one or two lines':'A. Answer in one or two lines'));
+  var o2=el('ol','lpws');K.qb.filter(function(q){return q.m===2&&(!ex||!ex.n||q!==ex.n)}).slice(0,3).forEach(function(q){var li=el('li');li.append(el('span',null,q.q),lpAns(null,q.a));o2.append(li)});c2.append(o2);
+  var big=K.qb.filter(function(q){return q.m===3})[0],num2=K.qb.filter(function(q){return q!==(ex&&ex.n)&&/^(Find|Calculate|Determine|Compute)/.test(q.q)&&/\d/.test(q.a)})[0];
+  var last=num2||big;
+  if(last){c2.append(el('p','lpsh',(bl.length?'C. ':'B. ')+(num2?'Solve':'Explain')));var p3=el('p');p3.append(last.q+' ',lpAns(null,last.a));c2.append(p3)}
+  var c3=el('div','lpcard');c3.append(el('span','lpetag','Group task'),el('h3',null,'Do it together'),el('p','muted','Groups of 4. Chart paper and pens. 10 minutes.'),el('p',null,K.act));
+  var rl=el('ul','lproles');[['Leader','keeps the group on the task.'],['Writer','writes or draws on the chart paper.'],['Checker','checks the answer against the key ideas.'],['Speaker','explains the result to the class.']].forEach(function(r){var li=el('li');li.append(el('b',null,r[0]+' '),r[1]);rl.append(li)});
+  c3.append(rl,el('p','lpsh','Your group is done when you can say'));
+  var ck=el('ul','lpchk');K.key.slice(0,4).forEach(function(k){ck.append(el('li',null,k))});c3.append(ck);
+  eg.append(c1,c2,c3);en.append(eg);R.append(en);
+  /* homework */
+  var hw=el('div','panel');hw.append(el('h3',null,'Homework'),bullets(K.hw));R.append(hw);
+  /* notes to copy from the board */
+  var N=lpNotes(sc,K),nb=el('div','panel lpnotes');
+  nb.append(el('span','lptag','Write in your notes'),el('div','lphw lphw-h',N.title));
+  nb.append(el('div','lphw lphw-s','In my words'),el('div','lphw',N.say));
+  nb.append(el('div','lphw lphw-s','Key points'));
+  var kl=el('ul','lphw');N.keys.forEach(function(k){kl.append(el('li',null,k))});nb.append(kl);
+  if(N.ex)nb.append(el('div','lphw lphw-s','Example'),el('div','lphw',N.ex));
+  if(N.mis)nb.append(el('div','lphw lphw-s','Do not forget'),el('div','lphw',N.mis));
+  R.append(nb);
+}
 function planMd(sc,K,u){
-  var P=planData(sc,K,u);
-  var t='# Lesson plan: '+sc.no+' '+sc.title+'\nUnit '+u.no+'. '+u.title+'  |  Class 12 Physics  |  Textbook Volume '+sc.vol+', pages '+sc.pp[0]+(sc.pp[1]!==sc.pp[0]?'-'+sc.pp[1]:'')+'\nTime: about '+P.mins+' minutes ('+P.per+' period'+(P.per>1?'s':'')+' of 45 minutes)\n\n';
-  t+='## Learning outcomes\n'+P.obj.map(function(x){return '- '+x}).join('\n')+'\n\n';
-  t+='## Teaching steps\n'+K.out.map(function(x,i){return (i+1)+'. '+x}).join('\n')+'\n\n';
-  t+='## On the board\n'+K.key.map(function(x){return '- '+x}).join('\n')+'\n\n';
-  var fg=figList(sc);if(fg)t+='## Textbook figures\nShow Figure '+fg+' (textbook Volume '+sc.vol+').\n\n';
-  t+='## Classroom activity / teaching aid\n'+K.act+'\n\n';
-  t+='## Check for understanding\n'+P.assess.map(function(x){return '- '+x}).join('\n')+'\n\n';
-  t+='## Support for slower learners\nStart with this simple explanation: '+K.ex[0]+'\n\n';
-  t+='## Challenge for toppers\n'+P.top+'\n\n';
+  var P=planData(sc,K,u),ex=lpEx(K),wt=lpWatch(K),bl=lpBlanks(K);
+  var t='# '+sc.no+' '+sc.title+'\nUnit '+u.no+'. '+u.title+'  |  Class 12 Physics\nAbout '+P.mins+' minutes ('+P.per+' period'+(P.per>1?'s':'')+' of 45 minutes)\n\n';
+  t+='## By the end of this lesson you can\n'+K.qb.slice(0,3).map(function(q){return '- '+q.q}).join('\n')+'\n\n';
+  t+='## Today\u2019s plan\n'+K.out.map(function(x){return '- '+x}).join('\n')+'\n\n';
+  t+='## The idea in simple words\n'+K.ex[0]+'\n\n**Think of it like this:** '+K.ex[1]+'\n\n';
+  t+='## Key ideas in order\n'+K.key.map(function(x,i){return (i+1)+'. '+x}).join('\n')+'\n\n';
+  t+=ex?'## Worked example\n'+(ex.n?ex.q+'\n\n':'')+ex.a+'\n\n':'## Step by step\n'+K.ex[2]+'\n\n';
+  if(wt.mistake)t+='## Watch out\nCommon mistake: '+wt.mistake+'\n\n';
+  t+='## Quick questions\n'+K.qb.filter(function(q){return q.m===2}).slice(0,3).map(function(q,i){return (i+1)+'. '+q.q+'\n   Answer: '+q.a}).join('\n')+'\n\n';
+  t+='## Engage\n### Game: quick-fire\n'+K.qz.map(function(q,i){return (i+1)+'. '+q.q+'\n'+q.o.map(function(o,j){return '   '+'ABCD'[j]+') '+o}).join('\n')+'\n   Answer: '+'ABCD'[q.a]+'. '+q.w}).join('\n')+'\n\n';
+  t+='### Worksheet\n';
+  if(bl.length)t+='A. Complete the formula\n'+bl.map(function(x,i){return (i+1)+'. '+x.q+'______   (Answer: '+x.a+')'}).join('\n')+'\n\n';
+  t+=(bl.length?'B':'A')+'. Answer in one or two lines\n'+K.qb.filter(function(q){return q.m===2&&(!ex||!ex.n||q!==ex.n)}).slice(0,3).map(function(q,i){return (i+1)+'. '+q.q+'   (Answer: '+q.a+')'}).join('\n')+'\n\n';
+  t+='### Group task\nGroups of 4 (leader, writer, checker, speaker). '+K.act+'\nYour group is done when you can say:\n'+K.key.slice(0,4).map(function(x){return '- '+x}).join('\n')+'\n\n';
   t+='## Homework\n'+K.hw.map(function(x){return '- '+x}).join('\n')+'\n\n';
-  t+='## Resources\nSlides and PowerPoint, four explanations, question bank and quiz for this concept are in Sundarabahu.\n';
+  var N=lpNotes(sc,K);t+='## Write in your notes\n**'+N.title+'**\n\nIn my words: '+N.say+'\n\nKey points:\n'+N.keys.map(function(x){return '- '+x}).join('\n')+'\n'+(N.ex?'\nExample: '+N.ex+'\n':'')+(N.mis?'\nDo not forget: '+N.mis+'\n':'');
   return t;
 }
 function bullets(arr,ordered){var l=el(ordered?'ol':'ul');arr.forEach(function(x){l.append(el('li',null,x))});return l}
@@ -3834,19 +4007,7 @@ function renderKit(){
     if(ks.ver>0)row.append(button('Previous version','btn ghost',function(){ks.ver--;renderKit()}));
     H.append(row);
   }else if(ks.v==='outline'){
-    var P=planData(sc,K,u);
-    var a0=el('div','panel');a0.append(el('h3',null,'Lesson plan'),el('p','muted','About '+P.mins+' minutes, '+P.per+' period'+(P.per>1?'s':'')+' of 45 minutes. Class 12, textbook Volume '+sc.vol+'.'));H.append(a0);
-    var a=el('div','panel');a.append(el('h3',null,'Learning outcomes'),bullets(P.obj));H.append(a);
-    var a1=el('div','panel');a1.append(el('h3',null,'Teaching steps'),bullets(K.out,true));H.append(a1);
-    var b=el('div','panel');b.append(el('h3',null,'On the board'),bullets(K.key));H.append(b);
-    var b2=el('div','panel');b2.append(el('h3',null,'Check for understanding'),bullets(P.assess),el('h3',null,'Challenge for toppers'),el('p',null,P.top));H.append(b2);
-    var b3=el('div','panel');b3.append(el('h3',null,'Activity and homework'),el('p',null,K.act),bullets(K.hw));H.append(b3);
-    var pa=el('div','actions');
-    pa.append(button('Download this lesson plan','btn',function(){saveFile('lesson-plan-'+sc.no+'-'+slug(sc.title).slice(0,24)+'.md',planMd(sc,K,u))}));
-    pa.append(button('Download plans for the whole unit','btn ghost',function(){
-      var s=u.secs.map(function(x){return KITDATA[x.no]?planMd(x,KITDATA[x.no],u):''}).join('\n\n---\n\n');
-      saveFile('lesson-plans-unit-'+u.no+'-'+slug(u.title).slice(0,24)+'.md',s)}));
-    H.append(pa);
+    lpRender(H,sc,K,u);
   }else if(ks.v==='qbank'){
     H.append(el('p','muted','Six questions of 2, 3 and 5 marks. Tap a question to see the model answer.'));
     K.qb.forEach(function(q,i){
@@ -4052,6 +4213,7 @@ function exBuild(ta){
     TAM.prob.forEach(function(q){if(q.pd||!R[q.m])return;put(q.m,exMk('p',q.u,{q:q.q,p:[q.s],refs:[q.y]},q.m))});
   }
   NEET.forEach(function(d){if(d.s!=='P12')return;var o=d.o.length?d.o.slice():['','','',''];put('o',exMk('n',d.u,{id:d.i,q:d.q,o:o,a:d.a,sol:d.sl,atext:d.x||'',refs:['NEET '+d.y+' Q'+d.n],nimg:d.im,lab:d.l,vl:d.v,nq:d.n,ny:d.y,nt:d.nt},'o'))});
+  if(!ta)sureApply(R);
   return exApplyEdits(R,L);
 }
 /* put this device's edits over the built lists */
@@ -4065,7 +4227,7 @@ function exApplyEdits(R,L){
     if(tx){
       if(tx.q!=null)q.q=tx.q;
       if(q.o){if(tx.o)q.o=tx.o;if(tx.a!=null)q.a=tx.a;if(tx.sol!=null){q.sol=tx.sol;q.eq=[]}}
-      else{if(tx.p)q.p=tx.p;if(tx.k)q.k=tx.k;if(tx.p)q.eq=[]}
+      else{if(tx.p){q.p=tx.p;q.rp=null}if(tx.k)q.k=tx.k;if(tx.p)q.eq=[]}
       q.edited=true;
     }
     O[q.m].push(q);
@@ -4150,9 +4312,9 @@ function exFigs(q,host){
     var key=d.f[L],src=ZIMG[key];if(!src)return;
     var fg=el('figure','zfig'),im=document.createElement('img');
     im.src=src;im.loading='lazy';im.alt=(d.fig?exT('fig2')+' '+d.fig:exT('unnum'));
-    im.addEventListener('click',function(){exZoom(src,(d.fig?exT('fig2')+' '+d.fig+' · ':'')+d.cap[L])});
+    im.addEventListener('click',function(){exZoom(src,d.fig?exT('fig2')+' '+d.fig:'')});
     fg.append(im);
-    fg.append(el('figcaption',null,(d.fig?exT('fig2')+' '+d.fig:exT('unnum'))+' · '+d.id+' · '+d.cap[L]));
+    if(d.fig)fg.append(el('figcaption',null,exT('fig2')+' '+d.fig));
     host.append(fg);
   });
 }
@@ -4212,7 +4374,8 @@ function exQaCard(q,i,mk){
   exFigs(q,c);
   if(q.noans){exAnsBox(q,c);exEditBtn(q,c);return c}
   var d=el('details','kq');d.append(el('summary',null,exT('show')));
-  (q.p||[]).forEach(function(t){d.append(el('p',null,t))});
+  if(q.rp){var sb=el('div','sure');q.rp.forEach(function(t){sureRow(sb,t)});d.append(sb);d.append(el('p','srcnote','Model answer: Sure Success Series for Slow Learners (XII Physics, Vol. 1), P. Saravanan.'))}
+  else (q.p||[]).forEach(function(t){d.append(el('p',null,t))});
   if(q.k&&q.k.length)d.append(el('p','lab',exT('kp')),bullets(q.k.map(function(z){return String(z).replace(/^[•\s]+/,'')})));
   exExtras(q,d);
   c.append(d);exEditBtn(q,c);return c;
@@ -4623,6 +4786,91 @@ exMed.addEventListener('change',exMedChange);
 $$('#exMark button').forEach(function(b){b.addEventListener('click',function(){exs.m=b.dataset.m;renderExam()})});
 $('#exNB').addEventListener('change',function(){exs.nb=this.checked;renderExam(true)});
 ['P','B','X','N'].forEach(function(s){$('#exSrc'+s).addEventListener('change',function(){exs.src[s.toLowerCase()]=this.checked;renderExam(true)})});
+
+/* ---------- "Sure Success Series for Slow Learners" model answers (P. Saravanan), copied from the PDF.
+   Row markup: "## x" heading | "~ expr ‖ n" equation with number n | "▢ expr ‖ n" boxed result | other = text.
+   Inline: ⟦num¦den⟧ stacked fraction, _{x} subscript, ^{x} superscript, ⟨E⟩ vector arrow, ⟪p⟫ hat, **bold** ---------- */
+var SURE={
+k1:["AB is an electric dipole having charges q and −q.","p⟪p⟫ = ⟨p⟩ = dipole moment vector","The electric field at a point C due to +q is","~ ⟨E⟩_{+} = ⟦1¦4πε_{0}⟧ ⟦q¦(r−a)²⟧ ⟪p⟫   along BC ‖ 1","The electric field at a point C due to −q is","~ ⟨E⟩_{−} = − ⟦1¦4πε_{0}⟧ ⟦q¦(r+a)²⟧ ⟪p⟫   along CA ‖ 2","The total electric field at point C is","~ ⟨E⟩_{total} = ⟨E⟩_{+} + ⟨E⟩_{−} ‖ 3","~ = ⟦1¦4πε_{0}⟧ ⟦q¦(r−a)²⟧ ⟪p⟫ − ⟦1¦4πε_{0}⟧ ⟦q¦(r+a)²⟧ ⟪p⟫","▢ ∴ ⟨E⟩_{total} = ⟦1¦4πε_{0}⟧ [ ⟦2⟨p⟩¦r³⟧ ]  for (r ≫ a) ‖ 4"],
+k2:["AB is an electric dipole having charges q and −q.","p⟪p⟫ = ⟨p⟩ = dipole moment vector","The electric field at a point C due to +q is","~ ⟨E⟩_{+} = ⟦1¦4πε_{0}⟧ ⟦q¦r²+a²⟧ ‖ 1","The electric field at a point C due to −q is","~ ⟨E⟩_{−} = ⟦1¦4πε_{0}⟧ ⟦q¦r²+a²⟧ ‖ 2","⟨E⟩_{+} and ⟨E⟩_{−} are resolved into two components.","~ ⟨E⟩_{total} = − |⟨E⟩_{+}| cos θ ⟪p⟫ − |⟨E⟩_{−}| cos θ ⟪p⟫ ‖ 3","But,   cos θ = ⟦a¦√(r²+a²)⟧","~ ∴ ⟨E⟩_{total} = − ⟦1¦4πε_{0}⟧ ⟦2q¦r²+a²⟧ [ ⟦a¦√(r²+a²)⟧ ] ⟪p⟫","Simplifying the above equation,","▢ ⟨E⟩_{total} = − ⟦1¦4πε_{0}⟧ ⟦⟨p⟩¦r³⟧ ‖ 4","⟨E⟩_{total} is directed opposite to the dipole moment vector, that is along −⟨p⟩."],
+k3:["AB is an electric dipole having charges q and −q.","Potential at P due to +q is","~ V_{1} = ⟦1¦4πε_{0}⟧ ( ⟦q¦r_{1}⟧ ) ‖ 1","Potential at P due to − q","~ V_{2} = ⟦1¦4πε_{0}⟧ ( ⟦−q¦r_{2}⟧ ) ‖ 2","The net potential at P due to dipole is","~ V = V_{1} + V_{2}","~ = ⟦1¦4πε_{0}⟧ ( ⟦q¦r_{1}⟧ ) + ⟦1¦4πε_{0}⟧ ( ⟦−q¦r_{2}⟧ ) ‖ 3","From cosine law,","~ ⟦1¦r_{1}⟧ = ⟦1¦r⟧ ( 1 + ⟦a¦r⟧ cos θ ) ‖ 4","~ ⟦1¦r_{2}⟧ = ⟦1¦r⟧ ( 1 − ⟦a¦r⟧ cos θ ) ‖ 5","Substituting (4) and (5) in equation (3),","▢ V = ⟦p cos θ¦4πε_{0}r²⟧   ( ∵ p = 2aq) ‖ 6"],
+k4:["Consider a cylindrical Gaussian surface of radius r and length L as shown in the figure.","Linear charge density   λ = ⟦Q¦L⟧.","The total electric flux in this closed surface is","~ ∅_{E} = [ ∮ ⟨E⟩ · d⟨A⟩ ]_{curved surface} + [ ∮ ⟨E⟩ · d⟨A⟩ ]_{top surface} + [ ∮ ⟨E⟩ · d⟨A⟩ ]_{bottom surface} ‖ 1","~ [ ∮ ⟨E⟩ · d⟨A⟩ ]_{top surface} = 0   ( ∵ cos 90° = 0)","~ [ ∮ ⟨E⟩ · d⟨A⟩ ]_{bottom surface} = 0   ( ∵ cos 90° = 0)","~ ∴ ∅_{E} = [ ∮ ⟨E⟩ · d⟨A⟩ ]_{curved surface} = E × 2πrL ‖ 2","From Gauss’s law,","~ ϕ_{E} = ⟦λ L¦ε_{0}⟧ ‖ 3","Equating (2) and (3),","~ E × 2πrL = ⟦λ L¦ε_{0}⟧","▢ (or)   ⟨E⟩ = ⟦λ¦2πε_{0} r⟧ ⟪r⟫ ‖ 4","⟨E⟩ is directed outward if λ is positive and inward if λ is negative."],
+k5:["## (1) CAPACITORS IN SERIES:","~ V_{1} = ⟦Q¦C_{1}⟧ ,   V_{2} = ⟦Q¦C_{2}⟧  and  V_{3} = ⟦Q¦C_{3}⟧","The total potential drop across the combination of the capacitors is","~ V = V_{1} + V_{2} + V_{3} ‖ 1","~ ∴ V = ⟦Q¦C_{1}⟧ + ⟦Q¦C_{2}⟧ + ⟦Q¦C_{3}⟧","~ (or)   V = Q [ ⟦1¦C_{1}⟧ + ⟦1¦C_{2}⟧ + ⟦1¦C_{3}⟧ ] ‖ 2","~ Also,   V = ⟦Q¦C_{S}⟧ ‖ 3","From (2) and (3),","▢ ⟦1¦C_{S}⟧ = ⟦1¦C_{1}⟧ + ⟦1¦C_{2}⟧ + ⟦1¦C_{3}⟧ ‖ 4","## (2) CAPACITORS IN PARALLEL:","~ Q_{1} = C_{1}V ,   Q_{2} = C_{2}V  and  Q_{3} = C_{3}V","The net charge transferred by the battery is","~ Q = Q_{1} + Q_{2} + Q_{3} ‖ 1","~ Q = ( C_{1} + C_{2} + C_{3} ) V ‖ 2","~ Also, Q = C_{P} V ‖ 3","Comparing equations (2) and (3),","▢ C_{P} = C_{1} + C_{2} + C_{3} ‖ 4"],
+c1:["Let n → no. of electrons per unit volume (number density)","v_{d} → average drift velocity of the electrons","~ v_{d} = ⟦dx¦dt⟧","~ (or)   dx = v_{d} . dt ‖ 1","Total charge in the volume element is","~ dQ = (n × A . v_{d} . dt) e ‖ 2","Hence the current is","~ I = ⟦dQ¦dt⟧ = n A e v_{d} ‖ 3","~ Current density   J = ⟦I¦A⟧ = n e v_{d} ‖ 4","~ In vector form,   ⟨J⟩ = n e ⟨v_{d}⟩","~ (or)   ⟨J⟩ = − ⟦n e² τ¦m⟧ ⟨E⟩","~ (or)   ⟨J⟩ = σ ⟨E⟩ ‖ 5","Equation (5) is called **microscopic form of Ohm’s law**."],
+c2:["## STEP-1: (R is not included)","The voltmeter reading gives the emf of the cell.","## STEP-2: (R is included)","The potential drop across the resistor R is","~ V = I R","~ (or)   I R = V ‖ 1","~ Also,   V = ε − I r","~ (or)   I r = ε − V ‖ 2","~ Dividing   ⟦I r¦I R⟧ = ⟦ε − V¦V⟧","~ (or)   r = ( ⟦ε − V¦V⟧ ) R ‖ 3","Since ε, V and R are known, internal resistance r can be determined."],
+c3:["Applying Kirchhoff’s current rule to junction B","~ I_{1} = I_{G} + I_{3} ‖ 1","Applying Kirchhoff’s current rule to junction D,","~ I_{2} + I_{G} = I_{4} ‖ 2","Applying Kirchhoff’s voltage rule to loop ABDA,","~ I_{1} P + I_{G} G = I_{2} R ‖ 3","Applying Kirchhoff’s voltage rule to loop ABCDA,","~ I_{1} P + I_{3} Q = I_{4} S + I_{2} R ‖ 4","For the balance of the bridge, I_{G} = 0.","~ ∴ I_{1} = I_{3}","~ I_{2} = I_{4}","~ I_{1} P = I_{2} R ‖ 5","~ Also, I_{1} ( P + Q ) = I_{2} ( R + S ) ‖ 6","Dividing equn(6) by equn(5),","~ ⟦P¦Q⟧ = ⟦R¦S⟧ ‖ 7","This is the bridge balance condition."],
+c4:["The meter bridge is another form of Wheatstone’s bridge.","The lengths AJ and JB of the bridge wire now replace the resistance R and S of the Wheatstone’s bridge.","▢ Then   ⟦P¦Q⟧ = ⟦R¦S⟧ ‖ 1","Let R′ → Resistance per unit length of the wire AB","∴ Resistance of the portion AJ = R′ × AJ","Resistance of the portion JB = R′ × JB","~ ∴ ⟦P¦Q⟧ = ⟦R′ × AJ¦R′ × JB⟧ = ⟦AJ¦JB⟧","~ (or)   ⟦P¦Q⟧ = ⟦l_{1}¦l_{2}⟧","Hence, the unknown resistance P can be determined from the relation","▢ P = Q ( ⟦l_{1}¦l_{2}⟧ ) ‖ 2","## Determination of Specific Resistance (ρ):","▢ ρ = P ⟦π r²¦l⟧ ‖ 3"],
+c5:["Potentiometer wire CD is connected to a battery Bt and a key K in series. This is the **primary circuit**.","The **secondary circuit** consists of a DPDT, in series with galvanometer, high resistance and jockey.","~ The emf of cell 1 is   ε_{1} = I r l_{1} ‖ 1","~ The emf of cell 2 is   ε_{2} = I r l_{2} ‖ 2","where, r = resistance per unit length of the potentiometer wire","Dividing equn (1) by equn (2),","~ ⟦ε_{1}¦ε_{2}⟧ = ⟦I r l_{1}¦I r l_{2}⟧","▢ (or)   ⟦ε_{1}¦ε_{2}⟧ = ⟦l_{1}¦l_{2}⟧"],
+c6:["## I. RESISTORS IN SERIES:","~ V = V_{1} + V_{2} + V_{3} ‖ 1","~ V_{1} = I R_{1}","~ V_{2} = I R_{2}","~ V_{3} = I R_{3}","~ ∴ V = I R_{1} + I R_{2} + I R_{3} ‖ 2","~ Also,   V = I R_{S} ‖ 3","From (2) and (3),","~ R_{S} = R_{1} + R_{2} + R_{3} ‖ 4","## II. RESISTORS IN PARALLEL:","~ I = I_{1} + I_{2} + I_{3} ‖ 1","~ Also,   I_{1} = ⟦V¦R_{1}⟧ ,   I_{2} = ⟦V¦R_{2}⟧ ,   I_{3} = ⟦V¦R_{3}⟧","~ ∴ I = ⟦V¦R_{1}⟧ + ⟦V¦R_{2}⟧ + ⟦V¦R_{3}⟧ ‖ 2","~ Also,   I = ⟦V¦R_{P}⟧ ‖ 3","Comparing equations ( 2 ) and ( 3 ) we get","~ ⟦1¦R_{P}⟧ = ⟦1¦R_{1}⟧ + ⟦1¦R_{2}⟧ + ⟦1¦R_{3}⟧ ‖ 4"],
+e1:["(1) Electromagnetic waves are produced by any accelerated charge.","(2) Electromagnetic waves do not require any medium for propagation. So electromagnetic wave is a non mechanical wave.","(3) Electromagnetic waves are transverse in nature.","(4) Electromagnetic waves travel with speed equal to the speed of light in vacuum or free space,","~ c = ⟦1¦√(μ_{0}ε_{0})⟧ ms^{−1} , where","μ_{0} → permeability of free space or vacuum","ε_{0} → permittivity of free space or vacuum","(5) In a medium with permittivity ε and permeability μ, the speed of electromagnetic wave is less than speed in free space or vacuum, that is, v \x3c c.","(6) Electromagnetic waves are not deflected by electric field or magnetic field.","(7) Electromagnetic waves can show interference, diffraction and can also be polarized.","(8) Electromagnetic waves carry energy, linear momentum and angular momentum.","(9) For the electromagnetic wave of energy U propagating with speed c, the linear momentum is given by   p = ⟦U¦c⟧.","(10) If the incident electromagnetic wave of energy U is totally reflected from the surface, then the momentum delivered to the surface is   Δp = ⟦U¦c⟧ − ( − ⟦U¦c⟧ ) = 2⟦U¦c⟧."],
+e2:["## First equation: ( Gauss’s law for electricity )","~ ∮_{S} ⟨E⟩ . d⟨A⟩ = ⟦Q_{enclosed}¦ε_{0}⟧ ‖ 1","(i) the electric field lines start from positive charge and terminate at negative charge.","(ii) the electric field lines do not form a continuous closed path.","(iii) isolated positive charge or negative charge can exist.","## Second equation: ( Gauss’s law for magnetism )","~ ∮_{S} ⟨B⟩ . d⟨A⟩ = 0 ‖ 2","(i) the magnetic lines of force form a continuous closed path.","(ii) no isolated magnetic monopole exists.","## Third equation: ( Faraday’s law of electromagnetic induction)","~ ∮_{l} ⟨E⟩ . d⟨l⟩ = − ⟦d¦dt⟧ ϕ_{B} ‖ 3","where   ⟨E⟩ → electric field","− ⟦d¦dt⟧ ϕ_{B} → rate of change of magnetic flux","## Fourth equation: ( Ampere – Maxwell law )","~ ∮_{l} ⟨B⟩ . d⟨l⟩ = μ_{0} I_{c} + μ_{0} ε_{0} ⟦dϕ_{E}¦dt⟧","~ (or)   ∮_{l} ⟨B⟩ . d⟨l⟩ = μ_{0} I_{c} + μ_{0} ε_{0} ⟦d¦dt⟧ [ ∮ ⟨E⟩ . d⟨A⟩ ] ‖ 4"],
+e3:["## I. EMISSION SPECTRA:","The spectrum formed by a self luminous source is called emission spectrum.","The emission spectrum can be divided into three types.","## (i) Continuous emission spectrum:","If the light from a filament bulb is allowed to pass through a prism, it splits into seven colours.","It contains wavelengths of all colours from violet to red.","Ex: spectrum from carbon arc and incandescent solids","## (ii) Line emission spectrum:","If light from a hot gas is allowed to pass through a prism, line spectrum is observed.","Line spectrum is also called ‘discontinuous spectrum’.","It consists of sharp lines of definite wave lengths and frequencies.","It arises due to excited atoms of elements.","It is the characteristic of the element.","Ex: spectra of atomic hydrogen, helium, etc","## (iii) Band emission spectrum:","It consists of large number of very closely spaced spectral lines which overlap together to form bands. These bands are separated by dark spaces.","This spectrum has a sharp edge at one end and fades out at the other end.","This spectrum is formed by excited molecules.","This spectrum is a characteristic of the molecule and hence used to study molecular structure.","Ex: spectra of ammonia gas in a discharge tube"],
+e4:["## ABSORPTION SPECTRA:","When light is allowed to pass through an absorbing substance, then the spectrum formed is called ‘absorption spectrum’.","The absorption spectrum can be divided into three types.","## (i) Continuous absorption spectrum:","When white light is passed through a blue glass plate, it absorbs all colours except blue and gives a continuous absorption spectrum.","## (ii) Line absorption spectrum:","When light from an incandescent lamp is passed through a cold gas, the spectrum obtained through the dispersion due to prism is a line absorption spectrum.","If the light from the carbon arc is passed through sodium vapour, a continuous spectrum of carbon arc with two dark lines in the yellow region are obtained.","## (iii) Band absorption spectrum:","When white light is passed through iodine vapour, dilute solution of blood or chlorophyll, dark bands on continuous background are obtained.","This spectrum can also be formed by passing white light through certain solutions of organic and inorganic compounds."]
+};
+SURE.k12=['## Electric field on the axial line:'].concat(SURE.k1,['## Electric field on the equatorial plane:'],SURE.k2);
+/* which app questions take which answer: question-bank ids, and Exam-practice descriptive questions by their start */
+var SUREZ={PHY0566:'k1',PHY0567:'k2',BBK01L04:'k12',PHY0568:'k3',PHY0563:'k4',BBK01L20:'k5',PHY0525:'k5',BBK02L01:'c1',PHY0480:'c2',BBK02L06:'c3',PHY0533:'c3',BBK02L07:'c4',PHY0534:'c4',BBK02L08:'c5',PHY0537:'c5',BBK02L03:'c6',PHY0484:'e1',BBK05L01:'e2',PHY0553:'e2',PHY0557:'e3',PHY0558:'e4'};
+var SURED=[['Derive an expression for the electrostatic potential due to an electric dipole','k3'],['Obtain the equivalent capacitance of capacitors in series and in parallel','k5'],['Explain how the internal resistance of a cell is determined using a voltmeter','c2'],['Describe the microscopic model of current and obtain','c1'],['Explain how an unknown resistance is determined using a metre bridge','c4'],['Calculate the electric field due to a dipole at a point on its axial line','k1'],['Obtain the electric field due to an infinitely long charged straight wire','k4'],['Explain how the emfs of two cells are compared using a potentiometer','c5'],['Explain the types of absorption spectra','e4'],['Write Maxwell’s equations in integral form','e2']];
+/* ---- renderer (no less-than sign anywhere in this file: the build escapes it) ---- */
+function sureClose(s,from,o,c){var d=0,j;for(j=from;j!==s.length;j++){var ch=s.charAt(j);if(ch===o)d++;else if(ch===c){d--;if(d===0)return j}}return -1}
+function sureSplit(b){var d=0,j;for(j=0;j!==b.length;j++){var ch=b.charAt(j);if(ch==='⟦'||ch==='{')d++;else if(ch==='⟧'||ch==='}')d--;else if(ch==='¦'&&d===0)return j}return -1}
+function sureFill(host,s){
+  var i=0,n=s.length,buf='';
+  function flush(){if(buf){host.append(document.createTextNode(buf));buf=''}}
+  function wrap(tag,cls,body){var e=document.createElement(tag);if(cls)e.className=cls;sureFill(e,body);return e}
+  while(i!==n){
+    var ch=s.charAt(i),e;
+    if(ch==='⟦'&&(e=sureClose(s,i,'⟦','⟧'))>0){var b=s.slice(i+1,e),k=sureSplit(b);if(k>=0){flush();var f=document.createElement('span');f.className='sfr';f.append(wrap('span','sn',b.slice(0,k)),wrap('span','sd',b.slice(k+1)));host.append(f);i=e+1;continue}}
+    if((ch==='_'||ch==='^')&&s.charAt(i+1)==='{'&&(e=sureClose(s,i+1,'{','}'))>0){flush();host.append(wrap(ch==='_'?'sub':'sup','',s.slice(i+2,e)));i=e+1;continue}
+    if(ch==='⟨'&&(e=sureClose(s,i,'⟨','⟩'))>0){flush();host.append(wrap('span','svec',s.slice(i+1,e)));i=e+1;continue}
+    if(ch==='⟪'&&(e=sureClose(s,i,'⟪','⟫'))>0){flush();host.append(wrap('span','shat',s.slice(i+1,e)));i=e+1;continue}
+    if(ch==='*'&&s.charAt(i+1)==='*'&&(e=s.indexOf('**',i+2))>0){flush();host.append(wrap('strong','',s.slice(i+2,e)));i=e+2;continue}
+    buf+=ch;i++;
+  }
+  flush();
+}
+function sureRow(host,t){
+  var c=t.charAt(0);
+  if(t.indexOf('## ')===0){host.append(el('p','shd',t.slice(3)));return}
+  if(c==='~'||c==='▢'){
+    var body=t.slice(2),k=body.lastIndexOf(' ‖ '),num=k>=0?body.slice(k+3):'',ex=k>=0?body.slice(0,k):body;
+    var r=el('div','seq'+(c==='▢'?' box':'')),x=el('span','sex');sureFill(x,ex);r.append(x);
+    if(num){var nn=el('span','snum','('+num+')');r.append(nn)}
+    host.append(r);return;
+  }
+  var p=el('p','stx');sureFill(p,t);host.append(p);
+}
+/* plain-text form of a row, for exports, editing and search */
+var SUBS={'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','−':'₋','=':'₌','(':'₍',')':'₎','a':'ₐ','e':'ₑ','h':'ₕ','i':'ᵢ','j':'ⱼ','k':'ₖ','l':'ₗ','m':'ₘ','n':'ₙ','o':'ₒ','p':'ₚ','r':'ᵣ','s':'ₛ','t':'ₜ','u':'ᵤ','v':'ᵥ','x':'ₓ'};
+var SUPS={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','−':'⁻','=':'⁼','(':'⁽',')':'⁾','n':'ⁿ','i':'ⁱ'};
+function sureMap(m,t){var o='',j;for(j=0;j!==t.length;j++){var z=m[t.charAt(j)];if(!z)return null;o+=z}return o}
+function surePlain(s){
+  var i=0,n=s.length,o='';
+  while(i!==n){
+    var ch=s.charAt(i),e;
+    if(ch==='⟦'&&(e=sureClose(s,i,'⟦','⟧'))>0){var b=s.slice(i+1,e),k=sureSplit(b);if(k>=0){var a=surePlain(b.slice(0,k)),d=surePlain(b.slice(k+1)),simple=/^([A-Za-z0-9_₀-₉²³⁻.]+|[εμπλτσρθ][₀-₉]?)$/;o+=(simple.test(a)?a:'('+a+')')+'/'+(simple.test(d)?d:'('+d+')');i=e+1;continue}}
+    if((ch==='_'||ch==='^')&&s.charAt(i+1)==='{'&&(e=sureClose(s,i+1,'{','}'))>0){var t=surePlain(s.slice(i+2,e)),u=sureMap(ch==='_'?SUBS:SUPS,t);o+=u||(ch+t);i=e+1;continue}
+    if(ch==='⟨'&&(e=sureClose(s,i,'⟨','⟩'))>0){o+=surePlain(s.slice(i+1,e))+'⃗';i=e+1;continue}
+    if(ch==='⟪'&&(e=sureClose(s,i,'⟪','⟫'))>0){o+=surePlain(s.slice(i+1,e))+'̂';i=e+1;continue}
+    if(ch==='*'&&s.charAt(i+1)==='*'){i+=2;continue}
+    o+=ch;i++;
+  }
+  return o;
+}
+function sureRowPlain(t){
+  var c=t.charAt(0);
+  if(t.indexOf('## ')===0)return t.slice(3);
+  if(c==='~'||c==='▢'){var body=t.slice(2),k=body.lastIndexOf(' ‖ '),num=k>=0?body.slice(k+3):'',ex=surePlain(k>=0?body.slice(0,k):body);return (c==='▢'?'[ '+ex+' ]':ex)+(num?'   ('+num+')':'')}
+  return surePlain(t);
+}
+function sureApply(R){
+  [ 'o',2,3,5 ].forEach(function(m){(R[m]||[]).forEach(function(q){
+    var key=q.zb?SUREZ[q.zb]:null,j;
+    if(!key&&!q.zb)for(j=0;j!==SURED.length;j++){if(q.q.indexOf(SURED[j][0])===0){key=SURED[j][1];break}}
+    if(!key||!SURE[key])return;
+    q.rp=SURE[key];q.p=q.rp.map(sureRowPlain);q.k=[];q.eq=[];q.tt=[];q.dn=[];q.noans=false;q.sure=true;
+  })});
+}
 
 var WK={days:180,cur:1,weeks:null};
 var WH_EN=['Teaching objectives','Learning objectives','Teaching materials','Motivation','Concept map','Content','Individual practice','Guided practice','Learning assessment','Learning outcomes','Remedial measures','Homework'];
@@ -11275,7 +11523,7 @@ function neetExplain(d){
         nv.append(pv,el('span','muted',T('Page ','பக்கம் ')+(S.page+1)+' / '+tp),nx);H.append(nv);
       }
     }
-    H.append(el('p','muted',T('Source: NEET question papers of 2021 to 2025, as compiled in the files you supplied. The pictures are crops of the original question pages. The Botany and Zoology split is approximate, because the papers print them together as Biology. Every answer was checked by working the question again; where this differs from the printed key, the card says so. Visual Learning links appear only for Class 12 Physics questions that match a topic.','மூலம்: 2021 முதல் 2025 வரையிலான நீட் வினாத்தாள்கள் (நீங்கள் வழங்கிய கோப்புகளில் உள்ளவாறு). படங்கள் அசல் வினாப் பக்கங்களின் பகுதிகள். தாவரவியல், விலங்கியல் பிரிப்பு தோராயமானது; வினாத்தாளில் அவை உயிரியலாக ஒன்றாக வருகின்றன. ஒவ்வொரு விடையும் வினாவை மீண்டும் தீர்த்துச் சரிபார்க்கப்பட்டது; அச்சிடப்பட்ட விடையிலிருந்து வேறுபட்டால் அட்டையில் குறிப்பிடப்படும். காட்சி வழிக் கற்றல் இணைப்புகள் பொருந்தும் 12ஆம் வகுப்பு இயற்பியல் வினாக்களுக்கு மட்டுமே.')));
+    H.append(el('p','muted',T('Source: NEET question papers of 2021 to 2025, as compiled in the files you supplied. The Botany and Zoology split is approximate, because the papers print them together as Biology. Every answer was checked by working the question again; where this differs from the printed key, the card says so. Visual Learning links appear only for Class 12 Physics questions that match a topic.','மூலம்: 2021 முதல் 2025 வரையிலான நீட் வினாத்தாள்கள் (நீங்கள் வழங்கிய கோப்புகளில் உள்ளவாறு). தாவரவியல், விலங்கியல் பிரிப்பு தோராயமானது; வினாத்தாளில் அவை உயிரியலாக ஒன்றாக வருகின்றன. ஒவ்வொரு விடையும் வினாவை மீண்டும் தீர்த்துச் சரிபார்க்கப்பட்டது; அச்சிடப்பட்ட விடையிலிருந்து வேறுபட்டால் அட்டையில் குறிப்பிடப்படும். காட்சி வழிக் கற்றல் இணைப்புகள் பொருந்தும் 12ஆம் வகுப்பு இயற்பியல் வினாக்களுக்கு மட்டுமே.')));
     if(keep)window.scrollTo(0,y);
   }
   document.getElementById('tb-neet').addEventListener('click',function(){render()});
@@ -12720,7 +12968,7 @@ function figs(unit){
     if(q.u!==unit)return;
     (q.dg||[]).forEach(function(d){
       var key=d.f&&d.f[L];if(!key||!ZIMG[key]||seen[key])return;seen[key]=1;
-      out.push({id:'f'+key,t:(d.fig?exT('fig2')+' '+d.fig+' · ':'')+(d.cap&&d.cap[L]||d.id),img:ZIMG[key]});
+      out.push({id:'f'+key,t:(d.fig?exT('fig2')+' '+d.fig:(L==='ta'?'படம் ':'Diagram ')+(out.length+1)),img:ZIMG[key]});
     });
   })});
   return out;
@@ -12820,7 +13068,7 @@ window.renderDraw=function(keep){
   H.replaceChildren();
   var top=el('div','panel');
   top.append(el('h3',null,X('Draw and practice diagrams','படம் வரைந்து பயிலுக')));
-  top.append(el('p','muted',X('Choose a lesson and a diagram, then call a student to draw it on the screen. Use up to three screens, each with its own lesson, diagram and student. Pictures marked 🖼 come from the textbook and have a model diagram you can show afterwards or trace over; ✏ are diagrams commonly asked in the examination.','ஒரு பாடத்தையும் படத்தையும் தேர்ந்தெடுத்து, மாணவரை அழைத்துத் திரையில் வரையச் செய்க. ஒவ்வொன்றிலும் தனித் தனிப் பாடம், படம், மாணவருடன் மூன்று திரைகள் வரை பயன்படுத்தலாம். 🖼 குறியிட்டவை பாடநூல் படங்கள்; பிறகு மாதிரிப் படத்தைக் காட்டலாம் அல்லது அதன் மேல் வரையலாம். ✏ குறியிட்டவை தேர்வில் அடிக்கடி கேட்கப்படும் படங்கள்.')));
+  top.append(el('p','muted',X('Choose a lesson and a diagram, then call a student to draw it on the screen. Use up to three screens, each with its own lesson, diagram and student. Pictures marked 🖼 have a model diagram you can show afterwards or trace over; ✏ are diagrams commonly asked in the examination.','ஒரு பாடத்தையும் படத்தையும் தேர்ந்தெடுத்து, மாணவரை அழைத்துத் திரையில் வரையச் செய்க. ஒவ்வொன்றிலும் தனித் தனிப் பாடம், படம், மாணவருடன் மூன்று திரைகள் வரை பயன்படுத்தலாம். 🖼 குறியிட்டவை; பிறகு மாதிரிப் படத்தைக் காட்டலாம் அல்லது அதன் மேல் வரையலாம். ✏ குறியிட்டவை தேர்வில் அடிக்கடி கேட்கப்படும் படங்கள்.')));
   var bar=el('div','dpbar');
   bar.append(el('span','muted',X('Screens:','திரைகள்:')));
   [1,2,3].forEach(function(n){var b=el('button','chip',String(n));b.type='button';b.setAttribute('aria-pressed',s.n===n?'true':'false');b.addEventListener('click',function(){s.n=n;if(n===1)s.view='tabs';ensure();renderDraw(true)});bar.append(b)});
