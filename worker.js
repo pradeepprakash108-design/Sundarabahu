@@ -615,7 +615,7 @@ function pwaRewrite(res) {       /* for the static app pages: add tags after <me
     .on('meta[name="viewport"]', { element() { hasVp = true; } })
     .on('meta[charset]', { element(el) { el.after(PWA_TAGS, { html: true }); } })
     .on('title', { element(el) { if (!hasVp) el.before(PWA_VIEWPORT, { html: true }); } })
-    .on('body', { element(el) { el.append(UPLINK_TAG, { html: true }); } })
+    .onDocument({ end(end) { end.append(UPLINK_TAG, { html: true }); } })
     .transform(res);
 }
 async function pwaFile(req, env, p) {
