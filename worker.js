@@ -325,10 +325,18 @@ async function api(req, env, url, p) {
     return json({ text: text.slice(0, 2500) });
   }
 
+  if (p === '/api/my-uploads') {
+    const s = await getSession(req, env);
+    if (!s) return json({ error: 'login' }, 401);
+    const all = await listUploads(env, 1000);
+    return json({ uploads: all.filter((x) => x.u === s.u).slice(0, 50).map((x) => ({ t: x.t, g: x.g, n: x.n, s: x.s })) });
+  }
+
   /* ----- admin only ----- */
   if (p.startsWith('/api/admin/')) {
     const s = await getSession(req, env);
     if (!s || s.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    if (p === '/api/admin/uploads' || p === '/api/admin/drive-status' || p === '/api/admin/upload-status' || p === '/api/admin/upload-file') return adminUploadsApi(req, env, url, p, body);
 
     if (p === '/api/admin/users') {
       const out = []; let cursor;
@@ -476,16 +484,17 @@ th{background:#EFE2CE;position:sticky;top:0}tr:hover td{background:#F6EBDA}.tag{
 <div class="top"><div><h1>Sundarabahu - Admin</h1><div class="mut">Accounts and activity (times shown in IST)</div></div>
 <div><a href="/">Open the app</a> <button id="rf">Refresh</button> <button id="lo">Log out</button></div></div>
 <div class="cards"><div class="c"><b id="n1">-</b>registered users</div><div class="c"><b id="n2">-</b>sign-ups today</div><div class="c"><b id="n3">-</b>sign-ins today</div><div class="c"><b id="n4">-</b>failed attempts today</div></div>
-<div class="tabs"><button id="b1" class="on">Activity log</button><button id="b2">Users</button><button id="b3">Passage progress</button></div>
+<div class="tabs"><button id="b1" class="on">Activity log</button><button id="b2">Users</button><button id="b3">Passage progress</button><button id="b4">Uploads</button></div>
 <div id="p1"><div class="tools"><input id="q" placeholder="Filter by username..."><select id="ev"><option value="">All events</option></select><button id="csv" class="pri" style="width:auto;padding:8px 14px">Download CSV</button></div>
 <div class="wrap" style="max-height:62vh"><table><thead><tr><th>When (IST)</th><th>Username</th><th>Event</th><th>Place</th><th>Device</th><th>Note</th></tr></thead><tbody id="lg"></tbody></table></div><div class="mut" id="lc" style="margin-top:6px"></div></div>
 <div id="p2" style="display:none"><div class="wrap"><table><thead><tr><th>Username</th><th>Signed up</th><th>Last sign-in</th><th>Sign-ins</th><th>Status</th><th>Actions</th></tr></thead><tbody id="us"></tbody></table></div></div>
 <div id="p3" style="display:none"><div class="tools"><button id="pcsv" class="pri" style="width:auto;padding:8px 14px">Download CSV</button><span class="mut" id="pn"></span></div><div class="wrap"><table><thead><tr><th>Username</th><th>Completed</th><th>Pages read</th><th>Quiz avg</th><th>Reading days</th><th>Last read</th><th></th></tr></thead><tbody id="pr"></tbody></table></div></div>
 <div id="toast"></div>
+<div id="p4" style="display:none"><div id="dst" class="mut" style="margin:6px 0"></div><div class="wrap"><table><thead><tr><th>When (IST)</th><th>Uploaded by</th><th>Language</th><th>File</th><th>Description</th><th>Size</th><th>Status</th><th>Actions</th></tr></thead><tbody id="upl"></tbody></table></div></div>
 <script>
 var AV={},LOG=[],US=[],$=function(i){return document.getElementById(i)};
-var NAMES={passage_completed:'Passage completed',signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted',student_login:'Student sign-in',speaking:'Speaking practice'};
-var CLS={passage_completed:'sg',signup:'sg',login:'li',admin_login:'li',login_failed:'bad',locked:'bad',login_blocked:'bad',reset_failed:'bad',reset_code_issued:'rs',password_reset:'rs',account_deleted:'bad',account_disabled:'bad'};
+var NAMES={upload:'Uploaded material',upload_failed:'Upload failed',passage_completed:'Passage completed',signup:'Signed up',login:'Signed in',admin_login:'Admin sign-in',logout:'Signed out',login_failed:'Wrong password',locked:'Locked (too many tries)',login_blocked:'Blocked (disabled)',reset_code_issued:'Reset code issued',password_reset:'Password reset',reset_failed:'Reset failed',account_disabled:'Account disabled',account_enabled:'Account enabled',account_deleted:'Account deleted',student_login:'Student sign-in',speaking:'Speaking practice'};
+var CLS={upload:'sg',upload_failed:'bad',passage_completed:'sg',signup:'sg',login:'li',admin_login:'li',login_failed:'bad',locked:'bad',login_blocked:'bad',reset_failed:'bad',reset_code_issued:'rs',password_reset:'rs',account_deleted:'bad',account_disabled:'bad'};
 function ist(t){return t?new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}):'-'}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function toast(m,ms){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(function(){t.style.display='none'},ms||3500)}
@@ -517,12 +526,18 @@ $('pr').onclick=function(e){var b=e.target.closest('button');if(!b)return;var u=
 function loadProg(){return api('/api/admin/progress').then(function(r){PR=r.progress;PT=r.titles;drawProg()}).catch(function(){})}
 $('pcsv').onclick=function(){var rows=[['username','passage_no','passage','pages_read','best_quiz_score_of_3','quiz_attempts','completed_ist']];PR.forEach(function(u){Object.keys(u.d).sort(function(a,b){return a-b}).forEach(function(i){var r=u.d[i];rows.push([u.user,i,PT[i-1]||'',r.r,r.s>=0?r.s:'',r.n,r.c?ist(r.c):''])})});
  var s=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'}).join(',')}).join('\\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+s],{type:'text/csv'}));a.download='sundarabahu-passage-progress.csv';a.click()};
-function tabs(n){['1','2','3'].forEach(function(k){$('b'+k).className=k===n?'on':'';$('p'+k).style.display=k===n?'':'none'});if(n==='3')loadProg()}
+function tabs(n){['1','2','3','4'].forEach(function(k){$('b'+k).className=k===n?'on':'';$('p'+k).style.display=k===n?'':'none'});if(n==='3')loadProg();if(n==='4')loadUp()}
 $('b1').onclick=function(){tabs('1')};$('b2').onclick=function(){tabs('2')};$('b3').onclick=function(){tabs('3')};
 $('q').oninput=drawLog;$('ev').onchange=drawLog;$('rf').onclick=function(){load().then(function(){toast('Refreshed',1200)})};
 $('lo').onclick=function(){api('/api/logout',{}).then(function(){location.href='/'})};
 $('csv').onclick=function(){var rows=[['when_ist','username','event','city','country','device','note']].concat(LOG.map(function(l){return [ist(l.t),l.u,NAMES[l.e]||l.e,l.city,l.c,l.b,l.n]}));
  var s=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'}).join(',')}).join('\\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+s],{type:'text/csv'}));a.download='sundarabahu-activity.csv';a.click()};
+function loadUp(){api('/api/admin/drive-status').then(function(d){$('dst').innerHTML=d.ok?'Google Drive: <b style="color:#1F6B3A">connected</b>. Files are saved in your Physics resources folder.':'Google Drive: <b style="color:#A32222">not connected</b> ('+esc(d.err==='not_connected'?'the Google keys are not set up yet':'Google refused the saved sign-in: '+d.why)+'). Uploads will be refused until this is fixed. See GOOGLE-DRIVE-SETUP.txt.'}).catch(function(){});
+ return api('/api/admin/uploads').then(function(r){var u=r.uploads||[];
+  $('upl').innerHTML=u.length?u.map(function(x){var kb=x.z>1048576?(x.z/1048576).toFixed(1)+' MB':Math.max(1,Math.round(x.z/1024))+' KB';
+   return '<tr class="row"><td>'+ist(x.t)+'</td><td><b>'+esc(x.u)+'</b></td><td>'+(x.g==='ta'?'Tamil':'English')+'</td><td>'+esc(x.n)+'</td><td>'+esc(x.c||'')+'</td><td>'+kb+'</td><td><select data-id="'+x.id+'" class="ups">'+['pending','reviewed','published','rejected'].map(function(s){return '<option value="'+s+'"'+(s===x.s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td><td><a href="https://drive.google.com/file/d/'+encodeURIComponent(x.d)+'/view" target="_blank" rel="noopener">Open in Drive</a> &nbsp; <a href="/api/admin/upload-file?id='+encodeURIComponent(x.id)+'">Download</a></td></tr>'}).join(''):'<tr><td colspan="8" class="mut">No uploads yet.</td></tr>'}).catch(function(){})}
+$('upl').onchange=function(e){var s=e.target.closest('select.ups');if(!s)return;api('/api/admin/upload-status',{id:s.dataset.id,status:s.value}).then(function(r){toast(r.ok?'Status saved':(r.error||'Could not save'),1500)})};
+$('b4').onclick=function(){tabs('4')};
 load();setInterval(load,30000);
 </script></body></html>`;
 
@@ -552,6 +567,7 @@ var file=document.createElement('input');file.type='file';file.accept='image/*';
 var ch=$('button',null,'Change photo');ch.type='button';var rm=$('button',null,'Remove photo');rm.type='button';
 var out=$('button','out','Log out');out.type='button';
 menu.append(big,nm,rl,ch,rm,file);
+var upl=$('a',null,'Upload material');upl.href='/upload';menu.append(upl);
 if(D.r==='admin'){var ad=$('a',null,'Admin dashboard');ad.href='/admin';menu.append(ad)}
 menu.append(out,msg);
 function post(img){return fetch('/api/avatar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({img:img})}).then(function(r){return r.json()})}
@@ -609,17 +625,189 @@ async function pwaFile(req, env, p) {
   return new Response(r.body, { status: 200, headers: h });
 }
 
+/* ---------- Study-material uploads: every signed-in user can upload; files are saved to the owner's Google Drive folder "Physics resources" ---------- */
+const DRIVE_FOLDER_DEFAULT = '17x8EZ8PBNnlbO6CNuGFS9f7KBgoWjgVm';
+const UP_MAX = 15 * 1024 * 1024, UP_PER_DAY = 10;
+const UP_TYPES = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword', pdf: 'application/pdf', txt: 'text/plain', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+const UP_STATUS = ['pending', 'reviewed', 'published', 'rejected'];
+function upMagicOk(ext, b) {
+  const at = (i, ...v) => v.every((x, k) => b[i + k] === x);
+  if (ext === 'pdf') return at(0, 0x25, 0x50, 0x44, 0x46);
+  if (ext === 'docx') return at(0, 0x50, 0x4b, 0x03, 0x04);
+  if (ext === 'doc') return at(0, 0xd0, 0xcf, 0x11, 0xe0);
+  if (ext === 'jpg' || ext === 'jpeg') return at(0, 0xff, 0xd8, 0xff);
+  if (ext === 'png') return at(0, 0x89, 0x50, 0x4e, 0x47);
+  if (ext === 'webp') return at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50);
+  if (ext === 'txt') { for (let i = 0; i < Math.min(b.length, 2000); i++) if (b[i] === 0) return false; return true; }
+  return false;
+}
+async function driveToken(env) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GOOGLE_REFRESH_TOKEN) return { err: 'not_connected' };
+  const c = await env.DB.get('drive:tok', 'json');
+  if (c && c.exp > Date.now() + 60000) return { t: c.t };
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, refresh_token: env.GOOGLE_REFRESH_TOKEN, grant_type: 'refresh_token' }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) return { err: 'auth_failed', why: String(j.error_description || j.error || r.status).slice(0, 200) };
+  await env.DB.put('drive:tok', JSON.stringify({ t: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 }), { expirationTtl: 3000 });
+  return { t: j.access_token };
+}
+async function driveUpload(env, tok, name, mime, bytes, desc) {
+  const boundary = 'sbu' + crypto.randomUUID().replace(/-/g, '');
+  const meta = JSON.stringify({ name, parents: [env.DRIVE_FOLDER_ID || DRIVE_FOLDER_DEFAULT], description: desc });
+  const head = enc.encode('--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + boundary + '\r\nContent-Type: ' + mime + '\r\n\r\n');
+  const tail = enc.encode('\r\n--' + boundary + '--');
+  const body = new Uint8Array(head.length + bytes.length + tail.length);
+  body.set(head, 0); body.set(bytes, head.length); body.set(tail, head.length + bytes.length);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name', { method: 'POST',
+    headers: { authorization: 'Bearer ' + tok, 'content-type': 'multipart/related; boundary=' + boundary }, body });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.id) return { err: String((j.error && j.error.message) || r.status).slice(0, 200) };
+  return { id: j.id, name: j.name };
+}
+const istDay = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const upMeta = (v) => { const m = { t: v.t, u: v.u, g: v.g, z: v.z, s: v.s, d: v.d, n: String(v.n || '').slice(0, 40), c: String(v.note || '').slice(0, 60) }; if (enc.encode(JSON.stringify(m)).length > 900) m.c = ''; if (enc.encode(JSON.stringify(m)).length > 900) m.n = ''; return m; };
+async function listUploads(env, max) {
+  const out = []; let cursor;
+  do {
+    const l = await env.DB.list({ prefix: 'up:', cursor, limit: 1000 });
+    for (const k of l.keys) if (k.metadata) out.push({ id: k.name, ...k.metadata });
+    cursor = l.list_complete ? null : l.cursor;
+  } while (cursor && out.length < max);
+  return out.slice(0, max);
+}
+async function uploadApi(req, env, s) {
+  const ct = req.headers.get('content-type') || '';
+  if (!ct.includes('multipart/form-data')) return json({ error: 'bad request' }, 400);
+  const len = parseInt(req.headers.get('content-length') || '0', 10);
+  if (len > UP_MAX + 200000) return json({ error: 'That file is too large. The limit is 15 MB.' }, 413);
+  const fd = await req.formData().catch(() => null);
+  const f = fd && fd.get('file');
+  if (!f || typeof f === 'string') return json({ error: 'Choose a file to upload.' }, 400);
+  if (fd.get('rights') !== '1') return json({ error: 'Please tick the box to confirm you may share this material.' }, 400);
+  const lang = String(fd.get('lang') || 'en');
+  if (lang !== 'en' && lang !== 'ta') return json({ error: 'Choose English or Tamil.' }, 400);
+  const note = String(fd.get('note') || '').slice(0, 300);
+  const orig = String(f.name || 'file');
+  const ext = (orig.split('.').pop() || '').toLowerCase();
+  if (!UP_TYPES[ext]) return json({ error: 'This file type is not allowed. Use Word (.docx), PDF, a photo (.jpg, .png) or a .txt file.' }, 400);
+  if (f.size > UP_MAX) return json({ error: 'That file is too large. The limit is 15 MB.' }, 413);
+  if (f.size < 20) return json({ error: 'That file looks empty.' }, 400);
+  const day = istDay(Date.now()), ck = 'upl:' + s.u + ':' + day;
+  const used = parseInt((await env.DB.get(ck)) || '0', 10);
+  if (used >= UP_PER_DAY) return json({ error: 'You have reached today’s limit of ' + UP_PER_DAY + ' uploads. Please try again tomorrow.' }, 429);
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  if (!upMagicOk(ext, bytes)) return json({ error: 'The file does not look like a real .' + ext + ' file.' }, 400);
+  const tk = await driveToken(env);
+  if (tk.err === 'not_connected') return json({ error: 'Uploads are not switched on yet. Please tell the administrator.' }, 503);
+  if (tk.err) return json({ error: 'The administrator needs to reconnect Google Drive. Please try later.' }, 503);
+  const now = Date.now(), hm = new Date(now).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }).replace(':', '');
+  const safeUser = s.u.replace(/[^a-z0-9._-]/gi, '_');
+  const name = safeUser + '_' + day + '_' + hm + '.' + ext;
+  const desc = 'Uploaded by ' + s.u + ' | ' + (lang === 'ta' ? 'Tamil' : 'English') + ' | original name: ' + orig.slice(0, 120) + (note ? ' | description: ' + note : '');
+  const up = await driveUpload(env, tk.t, name, UP_TYPES[ext], bytes, desc);
+  if (up.err) { await logEvent(env, req, 'upload_failed', s.u, up.err); return json({ error: 'Could not save to Drive. Please try again later.' }, 502); }
+  const rec = { t: now, u: s.u, g: lang, z: f.size, s: 'pending', d: up.id, n: orig, dn: name, note };
+  const key = 'up:' + String(9999999999999 - now).padStart(13, '0') + '-' + Math.random().toString(36).slice(2, 6);
+  await env.DB.put(key, JSON.stringify(rec), { metadata: upMeta(rec) });
+  await env.DB.put(ck, String(used + 1), { expirationTtl: 2 * 86400 });
+  await logEvent(env, req, 'upload', s.u, name);
+  return json({ ok: true, id: key, left: UP_PER_DAY - used - 1 });
+}
+async function adminUploadsApi(req, env, url, p, body) {
+  if (p === '/api/admin/uploads') return json({ uploads: await listUploads(env, 1000) });
+  if (p === '/api/admin/drive-status') {
+    const tk = await driveToken(env);
+    return json({ ok: !!tk.t, err: tk.err || '', why: tk.why || '', folder: env.DRIVE_FOLDER_ID || DRIVE_FOLDER_DEFAULT });
+  }
+  if (p === '/api/admin/upload-status' && req.method === 'POST') {
+    const id = String(body.id || ''), st = String(body.status || '');
+    if (!/^up:\d{13}-[a-z0-9]{1,6}$/.test(id) || !UP_STATUS.includes(st)) return json({ error: 'bad request' }, 400);
+    const v = await env.DB.get(id, 'json');
+    if (!v) return json({ error: 'not found' }, 404);
+    v.s = st; await env.DB.put(id, JSON.stringify(v), { metadata: upMeta(v) });
+    return json({ ok: true });
+  }
+  if (p === '/api/admin/upload-file') {
+    const id = String(url.searchParams.get('id') || '');
+    if (!/^up:\d{13}-[a-z0-9]{1,6}$/.test(id)) return json({ error: 'bad request' }, 400);
+    const v = await env.DB.get(id, 'json');
+    if (!v) return json({ error: 'not found' }, 404);
+    const tk = await driveToken(env);
+    if (!tk.t) return json({ error: 'Drive is not connected' }, 503);
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(v.d) + '?alt=media&supportsAllDrives=true', { headers: { authorization: 'Bearer ' + tk.t } });
+    if (!r.ok) return json({ error: 'The file could not be fetched from Drive.' }, 502);
+    const ext = (v.dn || '').split('.').pop();
+    return new Response(r.body, { headers: { 'content-type': r.headers.get('content-type') || 'application/octet-stream', 'content-disposition': 'attachment; filename="' + (v.dn || 'upload') + '"; filename*=UTF-8\'\'' + encodeURIComponent(v.n || v.dn || 'upload.' + ext), 'cache-control': 'no-store' } });
+  }
+  return json({ error: 'not found' }, 404);
+}
+
+const UPLOAD_JS = String.raw`(function(){
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ist(t){return new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true})}
+var ST={pending:'Waiting for review',reviewed:'Reviewed',published:'Added to the questions',rejected:'Not used'};
+function mine(){fetch('/api/my-uploads').then(function(r){return r.json()}).then(function(j){var u=j.uploads||[];$('my').innerHTML=u.length?u.map(function(x){return '<tr><td>'+ist(x.t)+'</td><td>'+esc(x.n)+'</td><td>'+esc(ST[x.s]||x.s)+'</td></tr>'}).join(''):'<tr><td colspan="3" class="mut">Nothing uploaded yet.</td></tr>'}).catch(function(){})}
+function msg(t,ok){var m=$('msg');m.textContent=t;m.className=ok?'ok':'bad'}
+$('f').onsubmit=function(e){e.preventDefault();
+ var file=$('file').files[0];
+ if(!file){msg('Choose a file to upload.');return}
+ if(file.size>15*1024*1024){msg('That file is larger than 15 MB. Please send a smaller one.');return}
+ if(!$('rights').checked){msg('Please tick the box to confirm you may share this material.');return}
+ var fd=new FormData();fd.append('file',file);fd.append('lang',document.querySelector('input[name=lang]:checked').value);fd.append('note',$('note').value);fd.append('rights','1');
+ var b=$('go');b.disabled=true;msg('Uploading... please wait.',true);
+ fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j}})}).then(function(x){
+  b.disabled=false;
+  if(x.j&&x.j.ok){msg('Uploaded. Thank you! You can upload '+x.j.left+' more today.',true);$('file').value='';$('note').value='';$('rights').checked=false;mine()}
+  else if(x.s===401||x.s===403){location.href='/'}
+  else msg((x.j&&x.j.error)||'Upload failed. Please try again.')
+ }).catch(function(){b.disabled=false;msg('Network problem. Please check your connection and try again.')})};
+mine();
+})();`;
+const UPLOAD_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sundarabahu - Share material</title><style>${BASE_CSS}
+body{padding:16px;max-width:760px;margin:0 auto}h1{color:#7A1F2B;margin:8px 0 4px}.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.top a{color:#4A3630;background:#FFFBF4;border:1px solid #D9C8B2;border-radius:8px;padding:8px 12px;text-decoration:none}
+.card2{background:#FFFBF4;border:1px solid #E3D5C3;border-radius:14px;padding:16px;margin:14px 0}
+label.b{display:block;font-weight:700;margin:12px 0 4px}select,textarea,input[type=file]{width:100%;padding:10px;border:1px solid #D9C8B2;border-radius:8px;background:#fff;font:inherit}
+.rad label{display:inline-flex;align-items:center;gap:8px;margin-right:22px;font-weight:600}.rad input{width:20px;height:20px;margin:0}.chk{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-weight:500}.chk input{margin:2px 0 0;width:20px;height:20px;flex:none}
+#go{width:100%;padding:13px;border-radius:10px;border:0;background:#7A1F2B;color:#fff;font:700 16px system-ui;cursor:pointer}#go:disabled{opacity:.6}
+#msg{margin-top:10px;font-weight:600;min-height:20px}#msg.ok{color:#1F6B3A}#msg.bad{color:#A32222}
+.wrap{overflow:auto;border:1px solid #E3D5C3;border-radius:12px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #EADCC8}th{background:#EFE2CE}.mut{color:#6B5650}
+</style></head><body>
+<div class="top"><h1>Share your study material</h1><a href="/">Back to Sundarabahu</a></div>
+<p class="mut">Upload any material that has questions with their answers: a previous-year question paper, a chapter test, class notes or a worksheet. It can cover many lessons. Your administrator will check it, and good questions are added to the matching lessons' <b>Questions in practice</b>.</p>
+<form id="f" class="card2" novalidate>
+<label class="b">Language of the material</label><div class="rad"><label><input type="radio" name="lang" value="en" checked> English</label><label><input type="radio" name="lang" value="ta"> தமிழ் (Tamil)</label></div>
+<label class="b" for="file">File</label><input id="file" type="file" accept=".docx,.doc,.pdf,.txt,.jpg,.jpeg,.png,.webp,image/*,application/pdf">
+<div class="mut" style="margin-top:4px">Word, PDF, photo or text file, up to 15 MB. Please keep each question together with its answer.</div>
+<label class="b" for="note">Description (optional)</label><textarea id="note" rows="2" maxlength="300" placeholder="For example: 2023 public exam paper with answers"></textarea>
+<label class="chk"><input id="rights" type="checkbox"> <span>This is my own material, or I have permission to share it.</span></label>
+<button id="go" type="submit">Upload</button><div id="msg" role="status"></div>
+</form>
+<h3>Your uploads</h3><div class="wrap"><table><thead><tr><th>When (IST)</th><th>File</th><th>Status</th></tr></thead><tbody id="my"></tbody></table></div>
+<script>${UPLOAD_JS}</script></body></html>`;
+
 /* ---------- entry ---------- */
 export default {
   async fetch(req, env) {
     const url = new URL(req.url), p = url.pathname;
     if (PWA_FILES[p] && (req.method === 'GET' || req.method === 'HEAD')) return pwaFile(req, env, p);   /* public: Chrome fetches these without a session */
     if (!env.DB) return html(pwaHtml(SETUP_HTML('The KV namespace binding named <b>DB</b> is missing.')), 500);
+    if (p === '/api/upload' && req.method === 'POST') {
+      try {
+        const us = await getSession(req, env);
+        if (!us) return json({ error: 'Please sign in again.' }, 401);
+        return await uploadApi(req, env, us);
+      } catch (e) { return json({ error: 'Server error' }, 500); }
+    }
     if (p.startsWith('/api/')) {
       try { return await api(req, env, url, p); } catch (e) { return json({ error: 'Server error' }, 500); }
     }
     const s = await getSession(req, env);
     if (p === '/admin') return s && s.r === 'admin' ? html(pwaHtml(ADMIN_HTML)) : Response.redirect(url.origin + '/', 302);
+    if (p === '/upload') return html(pwaHtml(s ? UPLOAD_HTML : LOGIN_HTML));
     if (!s) return html(pwaHtml(LOGIN_HTML));
     let areq = req;
     if (s.r === 'student') areq = new Request(url.origin + '/student', req);
