@@ -607,12 +607,15 @@ const PWA_VIEWPORT = '<meta name="viewport" content="width=device-width,initial-
 function pwaHtml(s) {            /* for pages built as strings in this file */
   return s.replace(/<meta charset="utf-8">/i, m => m + PWA_TAGS);
 }
+const UPLINK_JS = "(function(){function add(){var m=document.querySelector('.sbm');if(!m)return false;if(m.querySelector('a[href=\\'/upload\\']'))return true;var a=document.createElement('a');a.href='/upload';a.textContent='Upload material';var o=m.querySelector('button.out');m.insertBefore(a,o||null);return true}if(!add()){var n=0,t=setInterval(function(){if(add()||++n>40)clearInterval(t)},250)}})();";
+const UPLINK_TAG = '<script>' + UPLINK_JS + '</scr' + 'ipt>';
 function pwaRewrite(res) {       /* for the static app pages: add tags after <meta charset>, plus a viewport only if the page has none */
   let hasVp = false;
   return new HTMLRewriter()
     .on('meta[name="viewport"]', { element() { hasVp = true; } })
     .on('meta[charset]', { element(el) { el.after(PWA_TAGS, { html: true }); } })
     .on('title', { element(el) { if (!hasVp) el.before(PWA_VIEWPORT, { html: true }); } })
+    .on('body', { element(el) { el.append(UPLINK_TAG, { html: true }); } })
     .transform(res);
 }
 async function pwaFile(req, env, p) {
